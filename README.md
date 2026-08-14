@@ -425,3 +425,35 @@ relationships the status colours rely on.
 #   d a j d a 
  
  
+
+## Deploying a demo
+
+The app needs a real PostgreSQL and a **persistent disk**: bet screenshots are
+written to `uploads/` next to the process (`src/lib/uploads.ts`). A host with an
+ephemeral filesystem loses every upload on each deploy, so Railway, Fly.io or a
+VPS work as-is, while Vercel needs `storeScreenshot`/`readStoredScreenshot`
+pointed at S3-compatible storage first.
+
+Environment for a demo deployment:
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | your Postgres connection string |
+| `AUTH_SECRET` | 32+ chars, `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `APP_URL` | the public `https://` origin, no trailing slash |
+| `DEMO_MODE` | `true` |
+| `PAYMENT_PROVIDER` | `mock` |
+
+Then once, against the deployed database:
+
+```
+npx prisma migrate deploy
+npm run db:seed
+```
+
+`DEMO_MODE=true` is what allows the mock payment provider to run on a public
+host. It waives the two payment checks in `src/lib/env.ts` and nothing else -
+`APP_URL` must still be https, or the guard refuses to boot, because the
+session cookie's `Secure` flag is derived from it. It also cannot be combined
+with `PAYMENT_PROVIDER=flitt`: a demo must not be able to reach a live
+merchant. While it is on, every page carries a banner saying so.

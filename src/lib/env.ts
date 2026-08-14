@@ -36,6 +36,25 @@ const envSchema = z
     PAYMENT_PROVIDER: z.enum(['mock', 'flitt']).default('mock'),
     MOCK_PAYMENT_SECRET: z.string().min(1).default(DEFAULT_MOCK_SECRET),
 
+    /**
+     * Run a public deployment as an openly-labelled demo.
+     *
+     * This exists so the app can be shown to somebody before there is a
+     * payment merchant account. It relaxes exactly two checks - the payment
+     * provider and the mock webhook secret - and nothing else. It is an
+     * explicit opt-in rather than a fallback, so nobody arrives here by
+     * forgetting a variable.
+     *
+     * Every page renders a banner while it is on. A deployment that takes real
+     * money must never be indistinguishable from one that does not, and the
+     * only way to keep that true is to make the state visible rather than
+     * documented.
+     */
+    DEMO_MODE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+
     FLITT_MERCHANT_ID: z.string().optional(),
     FLITT_SECRET_KEY: z.string().optional(),
     FLITT_WEBHOOK_SECRET: z.string().optional(),
@@ -74,26 +93,55 @@ const envSchema = z
      * start is the only honest behaviour.
      */
 
-    // The mock provider ships a signed-webhook simulator and a checkout stand-in
-    // at /dev/checkout, both gated on this value. Left at its default, a
-    // deployment hands out paid subscriptions to anyone who asks.
-    if (value.PAYMENT_PROVIDER === 'mock') {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['PAYMENT_PROVIDER'],
-        message:
-          'PAYMENT_PROVIDER="mock" enables the development payment simulator and must not be used in production. Set PAYMENT_PROVIDER="flitt".',
-      });
+    /*
+     * DEMO_MODE waives the two PAYMENT checks and only those.
+     *
+     * The reasoning is that both of them protect real money, and a demo has
+     * none: the mock provider hands out subscriptions that buy access to
+     * seeded content, and forging its webhook grants the same thing the
+     * built-in /dev/checkout simulator already grants anyone who visits it.
+     * Requiring a secret to protect an unlocked door is theatre.
+     *
+     * The APP_URL check below is NOT waived, because it protects the session
+     * cookie of every visitor including the demo's, and costs nothing to
+     * satisfy: a host that can serve the demo can serve it over https.
+     */
+    if (!value.DEMO_MODE) {
+      // The mock provider ships a signed-webhook simulator and a checkout
+      // stand-in at /dev/checkout, both gated on this value. Left at its
+      // default, a deployment hands out paid subscriptions to anyone.
+      if (value.PAYMENT_PROVIDER === 'mock') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['PAYMENT_PROVIDER'],
+          message:
+            'PAYMENT_PROVIDER="mock" enables the development payment simulator and must not be used in production. Set PAYMENT_PROVIDER="flitt", or DEMO_MODE="true" to run an openly-labelled demo.',
+        });
+      }
+
+      // Documented in .env.example, so treat it as public knowledge: anyone
+      // could forge a webhook and activate a subscription.
+      if (value.MOCK_PAYMENT_SECRET === DEFAULT_MOCK_SECRET) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['MOCK_PAYMENT_SECRET'],
+          message:
+            'MOCK_PAYMENT_SECRET is still the shared development default and is publicly known.',
+        });
+      }
     }
 
-    // Documented in .env.example, so treat it as public knowledge: anyone
-    // could forge a webhook and activate a subscription.
-    if (value.MOCK_PAYMENT_SECRET === DEFAULT_MOCK_SECRET) {
+    /*
+     * A demo must not be able to take real money. If it could, "demo" would be
+     * a label on the page rather than a property of the deployment, and the
+     * banner would be a claim instead of a fact.
+     */
+    if (value.DEMO_MODE && value.PAYMENT_PROVIDER === 'flitt') {
       ctx.addIssue({
         code: 'custom',
-        path: ['MOCK_PAYMENT_SECRET'],
+        path: ['DEMO_MODE'],
         message:
-          'MOCK_PAYMENT_SECRET is still the shared development default and is publicly known.',
+          'DEMO_MODE="true" cannot be combined with PAYMENT_PROVIDER="flitt": a demo must not reach a live payment merchant.',
       });
     }
 

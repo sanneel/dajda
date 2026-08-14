@@ -25,6 +25,7 @@ const VALID_PRODUCTION = {
 /** Replaces the whole environment so a stray real variable cannot leak in. */
 function setEnv(values: Record<string, string | undefined>) {
   for (const key of Object.keys(VALID_PRODUCTION)) delete process.env[key];
+  delete process.env.DEMO_MODE;
   delete process.env.NEXT_PHASE;
   for (const [key, value] of Object.entries(values)) {
     if (value === undefined) delete process.env[key];
@@ -54,6 +55,48 @@ describe('environment configuration', () => {
     // The mock provider exposes /dev/checkout and a signed-webhook simulator.
     setEnv({ ...VALID_PRODUCTION, PAYMENT_PROVIDER: 'mock' });
     expect(() => getEnv()).toThrow(/PAYMENT_PROVIDER/);
+  });
+
+  /*
+   * DEMO_MODE is the one sanctioned way past the payment guard. These tests
+   * pin its blast radius: it must waive the two payment checks and nothing
+   * else, and it must not be combinable with a live merchant.
+   */
+  it('lets an explicit demo run the mock provider in production', () => {
+    setEnv({
+      NODE_ENV: 'production',
+      DATABASE_URL: VALID_PRODUCTION.DATABASE_URL,
+      AUTH_SECRET: VALID_PRODUCTION.AUTH_SECRET,
+      APP_URL: 'https://dajda-demo.example',
+      PAYMENT_PROVIDER: 'mock',
+      MOCK_PAYMENT_SECRET: 'dev-mock-secret',
+      DEMO_MODE: 'true',
+    });
+    const env = getEnv();
+    expect(env.DEMO_MODE).toBe(true);
+    expect(env.PAYMENT_PROVIDER).toBe('mock');
+  });
+
+  it('still demands https in a demo, because sessions are real', () => {
+    setEnv({
+      NODE_ENV: 'production',
+      DATABASE_URL: VALID_PRODUCTION.DATABASE_URL,
+      AUTH_SECRET: VALID_PRODUCTION.AUTH_SECRET,
+      APP_URL: 'http://dajda-demo.example',
+      PAYMENT_PROVIDER: 'mock',
+      DEMO_MODE: 'true',
+    });
+    expect(() => getEnv()).toThrow(/APP_URL/);
+  });
+
+  it('refuses a demo that is wired to a live payment merchant', () => {
+    setEnv({ ...VALID_PRODUCTION, DEMO_MODE: 'true' });
+    expect(() => getEnv()).toThrow(/DEMO_MODE/);
+  });
+
+  it('defaults to off, so nobody reaches demo mode by forgetting a variable', () => {
+    setEnv(VALID_PRODUCTION);
+    expect(getEnv().DEMO_MODE).toBe(false);
   });
 
   it('refuses to boot production with the shared mock secret', () => {
