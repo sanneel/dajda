@@ -21,7 +21,8 @@ next-env.d.ts
 Thumbs.db
 npm-debug.log*
 
-# Uploaded screenshots. User content, never committed.
+# Screenshots now live in the database (model Screenshot). This entry stays so
+# that an `uploads/` directory left over from an older checkout is not staged.
 /uploads
 
 # Per-machine Claude Code state. The launch config IS shared; the local

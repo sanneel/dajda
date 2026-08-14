@@ -428,11 +428,15 @@ relationships the status colours rely on.
 
 ## Deploying a demo
 
-The app needs a real PostgreSQL and a **persistent disk**: bet screenshots are
-written to `uploads/` next to the process (`src/lib/uploads.ts`). A host with an
-ephemeral filesystem loses every upload on each deploy, so Railway, Fly.io or a
-VPS work as-is, while Vercel needs `storeScreenshot`/`readStoredScreenshot`
-pointed at S3-compatible storage first.
+The app needs a real PostgreSQL and nothing else. Bet screenshots are stored as
+rows in the database (`model Screenshot`), not as files, so no persistent disk
+is required and any host will do: Vercel, Railway, Fly.io, a VPS.
+
+That is a deliberate trade for a small deployment. Blobs in a row make backups
+heavier and skip the CDN; at real volume they belong in object storage, which
+is a change to `storeScreenshot`/`readStoredScreenshot` in `src/lib/uploads.ts`
+and nothing else, because the rest of the product only ever sees the
+`/uploads/<name>` path string.
 
 Environment for a demo deployment:
 

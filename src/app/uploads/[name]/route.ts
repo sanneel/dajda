@@ -3,9 +3,10 @@ import { readStoredScreenshot } from '@/lib/uploads';
 /**
  * Serves stored screenshots.
  *
- * Uploads are kept outside `public/` so nothing is reachable by static path.
- * This handler is the only way to read one, which means the content type is
- * always one we chose (`image/webp`), never one inferred from a filename.
+ * Images live in the database rather than on disk, so nothing is reachable by
+ * static path and this handler is the only way to read one. That means the
+ * content type is always the one recorded at upload, never one inferred from
+ * a filename.
  *
  * Deliberately unauthenticated: a screenshot is the evidence behind a public
  * record, and the record it belongs to is public. Gated ANALYSIS text is a
@@ -19,15 +20,15 @@ export async function GET(
   { params }: { params: Promise<{ name: string }> },
 ) {
   const { name } = await params;
-  const file = await readStoredScreenshot(name);
+  const image = await readStoredScreenshot(name);
 
-  if (!file) {
+  if (!image) {
     return new Response('Not found', { status: 404 });
   }
 
-  return new Response(new Uint8Array(file), {
+  return new Response(new Uint8Array(image.bytes), {
     headers: {
-      'content-type': 'image/webp',
+      'content-type': image.mimeType,
       // Filenames are random and content never changes under one, so this can
       // be cached hard.
       'cache-control': 'public, max-age=31536000, immutable',

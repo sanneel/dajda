@@ -823,3 +823,47 @@ model Notification {
   @@index([status, createdAt])
   @@index([userId, createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Uploaded images
+// ---------------------------------------------------------------------------
+
+/**
+ * A stored screenshot, kept as bytes in the database.
+ *
+ * These used to be files under an `uploads/` directory next to the process,
+ * which required the host to give the app a persistent disk. Most places that
+ * will run a small app cheaply do not: the filesystem is per-instance and
+ * wiped on every deploy, so the seeded slips vanished and anything a visitor
+ * uploaded outlived only its own request.
+ *
+ * A bet slip is a few tens of kilobytes of WebP and there are hundreds of
+ * them, not millions, so the database is a perfectly good home and it is the
+ * one piece of infrastructure this app already cannot run without.
+ *
+ * This is a deliberate trade for a small deployment, not a general position.
+ * Blobs in a row make backups heavier and skip the CDN entirely; at real
+ * volume these belong in object storage, which is a change to two functions in
+ * `src/lib/uploads.ts` and nothing else, because everywhere else in the
+ * product only ever sees the `/uploads/<name>` path string.
+ */
+model Screenshot {
+  /// The generated filename, e.g. `ab12...ef.webp`. It is the primary key
+  /// because it is already unique, already random, and already the thing the
+  /// serving route is given.
+  name String @id
+
+  /// Always image/webp today: every upload is re-encoded. Stored rather than
+  /// assumed so the serving route never has to infer a type from a filename.
+  mimeType String @default("image/webp")
+
+  bytes     Bytes
+  byteSize  Int
+  width     Int
+  height    Int
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+

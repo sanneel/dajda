@@ -1,6 +1,4 @@
 import 'dotenv/config';
-import { mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -18,9 +16,11 @@ import { computeProfitUnitsCenti } from '../src/lib/predictions/settlement';
  * same record. A demo whose ROI changes on every reset is useless for
  * screenshots and for reasoning about the statistics code.
  *
- * Bet slips are GENERATED here as real files on disk, because `screenshotPath`
- * is required and the serving route reads from the filesystem. They are
- * obviously synthetic placeholders, not fabricated bookmaker slips.
+ * Bet slips are GENERATED here as real images, because `screenshotPath` is
+ * required and every bet must have evidence behind it. They are stored the
+ * same way an uploaded slip is, as rows in the database, so a fresh deploy
+ * has working images without needing a disk. They are obviously synthetic
+ * placeholders, not fabricated bookmaker slips.
  */
 
 const connectionString = process.env.DATABASE_URL;
@@ -39,7 +39,6 @@ const prisma = new PrismaClient({
   }),
 });
 
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 
 /** Deterministic PRNG (mulberry32) so the demo record is reproducible. */
 function makeRandom(seed: number) {
@@ -82,8 +81,21 @@ async function makeSlip(lines: string[], tone: 'bet' | 'result') {
   </svg>`;
 
   const name = `${randomBytes(16).toString('hex')}.webp`;
-  const buffer = await sharp(Buffer.from(svg)).webp({ quality: 80 }).toBuffer();
-  await writeFile(path.join(UPLOAD_DIR, name), buffer);
+  const { data, info } = await sharp(Buffer.from(svg))
+    .webp({ quality: 80 })
+    .toBuffer({ resolveWithObject: true });
+
+  await prisma.screenshot.create({
+    data: {
+      name,
+      mimeType: 'image/webp',
+      bytes: data,
+      byteSize: data.byteLength,
+      width: info.width,
+      height: info.height,
+    },
+  });
+
   return `/uploads/${name}`;
 }
 
@@ -91,7 +103,6 @@ const DEMO_PASSWORD = 'DemoPass2026';
 
 async function main() {
   console.info('Seeding DAJDA demo data…');
-  await mkdir(UPLOAD_DIR, { recursive: true });
 
   // -------------------------------------------------------------------------
   // Clean slate. Order matters: children before parents.
@@ -108,6 +119,12 @@ async function main() {
     prisma.predictionEdit.deleteMany(),
     prisma.predictionResult.deleteMany(),
     prisma.prediction.deleteMany(),
+    /*
+     * Screenshots have no parent row to cascade from - `screenshotPath` is a
+     * plain string, not a foreign key - so re-seeding would otherwise leave
+     * every previous run's images behind in the table forever.
+     */
+    prisma.screenshot.deleteMany(),
     prisma.analystSport.deleteMany(),
     prisma.analystProfile.deleteMany(),
     prisma.notificationPreference.deleteMany(),
