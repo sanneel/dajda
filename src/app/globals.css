@@ -1,0 +1,344 @@
+@import 'tailwindcss';
+
+/*
+ * DAJDA design tokens.
+ *
+ * The light palette was sampled pixel by pixel from the two approved reference
+ * screenshots rather than picked by eye. The page ground and the card white
+ * came out of the localised comp (#F5F7F9 / #FEFEFE); the navy is the exact
+ * fill of the reference listing's filter bar (#0A2842), which is also the
+ * darkest text colour in both images, so one value carries both the chrome and
+ * the type. The accent blue and the profit green are likewise measured cores:
+ * #25507D from the second headline line, #1C6B47 from the "+£887" figure.
+ *
+ * Every colour is declared HERE, in the light block, and the dark theme only
+ * REDEFINES them further down. Nothing may get its only definition inside a
+ * media query or a [data-theme] block, or it disappears in the other theme.
+ *
+ * Two rules are about meaning rather than colour and hold in both themes. The
+ * accent is NOT the win colour: DAJDA's position is that it is not a
+ * bookmaker, and painting wins in the brand colour is what bookmakers do. And
+ * status is never carried by colour alone, so every result also carries its
+ * Georgian label and survives greyscale and colour blindness.
+ *
+ * Contrast is measured against the WORST ground each colour lands on, not the
+ * best. In light that is --color-elevated, not white.
+ *   ink        13.4:1  AAA        ink-muted   5.9:1  AA at every size
+ *   ink-faint   4.5:1  AA         accent      7.4:1  AAA
+ *   win         5.8:1  AA         loss        5.8:1  AA
+ *   on-ink over ink and on-signal over signal both clear 4.5:1.
+ */
+@theme {
+  --color-canvas: #f4f6f9;
+  --color-surface: #ffffff;
+  --color-elevated: #eef2f7;
+  --color-line: #e3e8ef;
+  --color-line-strong: #c8d2de;
+
+  --color-ink: #0a2842;
+  --color-ink-muted: #4d5f70;
+  /*
+   * The reference's caption grey (#5E798B) clears 4.5:1 on white but only
+   * reaches 4.08:1 on --color-elevated, where most captions actually sit.
+   * Darkened until the WORST ground passes rather than the best one.
+   */
+  --color-ink-faint: #587283;
+
+  /*
+   * What sits ON a filled ink surface: the dark filter bar, the primary
+   * button. A literal `text-white` would be correct in light and invisible in
+   * dark, so the pairing is a token and flips with the theme.
+   */
+  --color-on-ink: #ffffff;
+
+  --color-accent: #25507d;
+  --color-accent-dim: #1a3d63;
+  --color-accent-ink: #ffffff;
+
+  /*
+   * The one hot colour, reserved for the active-bets count.
+   *
+   * The reference badge is #FF4E00 with white numerals, which is 3.31:1 and
+   * fails at the size it is actually set. This is the same hue taken down to
+   * where white passes, so the badge still reads as the one urgent thing on
+   * the row without being unreadable to anyone.
+   */
+  --color-signal: #cc3e00;
+  --color-on-signal: #ffffff;
+
+  /*
+   * The controls band above a list.
+   *
+   * Its own pair rather than reusing `ink`. A filled ink surface INVERTS
+   * between themes, which is right for a button (a light button on a dark page
+   * is normal) and wrong for a full-width band: in the dark theme it would
+   * turn into a near-white slab across the page. This stays a dark navy bar in
+   * light and becomes a lifted panel in dark, so it reads as "the controls"
+   * either way.
+   */
+  --color-band: #0a2842;
+  --color-on-band: #ffffff;
+
+  --color-win: #1c6b47;
+  --color-loss: #b3261e;
+  --color-pending: #587283;
+
+  /*
+   * ONE family for the entire product: Google Sans, loaded in src/app/layout.
+   *
+   * It is one of only three faces on Google Fonts with real Mkhedruli
+   * coverage and the only one of those drawn as a UI face. The previous pair
+   * (Noto Sans Georgian for words, IBM Plex Mono for figures) is gone: the
+   * Noto Georgian glyphs read as a fallback rather than a typeface, and the
+   * mono made every column of numbers look like terminal output.
+   */
+  --font-sans:
+    var(--font-sans-ui), 'BPG Arial', 'Segoe UI', system-ui, -apple-system,
+    sans-serif;
+  --font-display: var(--font-sans);
+
+  /*
+   * Radius carries meaning rather than being one value everywhere. Surfaces
+   * that hold a record are near-square, because they are ruled tables.
+   * Controls are rounder, because they are meant to be pressed. A panel is
+   * rounder still: it is a piece of furniture on the page rather than a row of
+   * data, and the reference comp draws it that way.
+   */
+  --radius-card: 2px;
+  --radius-control: 6px;
+  --radius-panel: 10px;
+
+  /*
+   * One elevation, used only where a surface genuinely floats above the page.
+   * Two stops: a hairline so the edge survives on a light ground, and a wide
+   * soft drop tinted with the ink colour rather than neutral black, so it
+   * reads as shadow rather than as grey haze.
+   */
+  --shadow-panel:
+    0 1px 2px rgba(10, 40, 66, 0.05), 0 12px 32px -12px rgba(10, 40, 66, 0.14);
+
+  /*
+   * The content column.
+   *
+   * Wider than Tailwind's 7xl, which left the page looking cropped on a large
+   * display: the reference fills its viewport far more than 1280px does.
+   */
+  --container-page: 96rem;
+}
+
+/*
+ * Dark theme.
+ *
+ * Three states, and all three are handled: an explicit choice stamps
+ * data-theme on <html>, and the unstamped default follows the operating
+ * system. The media query is guarded with :not([data-theme='light']) so that
+ * choosing light on a dark OS actually wins.
+ *
+ * This is not the light palette inverted arithmetically. Pure inversion makes
+ * a #FFFFFF surface into #000000, which reads as a hole; surfaces here step
+ * UP from the canvas in the dark theme just as they do in the light one, and
+ * the accent, win and loss hues are lightened rather than mirrored, because a
+ * mid-tone that passes on white fails on near-black.
+ */
+@layer theme {
+  .dark-tokens,
+  :root[data-theme='dark'] {
+    --color-canvas: #0a1017;
+    --color-surface: #121a24;
+    --color-elevated: #1a242f;
+    --color-line: #24303d;
+    --color-line-strong: #3a4a59;
+
+    --color-ink: #eaf0f6;
+    --color-ink-muted: #a7b7c6;
+    --color-ink-faint: #8ba0b1;
+
+    /* Ink is now the light colour, so what sits on it is the dark ground. */
+    --color-on-ink: #0a1017;
+
+    --color-accent: #7db3ec;
+    --color-accent-dim: #a5cbf4;
+    --color-accent-ink: #0a1017;
+
+    --color-band: #1a242f;
+    --color-on-band: #eaf0f6;
+
+    --color-signal: #ff7a3d;
+    --color-on-signal: #1a0a00;
+
+    --color-win: #4ec98d;
+    --color-loss: #ff8b80;
+    --color-pending: #8ba0b1;
+
+    /*
+     * A drop shadow is invisible on a dark ground. The panel keeps its
+     * separation from a slightly lifted border instead of a fake glow.
+     */
+    --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-canvas: #0a1017;
+    --color-surface: #121a24;
+    --color-elevated: #1a242f;
+    --color-line: #24303d;
+    --color-line-strong: #3a4a59;
+
+    --color-ink: #eaf0f6;
+    --color-ink-muted: #a7b7c6;
+    --color-ink-faint: #8ba0b1;
+
+    --color-on-ink: #0a1017;
+
+    --color-accent: #7db3ec;
+    --color-accent-dim: #a5cbf4;
+    --color-accent-ink: #0a1017;
+
+    --color-band: #1a242f;
+    --color-on-band: #eaf0f6;
+
+    --color-signal: #ff7a3d;
+    --color-on-signal: #1a0a00;
+
+    --color-win: #4ec98d;
+    --color-loss: #ff8b80;
+    --color-pending: #8ba0b1;
+
+    --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      color-scheme: dark;
+    }
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Body copy never drops below 16px. */
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    /* No horizontal overflow at any width. */
+    overflow-x: hidden;
+  }
+
+  /* Every interactive element gets a visible, high-contrast focus ring. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+  }
+
+  /*
+   * Figures.
+   *
+   * Same family as everything else, with the font's own tabular figures turned
+   * on so a column of odds still lines up on the decimal. The previous
+   * treatment swapped in a monospace family, which put squared-off terminal
+   * digits next to Georgian text and was the single worst thing on the page.
+   */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /*
+   * Display type: one family, set at its natural width.
+   *
+   * No condensed cut and no synthetic weight. The family stops at 700, so
+   * headings get their presence from size and tracking, which is also how both
+   * reference designs set them.
+   */
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  .font-display-xl {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    line-height: 1.12;
+  }
+
+  /* Respect a reduced-motion preference rather than animating regardless. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * Copy placeholder.
+   *
+   * Marked so draft text can never be mistaken for final copy: it states what
+   * belongs in the slot, not what the slot will eventually say. Everything
+   * wearing this class is waiting on real wording - grep `.ph` to find what
+   * is still outstanding.
+   */
+  .ph {
+    border-left: 2px dashed var(--color-line-strong);
+    padding-left: 0.75rem;
+    color: var(--color-ink-faint);
+  }
+  .ph-inline {
+    border-bottom: 1px dashed var(--color-line-strong);
+    color: var(--color-ink-faint);
+  }
+
+  /*
+   * Small label above a control or a section.
+   *
+   * Previously a letterspaced uppercase mono caption. Georgian has no
+   * uppercase, so `text-transform` did nothing to it while the 0.14em tracking
+   * pulled the Mkhedruli apart into separate marks. It is now simply a small,
+   * slightly heavier label.
+   */
+  .rule-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-ink-faint);
+  }
+
+  /* Skip link, visible only once focused. */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+  }
+  .skip-link:focus {
+    left: 1rem;
+    top: 1rem;
+  }
+}

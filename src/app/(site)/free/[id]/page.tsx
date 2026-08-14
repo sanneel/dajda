@@ -1,0 +1,232 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import Image from 'next/image';
+import { notFound } from 'next/navigation';
+import { Lock } from 'lucide-react';
+import { getTicketById } from '@/lib/queries/tickets';
+import { canViewPrediction, getCurrentUser } from '@/lib/auth/authorization';
+import { prisma } from '@/lib/db';
+import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
+import { Card, CardBody, CardHeader } from '@/components/ui/card';
+import { Badge, DemoBadge, StatusBadge } from '@/components/ui/badge';
+import { Avatar } from '@/components/ui/avatar';
+import { ButtonLink } from '@/components/ui/button';
+import { Alert } from '@/components/ui/feedback';
+import { ReportForm } from '@/components/report-form';
+import { ResponsibleUseNotice } from '@/components/responsible-use';
+
+export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const ticket = await getTicketById(id);
+  if (!ticket) return { title: 'ბილეთი ვერ მოიძებნა' };
+
+  return {
+    title: ticket.titleKa,
+    description: ticket.descriptionKa ?? undefined,
+  };
+}
+
+/**
+ * One ticket.
+ *
+ * The slip fills the page because the slip is the claim. Below it sit only the
+ * facts needed to judge it: the odds, who posted it, and how it resolved.
+ *
+ * The page serves both shapes of bet. A community ticket has no author and is
+ * always readable; an analyst's paid bet keeps its gate, so a direct link
+ * cannot be used to walk past a subscription.
+ */
+export default async function TicketPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const ticket = await getTicketById(id);
+
+  if (!ticket) notFound();
+
+  const actor = await getCurrentUser();
+  const canView = await canViewPrediction(actor, {
+    visibility: ticket.visibility,
+    authorId: ticket.authorId,
+  });
+
+  // Record the view for the dashboard's "recently viewed" list.
+  if (actor) {
+    await prisma.predictionView.upsert({
+      where: {
+        userId_predictionId: { userId: actor.userId, predictionId: id },
+      },
+      create: { userId: actor.userId, predictionId: id },
+      update: { viewedAt: new Date() },
+    });
+  }
+
+  const { author, result } = ticket;
+
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      <nav className="mb-5 text-sm text-ink-muted" aria-label="ნავიგაცია">
+        <Link href="/free" className="hover:text-ink">
+          უფასო ბილეთები
+        </Link>
+        <span aria-hidden="true"> / </span>
+        <span className="text-ink">{ticket.sport.nameKa}</span>
+      </nav>
+
+      {ticket.supersededAt ? (
+        <div className="mb-5">
+          <Alert tone="warning" title="ეს ვერსია შესწორებულია">
+            ჩანაწერი დარჩა საჯაროდ, მაგრამ მოქმედია განახლებული ვერსია.{' '}
+            {ticket.correctedBy ? (
+              <Link href={`/free/${ticket.correctedBy.id}`} className="underline">
+                ნახეთ v{ticket.correctedBy.version}
+              </Link>
+            ) : null}
+          </Alert>
+        </div>
+      ) : null}
+
+      <header className="mb-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge>{ticket.sport.nameKa}</Badge>
+          <StatusBadge status={ticket.status} />
+          {author?.isDemo ? <DemoBadge /> : null}
+        </div>
+
+        <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">
+          {ticket.titleKa}
+        </h1>
+
+        <p className="tabular mt-2 text-sm text-ink-muted">
+          კოეფიციენტი {formatOdds(ticket.oddsMilli)}
+          {ticket.publishedAt ? ` · ${formatDateTimeKa(ticket.publishedAt)}` : ''}
+        </p>
+      </header>
+
+      {/* The slip, exactly as posted. */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card border border-line bg-canvas">
+        <Image
+          src={ticket.screenshotPath}
+          alt={`ბილეთის სკრინშოტი: ${ticket.titleKa}`}
+          fill
+          sizes="(min-width: 768px) 42rem, 92vw"
+          className="object-contain"
+          priority
+        />
+      </div>
+
+      {/* Description. Free tickets are never gated; a paid bet is. */}
+      {canView ? (
+        ticket.descriptionKa ? (
+          <p className="mt-5 whitespace-pre-line text-[0.9375rem] leading-relaxed text-ink-muted">
+            {ticket.descriptionKa}
+          </p>
+        ) : null
+      ) : (
+        <div className="mt-5 flex flex-col items-start gap-3 rounded-card border border-dashed border-line bg-surface p-5">
+          <Lock className="size-5 text-ink-faint" aria-hidden="true" />
+          <p className="font-medium text-ink">
+            აღწერა ხელმისაწვდომია გამოწერით
+          </p>
+          {author ? (
+            <ButtonLink href={`/analysts/${author.slug}`}>
+              გეგმების ნახვა
+            </ButtonLink>
+          ) : null}
+        </div>
+      )}
+
+      {/* Result, once an admin has recorded it. */}
+      {result ? (
+        <div className="mt-5">
+          <Card>
+            <CardHeader title="შედეგი" level={2} />
+            <CardBody>
+              <div className="flex flex-wrap items-baseline gap-x-8 gap-y-3">
+                <div>
+                  <p className="text-xs text-ink-muted">ერთეულები</p>
+                  <p
+                    className={`tabular mt-0.5 text-xl font-semibold ${
+                      result.profitUnitsCenti > 0
+                        ? 'text-win'
+                        : result.profitUnitsCenti < 0
+                          ? 'text-loss'
+                          : 'text-ink'
+                    }`}
+                  >
+                    {formatUnitsSigned(result.profitUnitsCenti)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-ink-muted">დათვლის დრო</p>
+                  <p className="tabular mt-0.5 text-sm text-ink">
+                    {formatDateTimeKa(result.settledAt)}
+                  </p>
+                </div>
+              </div>
+
+              {ticket.resultScreenshotPath ? (
+                <div className="mt-4 border-t border-line pt-4">
+                  <p className="mb-2 text-xs text-ink-muted">
+                    შედეგის სკრინშოტი, ავტორისგან
+                  </p>
+                  <div className="relative aspect-[4/3] w-full max-w-md overflow-hidden rounded-card border border-line bg-canvas">
+                    <Image
+                      src={ticket.resultScreenshotPath}
+                      alt="შედეგის სკრინშოტი"
+                      fill
+                      sizes="(min-width: 768px) 28rem, 92vw"
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </CardBody>
+          </Card>
+        </div>
+      ) : null}
+
+      {/* Who posted it. */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-card border border-line bg-surface p-4">
+        {author ? (
+          <Link
+            href={`/analysts/${author.slug}`}
+            className="flex items-center gap-3"
+          >
+            <Avatar name={author.displayName} size="md" />
+            <div>
+              <p className="font-medium text-ink">{author.displayName}</p>
+              <p className="text-sm text-ink-muted">
+                ანალიტიკოსი · პროფილისა და ისტორიის ნახვა
+              </p>
+            </div>
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Avatar name={ticket.postedBy.name} size="md" />
+            <div>
+              <p className="font-medium text-ink">{ticket.postedBy.name}</p>
+              <p className="text-sm text-ink-muted">
+                უფასო ბილეთი. სტატისტიკაში არ ითვლება.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <ReportForm targetType="PREDICTION" targetId={ticket.id} />
+      </div>
+
+      <div className="mt-8">
+        <ResponsibleUseNotice />
+      </div>
+    </div>
+  );
+}

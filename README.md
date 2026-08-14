@@ -1,6 +1,6 @@
 # DAJDA
 
-**ნახე ვინ დადო სწორად.** - სპორტული პროგნოზები, რეალური შედეგებით.
+**ნახე ვინ დადო სწორად.** - სპორტული ფსონები, რეალური შედეგებით.
 
 DAJDA (dajda.ge) is a Georgian-language platform that sells access to **written
 sports analysis** and publishes a **transparent, tamper-evident performance
@@ -79,7 +79,7 @@ Seeded accounts, all with password `DemoPass2026`:
 | Email | Role |
 | --- | --- |
 | `admin@dajda.ge` | ადმინისტრატორი |
-| `giorgi@dajda.ge` | პროგნოზატორი (approved analyst) |
+| `giorgi@dajda.ge` | ანალიტიკოსი (approved analyst) |
 | `user@dajda.ge` | მომხმარებელი |
 
 Every seeded row carries `isDemo: true` and renders with a **დემო** badge.
@@ -110,7 +110,7 @@ Every seeded row carries `isDemo: true` and renders with a **დემო** badg
 ```
 src/
   app/
-    (site)/          public pages: home, predictions, analysts, stats, subscriptions, legal
+    (site)/          public pages: home, free tickets, analysts, legal
     (auth)/          login, register, forgot-password, reset-password, verify-email
     dashboard/       subscriber area (server-side session gate in the layout)
     admin/           moderation, prediction settlement, mapping manager, audit log
@@ -139,7 +139,7 @@ no session: the payment webhook, public JSON reads, and the health probe.
 
 | Endpoint | Method | Notes |
 | --- | --- | --- |
-| `/api/predictions` | GET | Public feed. Excludes the paid analysis body. |
+| `/api/free` | GET | Public free-ticket feed. Excludes the paid analysis body. |
 | `/api/analysts` | GET | Leaderboard; every rate ships with its sample size. |
 | `/api/analysts/[slug]` | GET | Full public record, including losses. |
 | `/api/webhooks/payments/[provider]` | POST | Signature-verified. The only thing that activates a subscription. |
@@ -422,5 +422,6 @@ relationships the status colours rely on.
 8. **Settlement is manual.** An admin records the outcome and a mandatory
    source. `evaluateOutcome` can suggest a result from match data but never
    settles automatically, and returns `null` rather than guessing.
-#   d a j d a  
+#   d a j d a 
+ 
  

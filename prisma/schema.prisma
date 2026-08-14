@@ -1,0 +1,825 @@
+// DAJDA - sports analysis & transparent prediction records.
+//
+// DELIBERATE ABSENCE: there is no wallet, balance, stake escrow, bet slip or
+// payout table anywhere in this schema. DAJDA sells access to written analysis.
+// Money enters the system only as a subscription fee (Payment -> UserSubscription)
+// and never as a wager. "Units" are a bookkeeping measure of an analyst's
+// published record, not a currency and not redeemable for anything.
+//
+// NUMERIC CONVENTION: every non-integer quantity is stored as an integer in
+// minor units so that no floating point or Decimal type ever reaches the UI.
+//   *Milli  -> thousandths (odds 1.85 => 1850, line 1.5 => 1500)
+//   *Centi  -> hundredths  (1.00 units => 100)
+//   *Minor  -> currency minor units (12.00 GEL => 1200 tetri)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7: the connection URL lives in prisma.config.ts (for the CLI) and is
+// supplied to PrismaClient through the pg driver adapter (see src/lib/db.ts).
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  USER
+  ANALYST
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum AuthTokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum AnalystStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+/// Outcome of a published prediction.
+/// WON  = "დაჯდა", LOST = "ვერ დაჯდა", PENDING = "მოლოდინში".
+/// VOID/PUSH exist so that returned-stake outcomes are excluded from hit rate
+/// instead of being silently counted as wins.
+enum PredictionStatus {
+  PENDING
+  WON
+  LOST
+  VOID
+  PUSH
+}
+
+enum PredictionVisibility {
+  PUBLIC
+  PREMIUM
+  VIP
+}
+
+enum ConfidenceLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum EditOutcome {
+  APPLIED
+  REJECTED_IMMUTABLE
+  APPLIED_AS_CORRECTION
+}
+
+enum PlanTier {
+  FREE
+  PREMIUM
+  VIP
+}
+
+enum BillingPeriod {
+  MONTHLY
+  QUARTERLY
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PAST_DUE
+}
+
+enum PaymentStatus {
+  CREATED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  REFUNDED
+  DISPUTED
+  EXPIRED
+}
+
+enum TransitionSource {
+  WEBHOOK
+  ADMIN
+  SYSTEM
+}
+
+enum ReportTargetType {
+  ANALYST
+  PREDICTION
+}
+
+enum ReportReason {
+  MISLEADING_RESULT
+  SPAM
+  ABUSIVE_CONTENT
+  IMPERSONATION
+  GUARANTEED_PROFIT_CLAIM
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+/// What an analyst is saying, as opposed to what they are betting.
+enum AnalystPostKind {
+  /// A plain status: a thought, a heads-up, a note on the day.
+  NOTE
+  /// "Live betting tonight at 21:00 on Dinamo vs Saburtalo." Carries a time,
+  /// and it is the only kind that notifies anyone, because it is the only kind
+  /// that asks a reader to be somewhere at a particular moment.
+  LIVE_NOTICE
+  /// Posted during a live session, under the notice that opened it.
+  LIVE_UPDATE
+}
+
+enum NotificationChannel {
+  EMAIL
+  TELEGRAM
+}
+
+enum NotificationStatus {
+  /// Written and waiting. Nothing has been sent.
+  PENDING
+  SENT
+  FAILED
+  /// Not sendable: the recipient has no address on the chosen channel.
+  SKIPPED
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id       String     @id @default(uuid()) @db.Uuid
+  email    String     @unique
+  /// scrypt digest, serialised as `scrypt$N$r$p$salt$hash`. Never a raw password.
+  password String
+  name     String
+  role     UserRole   @default(USER)
+  status   UserStatus @default(ACTIVE)
+
+  emailVerifiedAt  DateTime?
+  /// Timestamp of the 18+ self-certification taken at registration.
+  ageConfirmedAt   DateTime?
+  telegramUsername String?
+
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions            Session[]
+  authTokens          AuthToken[]
+  analystProfile      AnalystProfile?         @relation("AnalystOwner")
+  approvedAnalysts    AnalystProfile[]        @relation("AnalystApprover")
+  subscriptions       UserSubscription[]
+  payments            Payment[]
+  savedAnalysts       SavedAnalyst[]
+  predictionViews     PredictionView[]
+  notificationPrefs   NotificationPreference?
+  auditLogs           AuditLog[]
+  reportsFiled        Report[]                @relation("ReportAuthor")
+  reportsResolved     Report[]                @relation("ReportResolver")
+  predictionEdits     PredictionEdit[]
+  settledPredictions  PredictionResult[]
+  postedBets          Prediction[]            @relation("BetAuthor")
+  notifications       Notification[]
+
+  @@index([role])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 of the opaque session token. The raw token exists only in the
+  /// user's cookie, so a database leak cannot be replayed as a login.
+  tokenHash String @unique
+
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime  @default(now())
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AuthToken {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  purpose    AuthTokenPurpose
+  tokenHash  String           @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Analysts
+// ---------------------------------------------------------------------------
+
+model AnalystProfile {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @unique @db.Uuid
+  user   User   @relation("AnalystOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  displayName String
+  slug        String        @unique
+  bio         String?
+  headline    String?
+  status      AnalystStatus @default(PENDING)
+
+  approvedAt   DateTime?
+  approvedById String?   @db.Uuid
+  approvedBy   User?     @relation("AnalystApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  rejectionReason String?
+
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sports        AnalystSport[]
+  predictions   Prediction[]
+  posts         AnalystPost[]
+  plans         SubscriptionPlan[]
+  savedBy       SavedAnalyst[]
+  reports       Report[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Explicit join table so that "which sports does this analyst cover" is
+/// queryable and can carry metadata later without a migration of the relation.
+model AnalystSport {
+  analystProfileId String         @db.Uuid
+  analystProfile   AnalystProfile @relation(fields: [analystProfileId], references: [id], onDelete: Cascade)
+
+  sportId String @db.Uuid
+  sport   Sport  @relation(fields: [sportId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([analystProfileId, sportId])
+  @@index([sportId])
+}
+
+// ---------------------------------------------------------------------------
+// Sports catalogue
+// ---------------------------------------------------------------------------
+
+model Sport {
+  id       String  @id @default(uuid()) @db.Uuid
+  code     String  @unique
+  slug     String  @unique
+  nameKa   String
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  predictions Prediction[]
+  analysts    AnalystSport[]
+}
+
+// ---------------------------------------------------------------------------
+// Canonical market mapping
+// ---------------------------------------------------------------------------
+
+/// The platform's own vocabulary of markets. Provider labels are translated
+/// into these codes; nothing downstream ever reads a provider's raw wording.
+
+/// Append-only translation table: (provider, sport, label, period) -> canonical
+/// market. Editing a mapping never mutates a row; it supersedes it, so the
+/// interpretation applied to a historical prediction stays reconstructible.
+
+// ---------------------------------------------------------------------------
+// Predictions
+// ---------------------------------------------------------------------------
+
+/// A published prediction is an immutable editorial record. Fields captured at
+/// publication (odds, line, selection, author, timestamps) are frozen; changes
+/// go through a correction that creates a new version and preserves this row.
+/// A posted bet.
+///
+/// The bet itself is a SCREENSHOT of the analyst's own slip. There is no
+/// structured market, no fixture row and no provider vocabulary: the platform
+/// does not re-derive what was bet, it shows what the analyst posted and then
+/// records whether it landed.
+///
+/// Odds and stake are still typed in, because ROI, profit and average odds are
+/// the whole point of the public record and cannot be read out of an image.
+///
+/// Lifecycle:
+///   publishedAt = null                    draft, only the author sees it
+///   publishedAt set, finishedAt = null    live, waiting on the event
+///   finishedAt set, status = PENDING      author says it is over, admin reviews
+///   status = WON | LOST | VOID | PUSH     settled by an admin, immutable
+model Prediction {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The analyst whose public record this bet belongs to.
+  /// NULL for a community free ticket: anyone signed in may post one, but it
+  /// counts toward nobody's record and is excluded from every accuracy figure.
+  authorId String?         @db.Uuid
+  author   AnalystProfile? @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  /// Who actually uploaded it. Always present, including for analyst posts, so
+  /// "who put this here" is answerable even if a profile is later removed.
+  postedById String @db.Uuid
+  postedBy   User   @relation("BetAuthor", fields: [postedById], references: [id], onDelete: Restrict)
+
+  sportId String @db.Uuid
+  sport   Sport  @relation(fields: [sportId], references: [id], onDelete: Restrict)
+
+  // --- what the analyst posted ---------------------------------------------
+  /// Path to the uploaded bet slip. Required: a bet with no evidence is not a
+  /// record, and the admin has nothing to check it against.
+  screenshotPath String
+  /// Uploaded when the author marks the bet finished. Optional, because an
+  /// admin can still verify without it, just more slowly.
+  resultScreenshotPath String?
+
+  titleKa       String
+  descriptionKa String?
+
+  oddsMilli       Int
+  stakeUnitsCenti Int             @default(100)
+  confidence      ConfidenceLevel @default(MEDIUM)
+
+  /// PUBLIC is a free bet. PREMIUM and VIP require a matching subscription.
+  visibility PredictionVisibility @default(PUBLIC)
+
+  // --- lifecycle ------------------------------------------------------------
+  publishedAt DateTime?
+  /// When the event this bet covers is expected to be over. Used for sorting
+  /// and for nudging an author who has not marked a bet finished.
+  eventAt     DateTime?
+  /// Set by the AUTHOR to hand the bet to an admin for settlement. Never set
+  /// by the admin, so "who said it was over" stays answerable.
+  finishedAt  DateTime?
+  status      PredictionStatus @default(PENDING)
+
+  version        Int         @default(1)
+  correctionOfId String?     @unique @db.Uuid
+  correctionOf   Prediction? @relation("PredictionCorrection", fields: [correctionOfId], references: [id], onDelete: SetNull)
+  correctedBy    Prediction? @relation("PredictionCorrection")
+  supersededAt   DateTime?
+
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  result  PredictionResult?
+  edits   PredictionEdit[]
+  views   PredictionView[]
+  reports Report[]
+
+  @@index([status])
+  @@index([publishedAt])
+  @@index([authorId, status])
+  @@index([authorId, publishedAt])
+  @@index([postedById, publishedAt])
+  @@index([sportId, status])
+  @@index([visibility])
+  @@index([eventAt])
+  /// The admin review queue: finished by the author, not yet settled.
+  @@index([finishedAt, status])
+
+  notifications Notification[]
+}
+
+model PredictionResult {
+  id String @id @default(uuid()) @db.Uuid
+
+  predictionId String     @unique @db.Uuid
+  prediction   Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  outcome PredictionStatus
+
+  /// Profit or loss in hundredths of a unit, derived from odds and stake at
+  /// settlement time. Negative for a loss, zero for VOID/PUSH.
+  profitUnitsCenti Int
+
+  /// The observed value that decided an over/under or stat-line market.
+  actualValueMilli Int?
+
+  settledAt        DateTime @default(now())
+  /// Free text describing where the settling data came from (e.g. official
+  /// league feed, manual review). Never inferred.
+  settlementSource String
+  note             String?
+
+  settledById String? @db.Uuid
+  settledBy   User?   @relation(fields: [settledById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([settledAt])
+  @@index([outcome])
+}
+
+/// Every attempt to modify a prediction - including attempts the service
+/// refused. The rejected rows are the point: they evidence that the published
+/// record was not quietly rewritten.
+model PredictionEdit {
+  id String @id @default(uuid()) @db.Uuid
+
+  predictionId String     @db.Uuid
+  prediction   Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  actorId String? @db.Uuid
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  outcome EditOutcome
+  /// Why the attempt was refused, when it was.
+  reason  String?
+
+  changedFields String[]
+  previousValue Json?
+  attemptedValue Json?
+
+  attemptedAt DateTime @default(now())
+  ipAddress   String?
+
+  @@index([predictionId, attemptedAt])
+  @@index([outcome])
+}
+
+model PredictionView {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  predictionId String     @db.Uuid
+  prediction   Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, predictionId])
+  @@index([userId, viewedAt])
+}
+
+model SavedAnalyst {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  analystProfileId String         @db.Uuid
+  analystProfile   AnalystProfile @relation(fields: [analystProfileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, analystProfileId])
+  @@index([analystProfileId])
+}
+
+// ---------------------------------------------------------------------------
+// Subscriptions & payments
+// ---------------------------------------------------------------------------
+
+model SubscriptionPlan {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// null => a platform-wide plan rather than a single analyst's plan.
+  analystProfileId String?         @db.Uuid
+  analystProfile   AnalystProfile? @relation(fields: [analystProfileId], references: [id], onDelete: Cascade)
+
+  tier          PlanTier
+  nameKa        String
+  descriptionKa String
+  featuresKa    String[]
+
+  priceMinor    Int
+  currency      String        @default("GEL")
+  billingPeriod BillingPeriod @default(MONTHLY)
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions UserSubscription[]
+  payments      Payment[]
+
+  @@unique([analystProfileId, tier])
+  @@index([isActive, sortOrder])
+}
+
+model UserSubscription {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  planId String           @db.Uuid
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  /// Starts PENDING. Only a verified server-to-server webhook may move it to
+  /// ACTIVE - never a browser redirect.
+  status SubscriptionStatus @default(PENDING)
+
+  startedAt        DateTime?
+  currentPeriodEnd DateTime?
+  cancelAtPeriodEnd Boolean  @default(false)
+  canceledAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments Payment[]
+
+  @@index([userId, status])
+  @@index([status, currentPeriodEnd])
+  @@index([planId])
+}
+
+model Payment {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  planId String?           @db.Uuid
+  plan   SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  subscriptionId String?           @db.Uuid
+  subscription   UserSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  /// Adapter that owns this payment: "mock" or "flitt".
+  providerCode String
+  /// Our identifier, sent as the provider's order_id. Unique so a webhook can
+  /// resolve exactly one payment.
+  providerOrderId String @unique
+  /// The provider's own transaction identifier, learned from the webhook.
+  providerPaymentId String?
+
+  amountMinor Int
+  currency    String        @default("GEL")
+  status      PaymentStatus @default(CREATED)
+
+  failureReason String?
+  /// Non-sensitive descriptors returned by the gateway. Never a PAN, never a CVV.
+  maskedCard String?
+  cardType   String?
+  rrn        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transitions PaymentStatusTransition[]
+
+  @@unique([providerCode, providerPaymentId])
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model PaymentStatusTransition {
+  id String @id @default(uuid()) @db.Uuid
+
+  paymentId String  @db.Uuid
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  fromStatus PaymentStatus?
+  toStatus   PaymentStatus
+  source     TransitionSource
+  reason     String?
+
+  webhookEventId String?       @db.Uuid
+  webhookEvent   WebhookEvent? @relation(fields: [webhookEventId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([paymentId, createdAt])
+}
+
+/// Idempotency ledger. A duplicate delivery of the same (provider, eventId)
+/// violates the unique constraint and is answered 200 without re-applying.
+model WebhookEvent {
+  id String @id @default(uuid()) @db.Uuid
+
+  providerCode String
+  eventId      String
+
+  signatureValid Boolean
+  payload        Json
+
+  receivedAt       DateTime  @default(now())
+  processedAt      DateTime?
+  processingResult String?
+
+  @@unique([providerCode, eventId])
+  @@index([receivedAt])
+  @@index([signatureValid])
+
+  transitions PaymentStatusTransition[]
+}
+
+// ---------------------------------------------------------------------------
+// Moderation & audit
+// ---------------------------------------------------------------------------
+
+model Report {
+  id String @id @default(uuid()) @db.Uuid
+
+  reporterId String? @db.Uuid
+  reporter   User?   @relation("ReportAuthor", fields: [reporterId], references: [id], onDelete: SetNull)
+
+  targetType ReportTargetType
+
+  analystProfileId String?         @db.Uuid
+  analystProfile   AnalystProfile? @relation(fields: [analystProfileId], references: [id], onDelete: Cascade)
+
+  predictionId String?     @db.Uuid
+  prediction   Prediction? @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  reason  ReportReason
+  details String?
+  status  ReportStatus @default(OPEN)
+
+  resolvedById   String? @db.Uuid
+  resolvedBy     User?   @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt     DateTime?
+  resolutionNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([targetType])
+}
+
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  actorId   String?   @db.Uuid
+  actor     User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole UserRole?
+
+  action     String
+  entityType String
+  entityId   String?
+
+  summary  String
+  metadata Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
+model NotificationPreference {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @unique @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  emailOnNewPrediction Boolean @default(true)
+  emailOnSettlement    Boolean @default(true)
+  emailProductUpdates  Boolean @default(false)
+  /// A live session is time-critical, so it is opted into separately from the
+  /// ordinary "a new bet was posted" mail.
+  emailOnLiveSession   Boolean @default(true)
+
+  /// Telegram delivery is not implemented yet; the preference is stored so the
+  /// integration can be switched on without a migration.
+  telegramEnabled  Boolean @default(false)
+  telegramUsername String?
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// The analyst's feed
+// ---------------------------------------------------------------------------
+
+/**
+ * A post on an analyst's feed.
+ *
+ * This is what an analyst SAYS. A Prediction is what they BET, and the two are
+ * deliberately different tables: a bet is an auditable claim with frozen odds
+ * and a settled outcome, a post is prose. Letting a post live in the Prediction
+ * table would mean rows in the public record that can never be settled, which
+ * would quietly corrupt every accuracy figure derived from it.
+ *
+ * Posts are therefore never counted anywhere. They are read, not scored.
+ */
+model AnalystPost {
+  id String @id @default(uuid()) @db.Uuid
+
+  authorId String         @db.Uuid
+  author   AnalystProfile @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  kind   AnalystPostKind @default(NOTE)
+  bodyKa String
+
+  /// LIVE_NOTICE only: when the session starts, and what it is on. Both are
+  /// required by the service for that kind and null for every other kind.
+  liveAt      DateTime?
+  liveLabelKa String?
+
+  /// Set on a LIVE_UPDATE to hang it under the notice that opened the session.
+  parentId String?      @db.Uuid
+  parent   AnalystPost? @relation("LiveSession", fields: [parentId], references: [id], onDelete: Cascade)
+  updates  AnalystPost[] @relation("LiveSession")
+
+  /// A live session ends when its author says so. Until then the notice is
+  /// shown as running, which is what makes the feed worth refreshing.
+  endedAt DateTime?
+
+  visibility PredictionVisibility @default(PUBLIC)
+
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notifications Notification[]
+
+  @@index([authorId, createdAt])
+  @@index([kind, liveAt])
+  @@index([parentId])
+}
+
+/**
+ * Outbox row: one intended message to one person on one channel.
+ *
+ * Nothing here sends anything. Delivery is a separate, later concern, and the
+ * table exists so that "who should have been told, and about what" is a
+ * durable fact rather than a side effect of a request that may have failed.
+ * A row stays PENDING until a sender is configured; SKIPPED records that the
+ * recipient had no address on that channel, which is different from a failure.
+ */
+model Notification {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  channel NotificationChannel
+  status  NotificationStatus  @default(PENDING)
+
+  /// Resolved at enqueue time, not at send time: an address change afterwards
+  /// must not silently redirect a message that was already queued.
+  destination String?
+
+  subjectKa String
+  bodyKa    String
+  /// Where the message points. Relative, so it survives a domain change.
+  linkPath  String?
+
+  postId String?      @db.Uuid
+  post   AnalystPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  predictionId String?     @db.Uuid
+  prediction   Prediction? @relation(fields: [predictionId], references: [id], onDelete: SetNull)
+
+  failureReason String?
+  sentAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}

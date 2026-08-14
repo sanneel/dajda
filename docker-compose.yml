@@ -1,0 +1,23 @@
+# Local PostgreSQL for development only.
+# Credentials here are intentionally throwaway and match .env.example.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: dajda-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dajda
+      POSTGRES_PASSWORD: dajda
+      POSTGRES_DB: dajda
+    ports:
+      - '5432:5432'
+    volumes:
+      - dajda-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dajda -d dajda']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dajda-pgdata:
