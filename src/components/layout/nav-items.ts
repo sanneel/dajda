@@ -10,7 +10,6 @@ export type NavItem = { href: string; label: string };
  * above the analysts it describes, instead of on a page of its own.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { href: '/free', label: 'უფასო ბილეთები' },
   { href: '/analysts', label: 'ანალიტიკოსები' },
   { href: '/how-it-works', label: 'როგორ მუშაობს?' },
 ];

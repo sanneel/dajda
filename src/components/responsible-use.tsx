@@ -31,7 +31,7 @@ export function ResponsibleUseNotice({
   return (
     <section
       aria-labelledby="responsible-use-heading"
-      className="border-t border-line bg-elevated"
+      className="border-t border-line bg-canvas"
     >
       <div className="mx-auto grid max-w-page gap-4 px-4 py-8 sm:grid-cols-[4rem_minmax(0,1fr)] sm:gap-6 sm:px-8">
         <p

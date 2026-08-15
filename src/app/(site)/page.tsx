@@ -35,7 +35,13 @@ export default async function HomePage() {
       {/* Three claims, on white, divided by rules rather than boxed as     */}
       {/* cards: they are one row of statements, not three products.        */}
       {/* ---------------------------------------------------------------- */}
-      <section className="bg-surface" aria-labelledby="features-heading">
+      {/*
+       * Same ground as the hero and the notice below it. Alternating
+       * surface/canvas/elevated bands down the page made it read as three
+       * unrelated strips; one ground lets the panel and the cards be the only
+       * things that lift off it.
+       */}
+      <section className="bg-canvas" aria-labelledby="features-heading">
         <h2 id="features-heading" className="sr-only">
           რას გთავაზობთ DAJDA
         </h2>

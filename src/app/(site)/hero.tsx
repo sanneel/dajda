@@ -1,8 +1,8 @@
-import Link from 'next/link';
-import { ArrowRight, Play } from 'lucide-react';
-import { formatPercentBpsSigned, formatUnitsSigned } from '@/lib/format';
-import type { AnalystListItem } from '@/lib/queries/analysts';
-import { Avatar } from '@/components/ui/avatar';
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { formatPercentBpsSigned, formatUnitsSigned } from "@/lib/format";
+import type { AnalystListItem } from "@/lib/queries/analysts";
+import { Avatar } from "@/components/ui/avatar";
 
 /**
  * Home hero: a copy column beside a live panel.
@@ -39,7 +39,7 @@ export function Hero({ analysts }: { analysts: AnalystListItem[] }) {
             [ორი ხაზი: რას აკეთებს DAJDA და რატომ ენდობა მომხმარებელი ციფრებს]
           </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-8">
             <Link
               href="/analysts"
               className="group inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-control bg-ink px-7 text-[0.9375rem] font-bold text-on-ink transition-colors hover:bg-accent"
@@ -49,19 +49,6 @@ export function Hero({ analysts }: { analysts: AnalystListItem[] }) {
                 className="size-4 transition-transform group-hover:translate-x-1"
                 aria-hidden="true"
               />
-            </Link>
-
-            <Link
-              href="/free"
-              className="inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-control border border-line-strong bg-surface px-7 text-[0.9375rem] font-medium text-ink transition-colors hover:border-ink-faint"
-            >
-              <span
-                className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-line-strong"
-                aria-hidden="true"
-              >
-                <Play className="size-2.5 fill-current" />
-              </span>
-              უფასო ბილეთები
             </Link>
           </div>
         </div>
@@ -113,7 +100,7 @@ export function Hero({ analysts }: { analysts: AnalystListItem[] }) {
                         <p className="truncate text-sm text-ink-faint">
                           {analyst.sports
                             .map((sport) => sport.nameKa)
-                            .join(', ')}
+                            .join(", ")}
                         </p>
                       </div>
                     </div>
@@ -123,7 +110,7 @@ export function Hero({ analysts }: { analysts: AnalystListItem[] }) {
                       <p className="tabular font-bold text-ink">
                         {settled
                           ? formatPercentBpsSigned(analyst.allTime.roiBps)
-                          : '·'}
+                          : "·"}
                       </p>
                     </div>
 
@@ -132,13 +119,13 @@ export function Hero({ analysts }: { analysts: AnalystListItem[] }) {
                       <p
                         className={`tabular font-bold ${
                           analyst.allTime.profitUnitsCenti < 0
-                            ? 'text-loss'
-                            : 'text-win'
+                            ? "text-loss"
+                            : "text-win"
                         }`}
                       >
                         {settled
                           ? formatUnitsSigned(analyst.allTime.profitUnitsCenti)
-                          : '·'}
+                          : "·"}
                       </p>
                     </div>
 

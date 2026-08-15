@@ -1,30 +1,23 @@
-import type { Metadata } from 'next';
-import Link from 'next/link';
-import { prisma } from '@/lib/db';
-import { requireUser } from '@/lib/auth/authorization';
-import { listAnalysts } from '@/lib/queries/analysts';
-import {
-  formatDateKa,
-  formatDateTimeKa,
-  formatMoney,
-  formatOdds,
-} from '@/lib/format';
+import type { Metadata } from "next";
+import Link from "next/link";
+import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/auth/authorization";
+import { formatDateKa, formatDateTimeKa, formatMoney } from "@/lib/format";
 import {
   BILLING_PERIOD_KA,
   PAYMENT_STATUS_KA,
   SUBSCRIPTION_STATUS_KA,
-} from '@/lib/labels';
-import { Card, CardBody, CardHeader } from '@/components/ui/card';
-import { Badge, StatusBadge } from '@/components/ui/badge';
-import { Alert, EmptyState } from '@/components/ui/feedback';
-import { ButtonLink } from '@/components/ui/button';
-import { AnalystRow } from '@/components/analyst-list';
-import { CancelSubscriptionButton } from './cancel-button';
+} from "@/lib/labels";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, EmptyState } from "@/components/ui/feedback";
+import { ButtonLink } from "@/components/ui/button";
+import { CancelSubscriptionButton } from "./cancel-button";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: 'პროფილი',
+  title: "პროფილი",
   robots: { index: false, follow: false },
 };
 
@@ -44,81 +37,50 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const actor = await requireUser();
 
-  const [subscriptions, payments, views, savedRows, pendingPayments] =
-    await Promise.all([
-      prisma.userSubscription.findMany({
-        where: { userId: actor.userId },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          status: true,
-          startedAt: true,
-          currentPeriodEnd: true,
-          cancelAtPeriodEnd: true,
-          plan: {
-            select: {
-              nameKa: true,
-              priceMinor: true,
-              currency: true,
-              billingPeriod: true,
-              analystProfile: { select: { displayName: true, slug: true } },
-            },
+  const [subscriptions, payments, pendingPayments] = await Promise.all([
+    prisma.userSubscription.findMany({
+      where: { userId: actor.userId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        currentPeriodEnd: true,
+        cancelAtPeriodEnd: true,
+        plan: {
+          select: {
+            nameKa: true,
+            priceMinor: true,
+            currency: true,
+            billingPeriod: true,
+            analystProfile: { select: { displayName: true, slug: true } },
           },
         },
-      }),
-      prisma.payment.findMany({
-        where: { userId: actor.userId },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-        select: {
-          id: true,
-          providerOrderId: true,
-          amountMinor: true,
-          currency: true,
-          status: true,
-          createdAt: true,
-          maskedCard: true,
-        },
-      }),
-      prisma.predictionView.findMany({
-        where: { userId: actor.userId },
-        orderBy: { viewedAt: 'desc' },
-        take: 10,
-        select: {
-          id: true,
-          viewedAt: true,
-          prediction: {
-            select: {
-              id: true,
-              status: true,
-              oddsMilli: true,
-              titleKa: true,
-              author: { select: { displayName: true, slug: true } },
-            },
-          },
-        },
-      }),
-      prisma.savedAnalyst.findMany({
-        where: { userId: actor.userId },
-        select: { analystProfileId: true },
-      }),
-      // Counted separately rather than derived from `payments` above, which is
-      // capped at ten rows and would undercount a long history.
-      prisma.payment.count({
-        where: {
-          userId: actor.userId,
-          status: { in: ['CREATED', 'PROCESSING'] },
-        },
-      }),
-    ]);
-
-  // Reuse the public read model so saved analysts show metrics computed by
-  // exactly the same code as the public listing.
-  const savedIds = new Set(savedRows.map((row) => row.analystProfileId));
-  const savedAnalysts =
-    savedIds.size === 0
-      ? []
-      : (await listAnalysts()).filter((analyst) => savedIds.has(analyst.id));
+      },
+    }),
+    prisma.payment.findMany({
+      where: { userId: actor.userId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        providerOrderId: true,
+        amountMinor: true,
+        currency: true,
+        status: true,
+        createdAt: true,
+        maskedCard: true,
+      },
+    }),
+    // Counted separately rather than derived from `payments` above, which is
+    // capped at ten rows and would undercount a long history.
+    prisma.payment.count({
+      where: {
+        userId: actor.userId,
+        status: { in: ["CREATED", "PROCESSING"] },
+      },
+    }),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -140,7 +102,7 @@ export default async function DashboardPage() {
 
       {pendingPayments > 0 ? (
         <Alert tone="warning" title="გადახდა მუშავდება">
-          გვაქვს <span className="tabular">{pendingPayments}</span>{' '}
+          გვაქვს <span className="tabular">{pendingPayments}</span>{" "}
           დაუდასტურებელი გადახდა. გამოწერა გააქტიურდება მხოლოდ ბანკიდან
           სერვერული დადასტურების მიღების შემდეგ.
         </Alert>
@@ -149,9 +111,20 @@ export default async function DashboardPage() {
       {/* ---------------------------------------------------------------- */}
       {/* Subscriptions                                                     */}
       {/* ---------------------------------------------------------------- */}
-      <Card as="section">
-        <CardHeader title="გამოწერები" level={2} />
-        <CardBody>
+      {/*
+       * A disclosure, open by default. Someone arriving at their profile is
+       * usually here to check or cancel a subscription, so it must not start
+       * hidden; but once read it is a long block sitting above everything
+       * else, and it should be possible to fold away.
+       */}
+      <details open className="rounded-card border border-line bg-surface">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 marker:content-none sm:px-5">
+          <span className="font-display text-base text-ink">გამოწერები</span>
+          <span className="tabular text-sm text-ink-faint">
+            {subscriptions.length}
+          </span>
+        </summary>
+        <div className="border-t border-line p-4 sm:p-5">
           {subscriptions.length === 0 ? (
             <EmptyState
               title="აქტიური გამოწერა არ გაქვთ"
@@ -183,15 +156,15 @@ export default async function DashboardPage() {
                             {subscription.plan.analystProfile.displayName}
                           </Link>
                         ) : (
-                          'პლატფორმის გეგმა'
+                          "პლატფორმის გეგმა"
                         )}
-                        {' · '}
+                        {" · "}
                         <span className="tabular">
                           {formatMoney(
                             subscription.plan.priceMinor,
                             subscription.plan.currency,
                           )}
-                        </span>{' '}
+                        </span>{" "}
                         / {BILLING_PERIOD_KA[subscription.plan.billingPeriod]}
                       </p>
                     </div>
@@ -202,11 +175,11 @@ export default async function DashboardPage() {
                       ) : null}
                       <Badge
                         tone={
-                          subscription.status === 'ACTIVE'
-                            ? 'accent'
-                            : subscription.status === 'PENDING'
-                              ? 'pending'
-                              : 'neutral'
+                          subscription.status === "ACTIVE"
+                            ? "accent"
+                            : subscription.status === "PENDING"
+                              ? "pending"
+                              : "neutral"
                         }
                       >
                         {SUBSCRIPTION_STATUS_KA[subscription.status]}
@@ -220,32 +193,32 @@ export default async function DashboardPage() {
                       <dd className="tabular text-ink">
                         {subscription.startedAt
                           ? formatDateKa(subscription.startedAt)
-                          : '·'}
+                          : "·"}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-xs text-ink-muted">
                         {subscription.cancelAtPeriodEnd
-                          ? 'წვდომა მთავრდება'
-                          : 'შემდეგი განახლება'}
+                          ? "წვდომა მთავრდება"
+                          : "შემდეგი განახლება"}
                       </dt>
                       <dd className="tabular text-ink">
                         {subscription.currentPeriodEnd
                           ? formatDateKa(subscription.currentPeriodEnd)
-                          : '·'}
+                          : "·"}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-xs text-ink-muted">გაუქმება</dt>
                       <dd className="text-ink">
                         {subscription.cancelAtPeriodEnd
-                          ? 'დაგეგმილია'
-                          : 'არ არის'}
+                          ? "დაგეგმილია"
+                          : "არ არის"}
                       </dd>
                     </div>
                   </dl>
 
-                  {subscription.status === 'ACTIVE' &&
+                  {subscription.status === "ACTIVE" &&
                   !subscription.cancelAtPeriodEnd ? (
                     <div className="mt-3 border-t border-line pt-3">
                       <CancelSubscriptionButton
@@ -261,98 +234,8 @@ export default async function DashboardPage() {
               ))}
             </ul>
           )}
-        </CardBody>
-      </Card>
-
-      {/* ---------------------------------------------------------------- */}
-      {/* Saved analysts                                                    */}
-      {/* ---------------------------------------------------------------- */}
-      <Card as="section">
-        <CardHeader
-          title="შენახული ავტორები"
-          level={2}
-          action={
-            <Link
-              href="/analysts"
-              className="text-sm text-accent hover:underline"
-            >
-              ყველა ავტორი
-            </Link>
-          }
-        />
-        <CardBody>
-          {savedAnalysts.length === 0 ? (
-            <EmptyState
-              title="ჯერ არავინ შეგინახავთ"
-              description="ავტორის პროფილზე დააჭირეთ „შენახვას“, რომ აქ გამოჩნდეს."
-            />
-          ) : (
-            <ul className="-m-4 divide-y divide-line sm:-m-5">
-              {savedAnalysts.map((analyst) => (
-                <AnalystRow key={analyst.id} analyst={analyst} />
-              ))}
-            </ul>
-          )}
-        </CardBody>
-      </Card>
-
-      {/* ---------------------------------------------------------------- */}
-      {/* Recently viewed                                                   */}
-      {/* ---------------------------------------------------------------- */}
-      <Card as="section">
-        <CardHeader title="ბოლოს ნანახი" level={2} />
-        <CardBody>
-          {views.length === 0 ? (
-            <EmptyState
-              title="ჯერ არაფერი გინახავთ"
-              action={
-                <ButtonLink href="/free">ბილეთების ნახვა</ButtonLink>
-              }
-            />
-          ) : (
-            <ul className="divide-y divide-line">
-              {views.map((view) => (
-                <li
-                  key={view.id}
-                  className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0">
-                    <Link
-                      href={`/free/${view.prediction.id}`}
-                      className="font-medium text-ink hover:text-accent"
-                    >
-                      {view.prediction.titleKa}
-                    </Link>
-                    <p className="mt-0.5 text-sm text-ink-muted">
-                      {view.prediction.author ? (
-                        <Link
-                          href={`/analysts/${view.prediction.author.slug}`}
-                          className="hover:text-ink"
-                        >
-                          {view.prediction.author.displayName}
-                        </Link>
-                      ) : (
-                        <span>უფასო ბილეთი</span>
-                      )}
-                      {' · '}
-                      <span className="tabular">
-                        {formatOdds(view.prediction.oddsMilli)}
-                      </span>
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <StatusBadge status={view.prediction.status} />
-                    <span className="tabular text-xs text-ink-faint">
-                      {formatDateTimeKa(view.viewedAt)}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardBody>
-      </Card>
+        </div>
+      </details>
 
       {/* ---------------------------------------------------------------- */}
       {/* Payments                                                          */}
@@ -402,7 +285,7 @@ export default async function DashboardPage() {
                         {formatDateTimeKa(payment.createdAt)}
                       </td>
                       <td className="tabular py-2.5 text-ink-muted">
-                        {payment.maskedCard ?? '·'}
+                        {payment.maskedCard ?? "·"}
                       </td>
                       <td className="tabular py-2.5 text-right text-ink">
                         {formatMoney(payment.amountMinor, payment.currency)}
@@ -410,12 +293,12 @@ export default async function DashboardPage() {
                       <td className="py-2.5 text-right">
                         <Badge
                           tone={
-                            payment.status === 'SUCCEEDED'
-                              ? 'accent'
-                              : payment.status === 'FAILED' ||
-                                  payment.status === 'DISPUTED'
-                                ? 'loss'
-                                : 'neutral'
+                            payment.status === "SUCCEEDED"
+                              ? "accent"
+                              : payment.status === "FAILED" ||
+                                  payment.status === "DISPUTED"
+                                ? "loss"
+                                : "neutral"
                           }
                         >
                           {PAYMENT_STATUS_KA[payment.status]}

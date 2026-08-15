@@ -4,7 +4,6 @@ import {
   formatMoney,
   formatOdds,
   formatPercentBps,
-  formatPercentBpsSigned,
   formatUnitsSigned,
 } from '@/lib/format';
 import { BILLING_PERIOD_KA } from '@/lib/labels';
@@ -27,13 +26,6 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
   const settled = allTime.decided > 0;
 
   const metrics: { label: string; value: string; tone?: 'win' | 'loss' }[] = [
-    {
-      label: 'ROI',
-      value: settled ? formatPercentBpsSigned(allTime.roiBps) : '·',
-      ...(settled
-        ? { tone: allTime.roiBps < 0 ? ('loss' as const) : ('win' as const) }
-        : {}),
-    },
     {
       label: 'საშ. კოეფ.',
       value: settled ? formatOdds(allTime.avgOddsMilli) : '·',
@@ -110,7 +102,7 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
          * Five squeezed into 375px would wrap every Georgian caption onto
          * three lines and stop scanning as a strip at all.
          */}
-        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
           {metrics.map((metric) => (
             <div key={metric.label} className="min-w-0">
               <dt className="text-xs leading-snug text-ink-faint">
@@ -137,6 +129,19 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
        * charges is not one of their results and should not read as one.
        */}
       <div className="flex flex-col gap-2 border-t border-line pt-4 lg:border-t-0 lg:pt-0">
+        {/*
+         * Two actions, in the order a reader actually wants them: look first,
+         * pay second. Previously the only control on the row was the price
+         * button, so "read this person's record" and "buy this person's
+         * analysis" were the same click.
+         */}
+        <Link
+          href={`/analysts/${analyst.slug}`}
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-ink-faint"
+        >
+          გადახედე
+        </Link>
+
         <Link
           href={`/analysts/${analyst.slug}`}
           className="inline-flex min-h-11 w-full items-center justify-center rounded-control bg-ink px-4 text-sm font-semibold text-on-ink transition-colors hover:bg-accent"
