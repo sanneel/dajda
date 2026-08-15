@@ -29,7 +29,7 @@ export default async function DashboardLayout({
 
       <main
         id="main"
-        className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6"
+        className="mx-auto w-full max-w-page flex-1 px-4 py-8 sm:px-8"
       >
         <nav
           aria-label="პროფილის ნავიგაცია"

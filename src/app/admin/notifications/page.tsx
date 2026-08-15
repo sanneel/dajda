@@ -143,12 +143,9 @@ export default async function AdminNotificationsPage({
           {rows.length === 0 ? (
             <EmptyState title="ამ ფილტრით ჩანაწერი არ არის" />
           ) : (
-            <ul className="space-y-3">
+            <ul className="-m-4 divide-y divide-line sm:-m-5">
               {rows.map((row) => (
-                <li
-                  key={row.id}
-                  className="rounded-card border border-line bg-canvas p-3.5"
-                >
+                <li key={row.id} className="p-4 sm:p-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge>{row.channel}</Badge>
                     <Badge tone={row.status === 'FAILED' ? 'loss' : 'neutral'}>

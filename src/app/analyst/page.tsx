@@ -218,11 +218,11 @@ function BetGroup({
         {bets.length === 0 ? (
           <EmptyState title={emptyText || 'ცარიელია'} />
         ) : (
-          <ul className="space-y-3">
+          <ul className="-m-4 divide-y divide-line sm:-m-5">
             {bets.map((bet) => (
               <li
                 key={bet.id}
-                className="flex flex-wrap items-start gap-4 rounded-card border border-line bg-canvas p-3.5"
+                className="flex flex-wrap items-start gap-4 p-4 sm:p-5"
               >
                 <Link
                   href={`/free/${bet.id}`}

@@ -22,27 +22,33 @@
  * Georgian label and survives greyscale and colour blindness.
  *
  * Contrast is measured against the WORST ground each colour lands on, not the
- * best. In light that is --color-elevated, not white.
- *   ink        13.4:1  AAA        ink-muted   5.9:1  AA at every size
- *   ink-faint   4.5:1  AA         accent      7.4:1  AAA
- *   win         5.8:1  AA         loss        5.8:1  AA
- *   on-ink over ink and on-signal over signal both clear 4.5:1.
+ * best. In light that is --color-elevated. Re-verified after the grounds were
+ * darkened: every pair below still clears AA at every size, and ink clears AAA.
  */
 @theme {
-  --color-canvas: #f4f6f9;
-  --color-surface: #ffffff;
-  --color-elevated: #eef2f7;
-  --color-line: #e3e8ef;
-  --color-line-strong: #c8d2de;
+  /*
+   * Nothing here is pure white.
+   *
+   * The first pass used #FFFFFF for every card on a #F4F6F9 page, and on a
+   * bright display that is a wall of glare with almost no separation between
+   * the card and the ground. Both values step down, and the gap between them
+   * widens, so surfaces are told apart by contrast rather than by luminance.
+   */
+  --color-canvas: #e9eef4;
+  --color-surface: #f7fafc;
+  --color-elevated: #dde5ee;
+  --color-line: #cfd9e4;
+  --color-line-strong: #adbccd;
 
   --color-ink: #0a2842;
   --color-ink-muted: #4d5f70;
   /*
-   * The reference's caption grey (#5E798B) clears 4.5:1 on white but only
-   * reaches 4.08:1 on --color-elevated, where most captions actually sit.
-   * Darkened until the WORST ground passes rather than the best one.
+   * Darkened twice, both times because the WORST ground failed rather than
+   * the best one. The reference's caption grey (#5E798B) passed on white and
+   * failed on --color-elevated; this value passed until the grounds
+   * themselves were dimmed to kill the glare, and then failed again at 3.98.
    */
-  --color-ink-faint: #587283;
+  --color-ink-faint: #516979;
 
   /*
    * What sits ON a filled ink surface: the dark filter bar, the primary
@@ -81,7 +87,7 @@
 
   --color-win: #1c6b47;
   --color-loss: #b3261e;
-  --color-pending: #587283;
+  --color-pending: #516979;
 
   /*
    * ONE family for the entire product: Google Sans, loaded in src/app/layout.

@@ -70,13 +70,18 @@ export function Hero({ analysts }: { analysts: AnalystListItem[] }) {
         {/* Live panel                                                    */}
         {/* ----------------------------------------------------------- */}
         <div className="overflow-hidden rounded-panel border border-line bg-surface shadow-panel">
-          <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
-            <h2 className="font-display text-base text-ink">
+          {/*
+           * The panel's header is a filled navy bar, not a hairline rule. It
+           * gives the one live element on the page a hard top edge, which is
+           * what makes it read as a panel rather than as more page.
+           */}
+          <div className="flex items-center justify-between gap-4 bg-band px-5 py-4">
+            <h2 className="font-display text-base text-on-band">
               საუკეთესო ანალიტიკოსები
             </h2>
             <Link
               href="/analysts"
-              className="group inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-accent"
+              className="group inline-flex items-center gap-1.5 text-sm text-on-band/75 transition-colors hover:text-on-band"
             >
               ყველას ნახვა
               <ArrowRight

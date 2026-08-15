@@ -161,12 +161,14 @@ export default async function DashboardPage() {
               }
             />
           ) : (
-            <ul className="space-y-4">
+            /*
+             * One box, not one per subscription. The negative margin pulls the
+             * list out to the card's own edges so the rules run the full width
+             * instead of floating inside the padding.
+             */
+            <ul className="-m-4 divide-y divide-line sm:-m-5">
               {subscriptions.map((subscription) => (
-                <li
-                  key={subscription.id}
-                  className="rounded-card border border-line bg-canvas p-4"
-                >
+                <li key={subscription.id} className="p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-medium text-ink">
