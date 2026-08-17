@@ -289,3 +289,11 @@ export const userStatusSchema = z.object({
 export const saveAnalystSchema = z.object({
   analystProfileId: z.uuid(),
 });
+
+export const topUpSchema = z.object({
+  /** The form takes lari; minor units are derived server-side. */
+  amountGel: z.coerce
+    .number('შეიყვანეთ თანხა.')
+    .min(1, 'მინიმუმ 1 ლარი.')
+    .max(5000, 'მაქსიმუმ 5000 ლარი ერთ შევსებაზე.'),
+});

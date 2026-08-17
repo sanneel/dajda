@@ -1,4 +1,8 @@
-import type { BillingPeriod, PaymentStatus } from '@/generated/prisma/enums';
+import type {
+  BillingPeriod,
+  PaymentPurpose,
+  PaymentStatus,
+} from '@/generated/prisma/enums';
 import type { WebhookResult } from './types';
 
 /**
@@ -15,6 +19,8 @@ import type { WebhookResult } from './types';
  *   - a gateway-scheduled renewal (a new order naming its parent_order_id)
  *     is recorded as a payment of its own and extends the paid period, with
  *     the same amount guard applied against the original payment
+ *   - a BALANCE_TOPUP payment credits the balance exactly once on SUCCEEDED
+ *     and takes the credit back exactly once on REFUNDED/DISPUTED
  *
  * The port is injected, so all of the above is exercised in tests against
  * in-memory fakes and the same code runs in production against Prisma.
@@ -25,6 +31,7 @@ export type PaymentSnapshot = {
   userId: string;
   planId: string | null;
   subscriptionId: string | null;
+  purpose: PaymentPurpose;
   status: PaymentStatus;
   amountMinor: number;
   currency: string;
@@ -113,6 +120,30 @@ export interface WebhookPort {
     subscriptionId: string;
     userId: string;
     currentPeriodEnd: Date;
+  }): Promise<void>;
+
+  /**
+   * Credit a verified top-up onto the user's balance. Must be idempotent
+   * per payment - a redelivery under a fresh event id credits nothing.
+   */
+  creditBalanceTopUp(input: {
+    paymentId: string;
+    userId: string;
+    amountMinor: number;
+    currency: string;
+  }): Promise<void>;
+
+  /**
+   * Take a refunded or disputed top-up's credit back. Also idempotent per
+   * payment. The balance may go negative: money that was spent and then
+   * pulled back by the bank is a debt, and the ledger says so.
+   */
+  reverseBalanceTopUp(input: {
+    paymentId: string;
+    userId: string;
+    amountMinor: number;
+    currency: string;
+    reason: string;
   }): Promise<void>;
 }
 
@@ -300,6 +331,29 @@ export async function processPaymentWebhook(
       subscriptionId: payment.subscriptionId,
       reason: `payment ${result.status.toLowerCase()}`,
     });
+  }
+
+  // A top-up moves the balance instead of a subscription. Both directions
+  // are idempotent per payment inside the port, so a redelivery under a
+  // fresh event id cannot double-credit or double-reverse.
+  if (payment.purpose === 'BALANCE_TOPUP') {
+    if (result.status === 'SUCCEEDED') {
+      await port.creditBalanceTopUp({
+        paymentId: payment.id,
+        userId: payment.userId,
+        amountMinor: payment.amountMinor,
+        currency: payment.currency,
+      });
+    }
+    if (result.status === 'REFUNDED' || result.status === 'DISPUTED') {
+      await port.reverseBalanceTopUp({
+        paymentId: payment.id,
+        userId: payment.userId,
+        amountMinor: payment.amountMinor,
+        currency: payment.currency,
+        reason: `payment ${result.status.toLowerCase()}`,
+      });
+    }
   }
 
   await port.markProcessed(

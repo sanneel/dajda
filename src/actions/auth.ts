@@ -3,6 +3,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
+import { requireUser } from '@/lib/auth/authorization';
 import { hashPassword, verifyPassword } from '@/lib/auth/password';
 import {
   clearSessionCookie,
@@ -20,6 +21,12 @@ import {
   hashToken,
 } from '@/lib/auth/tokens';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
+import {
+  getEmailSender,
+  passwordResetEmail,
+  verificationEmail,
+} from '@/lib/email';
+import { getEnv } from '@/lib/env';
 import {
   ERROR_CODES,
   fail,
@@ -50,6 +57,27 @@ async function requestContext() {
     ipAddress: headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
     userAgent: headerList.get('user-agent'),
   };
+}
+
+/**
+ * Deliver the verification link. Failure is logged, never thrown: an account
+ * must not fail to exist because a mail relay hiccuped - the dashboard offers
+ * a resend for exactly that case.
+ */
+async function sendVerificationEmail(email: string, rawToken: string) {
+  const env = getEnv();
+  const link = `${env.APP_URL}/verify-email?token=${rawToken}`;
+  const content = verificationEmail(link);
+  const outcome = await getEmailSender().send({
+    to: email,
+    subject: content.subject,
+    text: content.text,
+  });
+  if (!outcome.delivered) {
+    console.error(
+      `[dajda] verification email to ${email} failed: ${outcome.detail ?? 'unknown'}`,
+    );
+  }
 }
 
 /**
@@ -107,6 +135,10 @@ export async function registerAction(
 
     const password = await hashPassword(input.password);
 
+    // The raw token exists only in this request and in the email; the
+    // database keeps its hash.
+    const verificationToken = generateToken();
+
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
@@ -126,13 +158,11 @@ export async function registerAction(
         },
       });
 
-      // Email delivery is not wired up yet; the token is still issued so the
-      // verification flow is complete end-to-end once a mailer exists.
       await tx.authToken.create({
         data: {
           userId: created.id,
           purpose: 'EMAIL_VERIFICATION',
-          tokenHash: hashToken(generateToken()),
+          tokenHash: hashToken(verificationToken),
           expiresAt: expiryFrom(new Date(), EMAIL_VERIFICATION_TTL_MS),
         },
       });
@@ -154,6 +184,10 @@ export async function registerAction(
       return created;
     });
 
+    // Outside the transaction: network I/O must not hold a database lock,
+    // and a failed delivery must not roll the account back.
+    await sendVerificationEmail(input.email, verificationToken);
+
     const session = await createSession(user.id, context);
     await setSessionCookie(session.token, session.expiresAt);
     success = true;
@@ -163,6 +197,45 @@ export async function registerAction(
 
   if (success) redirect('/dashboard');
   return fail(ERROR_CODES.INTERNAL);
+}
+
+/**
+ * Issue a fresh verification link to the signed-in, still-unverified user.
+ * Replaces nothing: older links simply expire on their own schedule.
+ */
+export async function resendVerificationAction(
+  _previous: ActionResult<{ sent: true }> | null,
+  _formData: FormData,
+): Promise<ActionResult<{ sent: true }>> {
+  try {
+    const actor = await requireUser();
+
+    if (actor.emailVerifiedAt) {
+      return fail(ERROR_CODES.CONFLICT, 'ელფოსტა უკვე დადასტურებულია.');
+    }
+
+    const limit = rateLimiter.check(
+      `verify-resend:${actor.userId}`,
+      RATE_LIMITS.resendVerification,
+    );
+    if (!limit.allowed) return fail(ERROR_CODES.RATE_LIMITED);
+
+    const token = generateToken();
+    await prisma.authToken.create({
+      data: {
+        userId: actor.userId,
+        purpose: 'EMAIL_VERIFICATION',
+        tokenHash: hashToken(token),
+        expiresAt: expiryFrom(new Date(), EMAIL_VERIFICATION_TTL_MS),
+      },
+    });
+
+    await sendVerificationEmail(actor.email, token);
+
+    return ok({ sent: true });
+  } catch (error) {
+    return toActionFailure(error);
+  }
 }
 
 export async function loginAction(
@@ -301,12 +374,18 @@ export async function forgotPasswordAction(
         },
       });
 
-      // No mailer is configured yet. In development the link is printed so the
-      // flow can be completed locally; in production this is a no-op until a
-      // delivery provider is wired in.
-      if (process.env.NODE_ENV === 'development') {
-        console.info(
-          `[dajda] password reset link: /reset-password?token=${token}`,
+      const env = getEnv();
+      const content = passwordResetEmail(
+        `${env.APP_URL}/reset-password?token=${token}`,
+      );
+      const outcome = await getEmailSender().send({
+        to: parsed.data.email,
+        subject: content.subject,
+        text: content.text,
+      });
+      if (!outcome.delivered) {
+        console.error(
+          `[dajda] password reset email failed: ${outcome.detail ?? 'unknown'}`,
         );
       }
     }

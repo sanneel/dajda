@@ -111,6 +111,23 @@ enum PaymentStatus {
   EXPIRED
 }
 
+/// What a provider charge was FOR - a plan, or money onto the balance.
+enum PaymentPurpose {
+  SUBSCRIPTION
+  BALANCE_TOPUP
+}
+
+enum BalanceEntryKind {
+  /// A verified provider payment credited the balance.
+  TOPUP
+  /// A subscription was paid out of the balance.
+  SUBSCRIPTION_PAYMENT
+  /// A refunded or disputed top-up took its credit back.
+  TOPUP_REVERSAL
+  /// A manual correction by an administrator.
+  ADJUSTMENT
+}
+
 enum TransitionSource {
   WEBHOOK
   ADMIN
@@ -182,6 +199,11 @@ model User {
   ageConfirmedAt   DateTime?
   telegramUsername String?
 
+  /// Cached current balance in minor units. The BalanceTransaction ledger is
+  /// the source of truth; this column is only ever written in the same
+  /// transaction as a ledger row, so the two cannot drift.
+  balanceMinor Int @default(0)
+
   isDemo    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -194,6 +216,7 @@ model User {
   payments            Payment[]
   savedAnalysts       SavedAnalyst[]
   predictionViews     PredictionView[]
+  balanceTransactions BalanceTransaction[]
   notificationPrefs   NotificationPreference?
   auditLogs           AuditLog[]
   reportsFiled        Report[]                @relation("ReportAuthor")
@@ -588,7 +611,11 @@ model Payment {
   subscriptionId String?           @db.Uuid
   subscription   UserSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
-  /// Adapter that owns this payment: "mock" or "flitt".
+  /// What the money was for. A BALANCE_TOPUP has no plan and no subscription.
+  purpose PaymentPurpose @default(SUBSCRIPTION)
+
+  /// Adapter that owns this payment: "mock", "flitt", or "balance" for a
+  /// subscription paid out of the user's balance (no gateway involved).
   providerCode String
   /// Our identifier, sent as the provider's order_id. Unique so a webhook can
   /// resolve exactly one payment.
@@ -609,11 +636,46 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  transitions PaymentStatusTransition[]
+  transitions    PaymentStatusTransition[]
+  balanceEntries BalanceTransaction[]
 
   @@unique([providerCode, providerPaymentId])
   @@index([userId, status])
   @@index([status, createdAt])
+}
+
+/**
+ * The balance ledger: one signed row per movement, append-only.
+ *
+ * `User.balanceMinor` is a cache of this ledger's sum, maintained in the same
+ * database transaction as each row. The ledger is what an admin reads when a
+ * customer disputes a number; the cache is what every page renders.
+ */
+model BalanceTransaction {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  kind BalanceEntryKind
+  /// Signed: positive credits the balance, negative debits it.
+  amountMinor Int
+  currency    String @default("GEL")
+  /// The cached balance immediately after this row was applied.
+  balanceAfterMinor Int
+
+  /// The provider payment that caused this movement, when one did.
+  paymentId String?  @db.Uuid
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  note String?
+
+  createdAt DateTime @default(now())
+
+  /// One credit and one reversal per payment, no matter how often a webhook
+  /// is redelivered under fresh event ids.
+  @@unique([paymentId, kind])
+  @@index([userId, createdAt])
 }
 
 model PaymentStatusTransition {

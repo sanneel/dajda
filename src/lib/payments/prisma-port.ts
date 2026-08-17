@@ -63,6 +63,7 @@ export const prismaWebhookPort: WebhookPort = {
         userId: true,
         planId: true,
         subscriptionId: true,
+        purpose: true,
         status: true,
         amountMinor: true,
         currency: true,
@@ -77,6 +78,7 @@ export const prismaWebhookPort: WebhookPort = {
       userId: payment.userId,
       planId: payment.planId,
       subscriptionId: payment.subscriptionId,
+      purpose: payment.purpose,
       status: payment.status,
       amountMinor: payment.amountMinor,
       currency: payment.currency,
@@ -245,6 +247,87 @@ export const prismaWebhookPort: WebhookPort = {
       if (!isUniqueViolation(error)) throw error;
       // The same renewal order arrived under a different event id; the
       // unique index on providerOrderId already holds the record.
+    }
+  },
+
+  async creditBalanceTopUp(input) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.update({
+          where: { id: input.userId },
+          data: { balanceMinor: { increment: input.amountMinor } },
+          select: { balanceMinor: true },
+        });
+
+        await tx.balanceTransaction.create({
+          data: {
+            userId: input.userId,
+            kind: 'TOPUP',
+            amountMinor: input.amountMinor,
+            currency: input.currency,
+            balanceAfterMinor: user.balanceMinor,
+            paymentId: input.paymentId,
+            note: 'ბალანსის შევსება დადასტურებული გადახდით',
+          },
+        });
+
+        await writeAuditLog(
+          {
+            action: AUDIT_ACTIONS.BALANCE_CREDITED,
+            entityType: 'User',
+            entityId: input.userId,
+            summary: `ბალანსი შეივსო: +${input.amountMinor} ${input.currency}`,
+            actorId: input.userId,
+            metadata: { paymentId: input.paymentId },
+          },
+          tx,
+        );
+      });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      /*
+       * The (paymentId, kind) unique index says this payment already credited
+       * the balance once - and the increment above rolled back with the same
+       * transaction, so a redelivery leaves the cache untouched too.
+       */
+    }
+  },
+
+  async reverseBalanceTopUp(input) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.update({
+          where: { id: input.userId },
+          data: { balanceMinor: { decrement: input.amountMinor } },
+          select: { balanceMinor: true },
+        });
+
+        await tx.balanceTransaction.create({
+          data: {
+            userId: input.userId,
+            kind: 'TOPUP_REVERSAL',
+            amountMinor: -input.amountMinor,
+            currency: input.currency,
+            balanceAfterMinor: user.balanceMinor,
+            paymentId: input.paymentId,
+            note: input.reason,
+          },
+        });
+
+        await writeAuditLog(
+          {
+            action: AUDIT_ACTIONS.BALANCE_DEBITED,
+            entityType: 'User',
+            entityId: input.userId,
+            summary: `ბალანსიდან ჩამოიჭრა დაბრუნებული შევსება: -${input.amountMinor} ${input.currency}`,
+            metadata: { paymentId: input.paymentId, reason: input.reason },
+          },
+          tx,
+        );
+      });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      // Already reversed once; see creditBalanceTopUp.
     }
   },
 

@@ -1,5 +1,6 @@
 import {
   AnalystStatus,
+  BalanceEntryKind,
   BillingPeriod,
   ConfidenceLevel,
   EditOutcome,
@@ -70,6 +71,13 @@ export const PLAN_TIER_KA: Record<PlanTier, string> = {
 export const BILLING_PERIOD_KA: Record<BillingPeriod, string> = {
   MONTHLY: 'თვეში',
   QUARTERLY: 'კვარტალში',
+};
+
+export const BALANCE_KIND_KA: Record<BalanceEntryKind, string> = {
+  TOPUP: 'შევსება',
+  SUBSCRIPTION_PAYMENT: 'გამოწერის გადახდა',
+  TOPUP_REVERSAL: 'შევსების დაბრუნება',
+  ADJUSTMENT: 'კორექცია',
 };
 
 export const SUBSCRIPTION_STATUS_KA: Record<SubscriptionStatus, string> = {

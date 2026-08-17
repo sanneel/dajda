@@ -20,6 +20,8 @@ const VALID_PRODUCTION = {
   MOCK_PAYMENT_SECRET: 'not-the-shared-default',
   FLITT_MERCHANT_ID: '1000',
   FLITT_SECRET_KEY: 'flitt-secret',
+  EMAIL_PROVIDER: 'smtp',
+  SMTP_HOST: 'smtp.example.com',
 } as const;
 
 /** Replaces the whole environment so a stray real variable cannot leak in. */
@@ -58,9 +60,10 @@ describe('environment configuration', () => {
   });
 
   /*
-   * DEMO_MODE is the one sanctioned way past the payment guard. These tests
-   * pin its blast radius: it must waive the two payment checks and nothing
-   * else, and it must not be combinable with a live merchant.
+   * DEMO_MODE is the one sanctioned way past the payment and email guards.
+   * These tests pin its blast radius: it must waive the two payment checks
+   * and the email check and nothing else, and it must not be combinable
+   * with a live merchant.
    */
   it('lets an explicit demo run the mock provider in production', () => {
     setEnv({
@@ -118,6 +121,35 @@ describe('environment configuration', () => {
   it('still requires Flitt credentials when Flitt is selected', () => {
     setEnv({ ...VALID_PRODUCTION, FLITT_SECRET_KEY: undefined });
     expect(() => getEnv()).toThrow(/FLITT_SECRET_KEY/);
+  });
+
+  it('refuses to boot production with the console email sender', () => {
+    // The console sender logs mail instead of delivering it; registration
+    // and password reset would silently promise emails nobody receives.
+    setEnv({
+      ...VALID_PRODUCTION,
+      EMAIL_PROVIDER: 'console',
+      SMTP_HOST: undefined,
+    });
+    expect(() => getEnv()).toThrow(/EMAIL_PROVIDER/);
+  });
+
+  it('lets an explicit demo keep the console email sender', () => {
+    setEnv({
+      NODE_ENV: 'production',
+      DATABASE_URL: VALID_PRODUCTION.DATABASE_URL,
+      AUTH_SECRET: VALID_PRODUCTION.AUTH_SECRET,
+      APP_URL: 'https://dajda-demo.example',
+      PAYMENT_PROVIDER: 'mock',
+      MOCK_PAYMENT_SECRET: 'dev-mock-secret',
+      DEMO_MODE: 'true',
+    });
+    expect(getEnv().EMAIL_PROVIDER).toBe('console');
+  });
+
+  it('requires SMTP_HOST whenever the smtp sender is selected', () => {
+    setEnv({ ...VALID_PRODUCTION, SMTP_HOST: undefined });
+    expect(() => getEnv()).toThrow(/SMTP_HOST/);
   });
 
   it('lets `next build` compile without production secrets', () => {

@@ -80,6 +80,8 @@ export const RATE_LIMITS = {
   login: { limit: 8, windowMs: 15 * 60 * 1000 },
   register: { limit: 5, windowMs: 60 * 60 * 1000 },
   passwordReset: { limit: 5, windowMs: 60 * 60 * 1000 },
+  /** Each resend is an outbound email on the platform's reputation. */
+  resendVerification: { limit: 3, windowMs: 15 * 60 * 1000 },
   report: { limit: 10, windowMs: 60 * 60 * 1000 },
   checkout: { limit: 10, windowMs: 10 * 60 * 1000 },
   /** Each post decodes and re-encodes an image, so it is worth capping. */

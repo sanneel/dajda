@@ -40,10 +40,10 @@ const envSchema = z
      * Run a public deployment as an openly-labelled demo.
      *
      * This exists so the app can be shown to somebody before there is a
-     * payment merchant account. It relaxes exactly two checks - the payment
-     * provider and the mock webhook secret - and nothing else. It is an
-     * explicit opt-in rather than a fallback, so nobody arrives here by
-     * forgetting a variable.
+     * payment merchant account. It relaxes exactly three checks - the payment
+     * provider, the mock webhook secret and the email provider - and nothing
+     * else. It is an explicit opt-in rather than a fallback, so nobody
+     * arrives here by forgetting a variable.
      *
      * Every page renders a banner while it is on. A deployment that takes real
      * money must never be indistinguishable from one that does not, and the
@@ -54,6 +54,29 @@ const envSchema = z
       .enum(['true', 'false'])
       .default('false')
       .transform((value) => value === 'true'),
+
+    /**
+     * Which email transport to load: "console" (development - prints mail to
+     * the server log) or "smtp" (production).
+     */
+    EMAIL_PROVIDER: z.enum(['console', 'smtp']).default('console'),
+    /** The From header, e.g. `DAJDA <no-reply@dajda.ge>`. */
+    EMAIL_FROM: z.string().min(3).default('DAJDA <no-reply@localhost>'),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASSWORD: z.string().optional(),
+    /** "true" => TLS from the first byte (port 465). Otherwise STARTTLS. */
+    SMTP_SECURE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+
+    /**
+     * Bearer secret for the notification dispatch endpoint, so an external
+     * cron can drain the outbox. The endpoint refuses to run while unset.
+     */
+    CRON_SECRET: z.string().min(16).optional(),
 
     FLITT_MERCHANT_ID: z.string().optional(),
     FLITT_SECRET_KEY: z.string().optional(),
@@ -80,6 +103,14 @@ const envSchema = z
       }
     }
 
+    if (value.EMAIL_PROVIDER === 'smtp' && !value.SMTP_HOST) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SMTP_HOST'],
+        message: 'SMTP_HOST is required when EMAIL_PROVIDER="smtp"',
+      });
+    }
+
     if (value.NODE_ENV !== 'production') return;
 
     /*
@@ -100,13 +131,16 @@ const envSchema = z
      */
 
     /*
-     * DEMO_MODE waives the two PAYMENT checks and only those.
+     * DEMO_MODE waives the two PAYMENT checks, the EMAIL check, and only
+     * those.
      *
-     * The reasoning is that both of them protect real money, and a demo has
-     * none: the mock provider hands out subscriptions that buy access to
-     * seeded content, and forging its webhook grants the same thing the
-     * built-in /dev/checkout simulator already grants anyone who visits it.
-     * Requiring a secret to protect an unlocked door is theatre.
+     * The reasoning is that the payment checks protect real money and the
+     * email check protects real recipients, and a demo has neither: the mock
+     * provider hands out subscriptions that buy access to seeded content,
+     * forging its webhook grants the same thing the built-in /dev/checkout
+     * simulator already grants anyone who visits it, and demo mail goes to
+     * invented addresses. Requiring a secret to protect an unlocked door is
+     * theatre.
      *
      * The APP_URL check below is NOT waived, because it protects the session
      * cookie of every visitor including the demo's, and costs nothing to
@@ -133,6 +167,22 @@ const envSchema = z
           path: ['MOCK_PAYMENT_SECRET'],
           message:
             'MOCK_PAYMENT_SECRET is still the shared development default and is publicly known.',
+        });
+      }
+
+      /*
+       * The console sender logs mail instead of delivering it. Registration
+       * and password reset promise the visitor an email, so a production
+       * deployment that only logs them is broken in a way nobody notices
+       * until a customer is locked out. A demo, by contrast, has no real
+       * recipients - so the waiver above extends to this check.
+       */
+      if (value.EMAIL_PROVIDER === 'console') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['EMAIL_PROVIDER'],
+          message:
+            'EMAIL_PROVIDER="console" only logs email and must not be used in production. Configure SMTP, or set DEMO_MODE="true" to run an openly-labelled demo.',
         });
       }
     }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth/authorization";
 import { formatDateKa, formatDateTimeKa, formatMoney } from "@/lib/format";
 import {
+  BALANCE_KIND_KA,
   BILLING_PERIOD_KA,
   PAYMENT_STATUS_KA,
   SUBSCRIPTION_STATUS_KA,
@@ -13,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, EmptyState } from "@/components/ui/feedback";
 import { ButtonLink } from "@/components/ui/button";
 import { CancelSubscriptionButton } from "./cancel-button";
+import { ResendVerificationButton } from "./resend-verification-button";
+import { TopUpForm } from "./top-up-form";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +40,8 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const actor = await requireUser();
 
-  const [subscriptions, payments, pendingPayments] = await Promise.all([
+  const [subscriptions, payments, pendingPayments, balance, balanceEntries] =
+    await Promise.all([
     prisma.userSubscription.findMany({
       where: { userId: actor.userId },
       orderBy: { createdAt: "desc" },
@@ -80,6 +84,23 @@ export default async function DashboardPage() {
         status: { in: ["CREATED", "PROCESSING"] },
       },
     }),
+    prisma.user.findUniqueOrThrow({
+      where: { id: actor.userId },
+      select: { balanceMinor: true },
+    }),
+    prisma.balanceTransaction.findMany({
+      where: { userId: actor.userId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        kind: true,
+        amountMinor: true,
+        currency: true,
+        note: true,
+        createdAt: true,
+      },
+    }),
   ]);
 
   return (
@@ -95,8 +116,13 @@ export default async function DashboardPage() {
 
       {!actor.emailVerifiedAt ? (
         <Alert tone="info" title="ელფოსტა არ არის დადასტურებული">
-          დადასტურების სისტემა ჯერ არ არის სრულად ჩართული: ეს არ ზღუდავს
-          პლატფორმით სარგებლობას.
+          <div className="space-y-2">
+            <p>
+              დადასტურების ბმული გამოგზავნილია რეგისტრაციისას მითითებულ
+              მისამართზე. თუ ვერ იპოვეთ, გამოითხოვეთ ახალი:
+            </p>
+            <ResendVerificationButton />
+          </div>
         </Alert>
       ) : null}
 
@@ -107,6 +133,56 @@ export default async function DashboardPage() {
           სერვერული დადასტურების მიღების შემდეგ.
         </Alert>
       ) : null}
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Balance                                                           */}
+      {/* ---------------------------------------------------------------- */}
+      <Card as="section">
+        <CardHeader
+          title="ბალანსი"
+          level={2}
+          description="თუ ბალანსი გეგმის სრულ ფასს ფარავს, გამოწერა პირდაპირ ბალანსიდან გადაიხდება — ბარათის გარეშე."
+        />
+        <CardBody>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <p className="font-display text-3xl text-ink tabular">
+              {formatMoney(balance.balanceMinor, "GEL")}
+            </p>
+            <TopUpForm />
+          </div>
+
+          {balanceEntries.length > 0 ? (
+            <ul className="mt-4 divide-y divide-line border-t border-line text-sm">
+              {balanceEntries.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="flex items-center justify-between gap-3 py-2"
+                >
+                  <span className="min-w-0 text-ink-muted">
+                    {BALANCE_KIND_KA[entry.kind]}
+                    {entry.note ? ` · ${entry.note}` : ""}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <span className="tabular text-ink-faint">
+                      {formatDateKa(entry.createdAt)}
+                    </span>
+                    <span
+                      className={
+                        entry.amountMinor > 0
+                          ? "tabular text-ink"
+                          : "tabular text-ink-muted"
+                      }
+                    >
+                      {entry.amountMinor > 0 ? "+" : "−"}
+                      {formatMoney(Math.abs(entry.amountMinor), entry.currency)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </CardBody>
+      </Card>
 
       {/* ---------------------------------------------------------------- */}
       {/* Subscriptions                                                     */}

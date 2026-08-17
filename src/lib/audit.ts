@@ -50,6 +50,9 @@ export const AUDIT_ACTIONS = {
   PAYMENT_WEBHOOK_REJECTED: 'payment.webhook_rejected',
   PAYMENT_REFUNDED: 'payment.refunded',
 
+  BALANCE_CREDITED: 'balance.credited',
+  BALANCE_DEBITED: 'balance.debited',
+
   REPORT_FILED: 'report.filed',
   REPORT_RESOLVED: 'report.resolved',
 } as const;
