@@ -5,8 +5,13 @@ import type {
   CreateCheckoutInput,
   PaymentProvider,
   PaymentVerification,
+  PayoutInput,
+  PayoutResult,
+  RecurringChargeInput,
   RefundInput,
   RefundResult,
+  SubscriptionActionInput,
+  SubscriptionActionResult,
   VerifyPaymentInput,
   WebhookResult,
 } from './types';
@@ -95,6 +100,11 @@ export type MockWebhookPayload = {
   currency?: string;
   masked_card?: string;
   card_type?: string;
+  /** Mirrors Flitt's rectoken, so token storage is exercised in development. */
+  rectoken?: string;
+  rectoken_lifetime?: string;
+  /** Mirrors a gateway-scheduled renewal referencing its original order. */
+  parent_order_id?: string;
 };
 
 export type MockConfig = {
@@ -174,6 +184,9 @@ export class MockPaymentProvider implements PaymentProvider {
       maskedCard: payload.masked_card ?? null,
       cardType: payload.card_type ?? null,
       rrn: null,
+      cardToken: payload.rectoken ?? null,
+      cardTokenLifetime: payload.rectoken_lifetime ?? null,
+      parentOrderId: payload.parent_order_id ?? null,
       payload: payload as Record<string, unknown>,
       ...(check.valid ? {} : { rejectionReason: check.reason }),
     };
@@ -185,6 +198,45 @@ export class MockPaymentProvider implements PaymentProvider {
       refundId: `mock-refund-${input.orderId}`,
       status: 'ACCEPTED',
       rawStatus: 'reversed',
+    };
+  }
+
+  /**
+   * The real gateway answers a token charge synchronously; the mock mirrors
+   * that by approving it. State still only moves via the signed webhook, so
+   * a development flow must follow up with the simulator exactly as Flitt
+   * would follow up with a callback.
+   */
+  async chargeRecurring(
+    input: RecurringChargeInput,
+  ): Promise<PaymentVerification> {
+    return {
+      orderId: input.orderId,
+      providerPaymentId: `mock-recurring-${input.orderId}`,
+      status: 'SUCCEEDED',
+      rawStatus: 'approved',
+      amountMinor: input.amountMinor,
+      currency: input.currency,
+    };
+  }
+
+  async setSubscriptionState(
+    input: SubscriptionActionInput,
+  ): Promise<SubscriptionActionResult> {
+    return {
+      orderId: input.orderId,
+      action: input.action,
+      status: 'ACCEPTED',
+      rawStatus: 'success',
+    };
+  }
+
+  async createPayout(input: PayoutInput): Promise<PayoutResult> {
+    return {
+      orderId: input.orderId,
+      providerPaymentId: `mock-payout-${input.orderId}`,
+      status: 'SUCCEEDED',
+      rawStatus: 'approved',
     };
   }
 }

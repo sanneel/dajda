@@ -27,7 +27,13 @@ type Recorded = {
   transitions: { paymentId: string; from: PaymentStatus; to: PaymentStatus }[];
   activations: { subscriptionId: string; currentPeriodEnd: Date }[];
   deactivations: { subscriptionId: string; reason: string }[];
+  tokenSaves: { subscriptionId: string; cardToken: string }[];
+  renewalPayments: { orderId: string; parentPaymentId: string; amountMinor: number }[];
+  renewals: { subscriptionId: string; currentPeriodEnd: Date }[];
 };
+
+/** The order id the fake database knows about; anything else is a stranger. */
+const KNOWN_ORDER_ID = 'dajda-order-1';
 
 function makePort(payment: PaymentSnapshot | null) {
   const recorded: Recorded = {
@@ -35,6 +41,9 @@ function makePort(payment: PaymentSnapshot | null) {
     transitions: [],
     activations: [],
     deactivations: [],
+    tokenSaves: [],
+    renewalPayments: [],
+    renewals: [],
   };
 
   let counter = 0;
@@ -61,8 +70,8 @@ function makePort(payment: PaymentSnapshot | null) {
       if (event) event.processedAs = result;
     },
 
-    async findPaymentByOrderId() {
-      return current;
+    async findPaymentByOrderId(orderId) {
+      return orderId === KNOWN_ORDER_ID ? current : null;
     },
 
     async transitionPayment(input) {
@@ -83,6 +92,28 @@ function makePort(payment: PaymentSnapshot | null) {
 
     async deactivateSubscription(input) {
       recorded.deactivations.push(input);
+    },
+
+    async saveCardToken(input) {
+      recorded.tokenSaves.push({
+        subscriptionId: input.subscriptionId,
+        cardToken: input.cardToken,
+      });
+    },
+
+    async recordRenewalPayment(input) {
+      recorded.renewalPayments.push({
+        orderId: input.orderId,
+        parentPaymentId: input.parentPaymentId,
+        amountMinor: input.amountMinor,
+      });
+    },
+
+    async renewSubscription(input) {
+      recorded.renewals.push({
+        subscriptionId: input.subscriptionId,
+        currentPeriodEnd: input.currentPeriodEnd,
+      });
     },
   };
 
@@ -113,9 +144,23 @@ function result(overrides: Partial<WebhookResult> = {}): WebhookResult {
     maskedCard: '444455XXXXXX1111',
     cardType: 'VISA',
     rrn: null,
+    cardToken: null,
+    cardTokenLifetime: null,
+    parentOrderId: null,
     payload: {},
     ...overrides,
   };
+}
+
+/** A gateway-initiated renewal: a brand-new order naming the original one. */
+function renewalResult(overrides: Partial<WebhookResult> = {}): WebhookResult {
+  return result({
+    eventId: 'evt-renewal-1',
+    orderId: 'flitt-generated-order-77',
+    providerPaymentId: 'pay-777',
+    parentOrderId: KNOWN_ORDER_ID,
+    ...overrides,
+  });
 }
 
 describe('transition rules', () => {
@@ -353,5 +398,142 @@ describe('processPaymentWebhook', () => {
     expect(recorded.activations[0]?.currentPeriodEnd.toISOString()).toBe(
       new Date('2026-09-11T00:00:00Z').toISOString(),
     );
+  });
+
+  it('stores a card token delivered with a verified approval', async () => {
+    await processPaymentWebhook(
+      'mock',
+      result({ cardToken: 'rec-token-1', cardTokenLifetime: '2029-01-01' }),
+      port,
+    );
+
+    expect(recorded.tokenSaves).toEqual([
+      { subscriptionId: 'sub-1', cardToken: 'rec-token-1' },
+    ]);
+  });
+
+  it('does not store a token from a rejected or failed delivery', async () => {
+    await processPaymentWebhook(
+      'mock',
+      result({ signatureValid: false, cardToken: 'stolen-token' }),
+      port,
+    );
+    await processPaymentWebhook(
+      'mock',
+      result({
+        eventId: 'evt-declined',
+        status: 'FAILED',
+        rawStatus: 'declined',
+        cardToken: 'declined-token',
+      }),
+      port,
+    );
+
+    expect(recorded.tokenSaves).toHaveLength(0);
+  });
+});
+
+describe('gateway-scheduled renewals', () => {
+  let port: WebhookPort;
+  let recorded: Recorded;
+
+  beforeEach(() => {
+    // The original payment has long since SUCCEEDED when a renewal arrives.
+    ({ port, recorded } = makePort({ ...PAYMENT, status: 'SUCCEEDED' }));
+  });
+
+  it('records the charge and extends the paid period', async () => {
+    const now = new Date('2026-09-11T00:00:00Z');
+    const outcome = await processPaymentWebhook(
+      'mock',
+      renewalResult(),
+      port,
+      now,
+    );
+
+    expect(outcome.action).toBe('RENEWAL_APPLIED');
+    expect(outcome.subscriptionActivated).toBe(true);
+    expect(recorded.renewalPayments).toEqual([
+      {
+        orderId: 'flitt-generated-order-77',
+        parentPaymentId: 'payment-1',
+        amountMinor: 2900,
+      },
+    ]);
+    expect(recorded.renewals[0]?.subscriptionId).toBe('sub-1');
+    expect(recorded.renewals[0]?.currentPeriodEnd.toISOString()).toBe(
+      new Date('2026-10-11T00:00:00Z').toISOString(),
+    );
+    // The original payment row is untouched - the renewal is its own record.
+    expect(recorded.transitions).toHaveLength(0);
+  });
+
+  it('keeps a declined renewal on record without touching access', async () => {
+    const outcome = await processPaymentWebhook(
+      'mock',
+      renewalResult({ status: 'FAILED', rawStatus: 'declined' }),
+      port,
+    );
+
+    expect(outcome.action).toBe('RENEWAL_IGNORED');
+    expect(recorded.renewalPayments).toHaveLength(0);
+    expect(recorded.renewals).toHaveLength(0);
+    expect(recorded.events[0]?.processedAs).toContain('declined');
+  });
+
+  it('rejects a renewal claiming a different amount', async () => {
+    const outcome = await processPaymentWebhook(
+      'mock',
+      renewalResult({ amountMinor: 1 }),
+      port,
+    );
+
+    expect(outcome.action).toBe('AMOUNT_MISMATCH');
+    expect(recorded.renewalPayments).toHaveLength(0);
+    expect(recorded.renewals).toHaveLength(0);
+  });
+
+  it('rejects a renewal naming an unknown parent order', async () => {
+    const outcome = await processPaymentWebhook(
+      'mock',
+      renewalResult({ parentOrderId: 'never-seen-order' }),
+      port,
+    );
+
+    expect(outcome.action).toBe('PAYMENT_NOT_FOUND');
+    expect(recorded.renewals).toHaveLength(0);
+  });
+
+  it('absorbs a duplicate delivery of the same renewal', async () => {
+    await processPaymentWebhook('mock', renewalResult(), port);
+    const second = await processPaymentWebhook('mock', renewalResult(), port);
+
+    expect(second.action).toBe('DUPLICATE_IGNORED');
+    expect(recorded.renewalPayments).toHaveLength(1);
+    expect(recorded.renewals).toHaveLength(1);
+  });
+
+  it('requires a valid signature like any other delivery', async () => {
+    const outcome = await processPaymentWebhook(
+      'mock',
+      renewalResult({ signatureValid: false }),
+      port,
+    );
+
+    expect(outcome.action).toBe('REJECTED_SIGNATURE');
+    expect(recorded.renewalPayments).toHaveLength(0);
+    expect(recorded.renewals).toHaveLength(0);
+  });
+
+  it('stores a rotated card token arriving with a renewal', async () => {
+    await processPaymentWebhook(
+      'mock',
+      renewalResult({ cardToken: 'rotated-token' }),
+      port,
+    );
+
+    expect(recorded.tokenSaves).toEqual([
+      { subscriptionId: 'sub-1', cardToken: 'rotated-token' },
+    ]);
   });
 });

@@ -39,6 +39,8 @@ export const AUDIT_ACTIONS = {
 
   SUBSCRIPTION_CREATED: 'subscription.created',
   SUBSCRIPTION_ACTIVATED: 'subscription.activated',
+  /** A gateway-scheduled charge extended the paid period. */
+  SUBSCRIPTION_RENEWED: 'subscription.renewed',
   SUBSCRIPTION_CANCELED: 'subscription.canceled',
   SUBSCRIPTION_EXPIRED: 'subscription.expired',
 

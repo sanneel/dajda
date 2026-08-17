@@ -74,6 +74,24 @@ describe('Flitt signature', () => {
     expect(buildSignatureBase({ a: 0, b: 'x' }, 'key')).toBe('key|0|x');
   });
 
+  it('excludes nested objects such as recurring_data from the digest', () => {
+    // The subscription schedule travels as a nested object; only scalar
+    // parameters are signed, so adding it must not change the signature.
+    const withSchedule = {
+      ...documentedParams,
+      recurring_data: {
+        every: 1,
+        period: 'month',
+        amount: 1000,
+        state: 'Y',
+        readonly: 'Y',
+      },
+    };
+    expect(buildSignatureBase(withSchedule, 'test')).toBe(
+      buildSignatureBase(documentedParams, 'test'),
+    );
+  });
+
   it('excludes signature and response_signature_string from the digest', () => {
     const withExtras = {
       ...documentedParams,

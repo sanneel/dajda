@@ -6,8 +6,13 @@ import type {
   CreateCheckoutInput,
   PaymentProvider,
   PaymentVerification,
+  PayoutInput,
+  PayoutResult,
+  RecurringChargeInput,
   RefundInput,
   RefundResult,
+  SubscriptionActionInput,
+  SubscriptionActionResult,
   VerifyPaymentInput,
   WebhookResult,
 } from './types';
@@ -15,6 +20,11 @@ import type {
 /**
  * Flitt adapter - implemented against the published API reference
  * (https://docs.flitt.com).
+ *
+ * Covers hosted checkout (optionally with a gateway-managed subscription
+ * calendar and/or a reusable card token), status checks, refunds, recurring
+ * charges against a stored token, subscription start/stop, and payouts
+ * (P2P card credit, signed with the separate credit key).
  *
  * Signature algorithm, per docs.flitt.com/api/building-signature:
  *   1. take every parameter except `signature` and `response_signature_string`
@@ -34,7 +44,11 @@ export const FLITT_PROVIDER_CODE = 'flitt';
 /** Parameters the gateway adds to a response but excludes from the digest. */
 const SIGNATURE_EXCLUDED = new Set(['signature', 'response_signature_string']);
 
-export type FlittParams = Record<string, string | number | null | undefined>;
+export type FlittScalar = string | number | null | undefined;
+export type FlittParams = Record<
+  string,
+  FlittScalar | Record<string, FlittScalar>
+>;
 
 /**
  * Build the exact string that gets hashed. Exported so tests can assert it
@@ -48,9 +62,15 @@ export function buildSignatureBase(
     .filter((key) => !SIGNATURE_EXCLUDED.has(key))
     .sort()
     .map((key) => params[key])
-    // Absent and empty are skipped; 0 and "0" are kept.
+    // Absent and empty are skipped; 0 and "0" are kept. Nested objects such
+    // as recurring_data carry the subscription schedule but are not part of
+    // the digest - only scalar parameters are signed.
     .filter(
-      (value) => value !== null && value !== undefined && value !== '',
+      (value) =>
+        value !== null &&
+        value !== undefined &&
+        value !== '' &&
+        typeof value !== 'object',
     )
     .map((value) => String(value));
 
@@ -103,6 +123,12 @@ export type FlittConfig = {
   /** Callback-verification key. Flitt uses the payment key unless a separate
    *  one is configured for the merchant. */
   webhookSecret: string;
+  /**
+   * Separate "credit" private key issued for payout (P2P card credit)
+   * operations. Payouts are refused when it is not configured; the payment
+   * key is never a substitute.
+   */
+  creditKey?: string;
   apiUrl: string;
 };
 
@@ -113,10 +139,14 @@ export class FlittPaymentProvider implements PaymentProvider {
 
   constructor(private readonly config: FlittConfig) {}
 
-  private async post<T>(path: string, request: FlittParams): Promise<T> {
+  private async post<T>(
+    path: string,
+    request: FlittParams,
+    signingKey: string = this.config.secretKey,
+  ): Promise<T> {
     const signed = {
       ...request,
-      signature: flittSignature(request, this.config.secretKey),
+      signature: flittSignature(request, signingKey),
     };
 
     const response = await fetch(`${this.config.apiUrl}${path}`, {
@@ -143,13 +173,7 @@ export class FlittPaymentProvider implements PaymentProvider {
   async createCheckoutSession(
     input: CreateCheckoutInput,
   ): Promise<CheckoutSession> {
-    const response = await this.post<{
-      response_status?: string;
-      checkout_url?: string;
-      payment_id?: number | string;
-      error_message?: string;
-      error_code?: number;
-    }>('/api/checkout/url', {
+    const request: FlittParams = {
       merchant_id: this.config.merchantId,
       order_id: input.orderId,
       // Flitt expects the amount in minor units, which is how we store it.
@@ -159,7 +183,38 @@ export class FlittPaymentProvider implements PaymentProvider {
       server_callback_url: input.callbackUrl,
       response_url: input.returnUrl,
       sender_email: input.customerEmail,
-    });
+    };
+
+    if (input.requestCardToken) {
+      // The callback will then carry `rectoken`, our WebhookResult.cardToken.
+      request.required_rectoken = 'Y';
+    }
+
+    if (input.subscription) {
+      // docs.flitt.com/api/subscriptions: subscription=Y plus a recurring_data
+      // object makes the gateway charge the card on its own calendar. The
+      // checkout takes the first payment; start_time is when renewals begin.
+      // recurring_data is nested and therefore outside the signature.
+      request.subscription = 'Y';
+      request.recurring_data = {
+        every: input.subscription.every,
+        period: input.subscription.period,
+        amount: input.amountMinor,
+        start_time: input.subscription.startDate,
+        // The customer pays what the plan costs; the hosted page must not
+        // let them edit the schedule.
+        state: 'Y',
+        readonly: 'Y',
+      };
+    }
+
+    const response = await this.post<{
+      response_status?: string;
+      checkout_url?: string;
+      payment_id?: number | string;
+      error_message?: string;
+      error_code?: number;
+    }>('/api/checkout/url', request);
 
     if (response.response_status !== 'success' || !response.checkout_url) {
       throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
@@ -238,6 +293,13 @@ export class FlittPaymentProvider implements PaymentProvider {
         params.masked_card === undefined ? null : String(params.masked_card),
       cardType: params.card_type === undefined ? null : String(params.card_type),
       rrn: params.rrn === undefined ? null : String(params.rrn),
+      // Issued when the checkout asked for required_rectoken=Y. An opaque
+      // token, never a PAN, safe to persist.
+      cardToken: asOptionalString(params.rectoken),
+      cardTokenLifetime: asOptionalString(params.rectoken_lifetime),
+      // Present on charges the gateway initiated from a subscription
+      // calendar; names the original checkout order.
+      parentOrderId: asOptionalString(params.parent_order_id),
       payload: params as Record<string, unknown>,
       ...(signatureValid ? {} : { rejectionReason: 'INVALID_SIGNATURE' }),
     };
@@ -274,6 +336,150 @@ export class FlittPaymentProvider implements PaymentProvider {
           : String(response.response_description),
     };
   }
+
+  /**
+   * Charge a stored card token (docs.flitt.com: /api/recurring). The gateway
+   * answers synchronously with the same vocabulary as an order status check;
+   * the server callback, when requested, remains the source of truth.
+   */
+  async chargeRecurring(
+    input: RecurringChargeInput,
+  ): Promise<PaymentVerification> {
+    const response = await this.post<Record<string, string | number>>(
+      '/api/recurring',
+      {
+        merchant_id: this.config.merchantId,
+        order_id: input.orderId,
+        order_desc: input.description,
+        amount: input.amountMinor,
+        currency: input.currency,
+        rectoken: input.cardToken,
+        server_callback_url: input.callbackUrl,
+      },
+    );
+
+    if (String(response.response_status ?? '') === 'failure') {
+      throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
+        internalDetail: `Flitt recurring failed: ${response.error_code ?? '?'} ${
+          response.error_message ?? 'unknown'
+        }`,
+      });
+    }
+
+    const rawStatus = String(response.order_status ?? '');
+
+    return {
+      orderId: input.orderId,
+      providerPaymentId:
+        response.payment_id === undefined ? null : String(response.payment_id),
+      status: mapFlittStatus(rawStatus) ?? 'PROCESSING',
+      rawStatus,
+      amountMinor:
+        response.amount === undefined ? null : Number(response.amount),
+      currency:
+        response.currency === undefined ? null : String(response.currency),
+    };
+  }
+
+  /**
+   * Pause or resume the renewal calendar created by a subscription checkout
+   * (docs.flitt.com/api/cancel-subscriptions: /api/subscription with
+   * action=start|stop, addressed by the original order_id).
+   */
+  async setSubscriptionState(
+    input: SubscriptionActionInput,
+  ): Promise<SubscriptionActionResult> {
+    const response = await this.post<Record<string, string | number>>(
+      '/api/subscription',
+      {
+        merchant_id: this.config.merchantId,
+        order_id: input.orderId,
+        action: input.action,
+      },
+    );
+
+    const rawStatus = String(response.response_status ?? '');
+
+    return {
+      orderId: input.orderId,
+      action: input.action,
+      status: rawStatus === 'success' ? 'ACCEPTED' : 'REJECTED',
+      rawStatus,
+      message:
+        response.error_message === undefined
+          ? undefined
+          : String(response.error_message),
+    };
+  }
+
+  /**
+   * Credit funds to a card (docs.flitt.com: /api/p2pcredit). Signed with the
+   * dedicated credit key, which the merchant receives separately from the
+   * payment key precisely so that a leaked payment key cannot move money out.
+   */
+  async createPayout(input: PayoutInput): Promise<PayoutResult> {
+    if (!this.config.creditKey) {
+      throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
+        internalDetail:
+          'Flitt payout refused: FLITT_CREDIT_KEY is not configured',
+      });
+    }
+
+    if (!input.receiverCardToken === !input.receiverCardNumber) {
+      throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
+        internalDetail:
+          'Flitt payout needs exactly one of receiverCardToken / receiverCardNumber',
+      });
+    }
+
+    const response = await this.post<Record<string, string | number>>(
+      '/api/p2pcredit',
+      {
+        merchant_id: this.config.merchantId,
+        order_id: input.orderId,
+        order_desc: input.description,
+        amount: input.amountMinor,
+        currency: input.currency,
+        receiver_rectoken: input.receiverCardToken,
+        receiver_card_number: input.receiverCardNumber,
+      },
+      this.config.creditKey,
+    );
+
+    if (String(response.response_status ?? '') === 'failure') {
+      throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
+        internalDetail: `Flitt payout failed: ${response.error_code ?? '?'} ${
+          response.error_message ?? 'unknown'
+        }`,
+      });
+    }
+
+    const rawStatus = String(response.order_status ?? '');
+    const status: PayoutResult['status'] =
+      rawStatus.toLowerCase() === 'approved'
+        ? 'SUCCEEDED'
+        : rawStatus.toLowerCase() === 'declined'
+          ? 'FAILED'
+          : 'PROCESSING';
+
+    return {
+      orderId: input.orderId,
+      providerPaymentId:
+        response.payment_id === undefined ? null : String(response.payment_id),
+      status,
+      rawStatus,
+      message:
+        response.response_description === undefined
+          ? undefined
+          : String(response.response_description),
+    };
+  }
+}
+
+function asOptionalString(value: unknown): string | null {
+  return value === undefined || value === null || value === ''
+    ? null
+    : String(value);
 }
 
 async function readFlittBody(request: Request): Promise<FlittParams> {

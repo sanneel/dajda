@@ -58,6 +58,12 @@ const envSchema = z
     FLITT_MERCHANT_ID: z.string().optional(),
     FLITT_SECRET_KEY: z.string().optional(),
     FLITT_WEBHOOK_SECRET: z.string().optional(),
+    /**
+     * Separate private key Flitt issues for payout (P2P card credit)
+     * operations. Optional: without it every payout attempt is refused at
+     * the adapter, while checkout and subscriptions keep working.
+     */
+    FLITT_CREDIT_KEY: z.string().optional(),
     FLITT_API_URL: z.url().default('https://pay.flitt.com'),
   })
   .superRefine((value, ctx) => {

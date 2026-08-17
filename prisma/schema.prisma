@@ -560,6 +560,12 @@ model UserSubscription {
   cancelAtPeriodEnd Boolean  @default(false)
   canceledAt       DateTime?
 
+  /// Gateway-issued reusable card token (Flitt rectoken) for
+  /// merchant-initiated recurring charges. Opaque - never a PAN.
+  cardToken         String?
+  /// Token validity as reported by the gateway, stored verbatim.
+  cardTokenLifetime String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

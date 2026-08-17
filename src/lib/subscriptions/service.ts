@@ -117,6 +117,13 @@ export async function startSubscriptionCheckout(
     return { subscriptionId: subscription.id };
   });
 
+  /*
+   * The gateway manages renewals: the checkout takes the first payment and
+   * schedules the next charge for the day this paid period lapses. Each
+   * renewal arrives as a webhook naming this order as its parent and extends
+   * the subscription without the customer returning. The card token is
+   * requested alongside as the fallback for merchant-initiated charges.
+   */
   const session = await provider.createCheckoutSession({
     orderId,
     amountMinor: plan.priceMinor,
@@ -125,6 +132,14 @@ export async function startSubscriptionCheckout(
     returnUrl: `${env.APP_URL}/dashboard?order=${orderId}`,
     callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
     customerEmail: actor.email,
+    subscription: {
+      every: plan.billingPeriod === 'QUARTERLY' ? 3 : 1,
+      period: 'month',
+      startDate: addBillingPeriod(new Date(), plan.billingPeriod)
+        .toISOString()
+        .slice(0, 10),
+    },
+    requestCardToken: true,
   });
 
   void subscriptionId;
@@ -135,6 +150,11 @@ export async function startSubscriptionCheckout(
 /**
  * Cancel at period end: the customer keeps the access they already paid for,
  * and nothing renews. This is the behaviour described on the pricing page.
+ *
+ * With a gateway-managed schedule "nothing renews" is a promise about the
+ * gateway, not just our database - so its calendar is stopped first, and a
+ * gateway that refuses fails the whole cancellation rather than leaving a
+ * customer who believes they canceled being charged next month.
  */
 export async function cancelSubscription(
   subscriptionId: string,
@@ -153,6 +173,33 @@ export async function cancelSubscription(
   }
   if (subscription.status !== 'ACTIVE') {
     throw new AppError(ERROR_CODES.CONFLICT, 'გამოწერა აქტიური არ არის.');
+  }
+
+  const provider = getPaymentProvider();
+
+  // The order that opened the subscription is the handle on the gateway's
+  // renewal calendar. Nothing to stop for free plans or a provider switch.
+  const openingPayment = await prisma.payment.findFirst({
+    where: {
+      subscriptionId: subscription.id,
+      providerCode: provider.code,
+      status: 'SUCCEEDED',
+    },
+    orderBy: { createdAt: 'asc' },
+    select: { providerOrderId: true },
+  });
+
+  if (openingPayment) {
+    const stop = await provider.setSubscriptionState({
+      orderId: openingPayment.providerOrderId,
+      action: 'stop',
+    });
+
+    if (stop.status !== 'ACCEPTED') {
+      throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
+        internalDetail: `provider refused to stop subscription: ${stop.rawStatus} ${stop.message ?? ''}`,
+      });
+    }
   }
 
   return prisma.$transaction(async (tx) => {

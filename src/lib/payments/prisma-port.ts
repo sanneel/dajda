@@ -181,4 +181,102 @@ export const prismaWebhookPort: WebhookPort = {
       );
     });
   },
+
+  async saveCardToken(input) {
+    // The ownership condition makes a webhook that names a mismatched
+    // (subscription, user) pair a silent no-op rather than a token overwrite.
+    await prisma.userSubscription.updateMany({
+      where: { id: input.subscriptionId, userId: input.userId },
+      data: {
+        cardToken: input.cardToken,
+        cardTokenLifetime: input.cardTokenLifetime,
+      },
+    });
+  },
+
+  async recordRenewalPayment(input) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const created = await tx.payment.create({
+          data: {
+            userId: input.userId,
+            planId: input.planId,
+            subscriptionId: input.subscriptionId,
+            providerCode: input.providerCode,
+            providerOrderId: input.orderId,
+            providerPaymentId: input.providerPaymentId,
+            amountMinor: input.amountMinor,
+            currency: input.currency,
+            status: 'SUCCEEDED',
+            maskedCard: input.maskedCard ?? undefined,
+            cardType: input.cardType ?? undefined,
+            rrn: input.rrn ?? undefined,
+          },
+          select: { id: true },
+        });
+
+        await tx.paymentStatusTransition.create({
+          data: {
+            paymentId: created.id,
+            fromStatus: null,
+            toStatus: 'SUCCEEDED',
+            source: 'WEBHOOK',
+            reason: `gateway-scheduled renewal of payment ${input.parentPaymentId}`,
+            webhookEventId: input.webhookEventId || null,
+          },
+        });
+
+        await writeAuditLog(
+          {
+            action: AUDIT_ACTIONS.PAYMENT_STATUS_CHANGED,
+            entityType: 'Payment',
+            entityId: created.id,
+            summary: 'განმეორებადი გადახდა შესრულდა (გეგმის განახლება)',
+            metadata: {
+              source: 'WEBHOOK',
+              parentPaymentId: input.parentPaymentId,
+              subscriptionId: input.subscriptionId,
+            },
+          },
+          tx,
+        );
+      });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      // The same renewal order arrived under a different event id; the
+      // unique index on providerOrderId already holds the record.
+    }
+  },
+
+  async renewSubscription(input) {
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.userSubscription.updateMany({
+        where: {
+          id: input.subscriptionId,
+          userId: input.userId,
+          // CANCELED stays canceled: money taken after a cancellation is a
+          // dispute to resolve by refund, not a reason to reopen access.
+          status: { in: ['PENDING', 'ACTIVE', 'PAST_DUE', 'EXPIRED'] },
+        },
+        data: {
+          status: 'ACTIVE',
+          currentPeriodEnd: input.currentPeriodEnd,
+        },
+      });
+
+      if (updated.count === 0) return;
+
+      await writeAuditLog(
+        {
+          action: AUDIT_ACTIONS.SUBSCRIPTION_RENEWED,
+          entityType: 'UserSubscription',
+          entityId: input.subscriptionId,
+          summary: 'გამოწერა განახლდა დაგეგმილი გადახდით',
+          actorId: input.userId,
+          metadata: { currentPeriodEnd: input.currentPeriodEnd.toISOString() },
+        },
+        tx,
+      );
+    });
+  },
 };

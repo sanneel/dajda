@@ -25,6 +25,7 @@ export function getPaymentProvider(): PaymentProvider {
       merchantId: env.FLITT_MERCHANT_ID as string,
       secretKey: env.FLITT_SECRET_KEY as string,
       webhookSecret: env.FLITT_WEBHOOK_SECRET ?? (env.FLITT_SECRET_KEY as string),
+      creditKey: env.FLITT_CREDIT_KEY,
       apiUrl: env.FLITT_API_URL,
     });
   } else {
