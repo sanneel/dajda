@@ -78,6 +78,26 @@ const envSchema = z
      */
     CRON_SECRET: z.string().min(16).optional(),
 
+    /**
+     * The analyst's percentage of a subscriber's payment. The remainder is
+     * the platform's commission. Whatever is set here must match the figure
+     * in the signed agreement (docs/legal/agreement.md, clause 5.3), because
+     * that document is what the analyst is owed by.
+     */
+    ANALYST_SHARE_PERCENT: z.coerce.number().int().min(0).max(100).default(70),
+
+    /** Smallest withdrawal, in tetri. Below this a payout costs more in fees
+     *  than it moves, so the balance rolls into the next period. */
+    ANALYST_MIN_PAYOUT_MINOR: z.coerce.number().int().min(1).default(2000),
+
+    /**
+     * Publications an analyst must have in the period for the activity check
+     * to pass. A failing check does not block the request: it is surfaced to
+     * the administrator who releases the payout, which is what the agreement
+     * describes (clause 5.6).
+     */
+    ANALYST_MIN_PUBLICATIONS: z.coerce.number().int().min(0).default(4),
+
     FLITT_MERCHANT_ID: z.string().optional(),
     FLITT_SECRET_KEY: z.string().optional(),
     FLITT_WEBHOOK_SECRET: z.string().optional(),

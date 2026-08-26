@@ -268,10 +268,22 @@ export const updateProfileSchema = z.object({
 });
 
 export const analystApplicationSchema = z.object({
-  displayName: z.string().trim().min(2).max(60),
+  /** Legal name, verified against the identity document by an administrator. */
+  firstName: z.string().trim().min(2, 'შეიყვანეთ სახელი.').max(40),
+  lastName: z.string().trim().min(2, 'შეიყვანეთ გვარი.').max(40),
+  /** The public byline, which may differ from the legal name. */
+  displayName: z.string().trim().min(2, 'შეიყვანეთ საჯარო სახელი.').max(60),
+  referralSource: z
+    .string()
+    .trim()
+    .min(2, 'მიუთითეთ, ვისი რეკომენდაციით ან საიდან მოხვდით პლატფორმაზე.')
+    .max(200),
+  primarySportId: z.uuid('აირჩიეთ ძირითადი მიმართულება.'),
   headline: z.string().trim().max(120).optional(),
   bio: z.string().trim().min(40, 'აღწერა ძალიან მოკლეა.').max(2000),
-  sportIds: z.array(z.uuid()).min(1, 'აირჩიეთ მინიმუმ ერთი სპორტი.'),
+  acceptTerms: z.literal(true, {
+    message: 'წესებზე თანხმობის გარეშე განაცხადი არ მიიღება.',
+  }),
 });
 
 export const analystDecisionSchema = z.object({
@@ -296,4 +308,25 @@ export const topUpSchema = z.object({
     .number('შეიყვანეთ თანხა.')
     .min(1, 'მინიმუმ 1 ლარი.')
     .max(5000, 'მაქსიმუმ 5000 ლარი ერთ შევსებაზე.'),
+});
+
+export const withdrawalSchema = z.object({
+  amountGel: z.coerce
+    .number('შეიყვანეთ თანხა.')
+    .positive('თანხა უნდა იყოს დადებითი.')
+    .max(100000, 'ერთ მოთხოვნაზე მაქსიმუმი 100000 ლარია.'),
+  /** Spaces and other separators are stripped before the Luhn check. */
+  cardNumber: z
+    .string()
+    .trim()
+    .min(13, 'ბარათის ნომერი არასწორია.')
+    .max(32, 'ბარათის ნომერი არასწორია.'),
+});
+
+export const payoutDecisionSchema = z.object({
+  payoutId: z.uuid(),
+  decision: z.enum(['APPROVE', 'REJECT']),
+  /** Required to approve: the number is never stored, so it is re-entered. */
+  cardNumber: z.string().trim().min(13).max(32).optional(),
+  reason: z.string().trim().max(300).optional(),
 });

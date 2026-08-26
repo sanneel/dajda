@@ -84,13 +84,21 @@ export default async function AnalystPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl text-ink sm:text-3xl">
-          ჩემი ფსონები
-        </h1>
-        <p className="mt-1.5 text-ink-muted">
-          დადეთ ფსონი სკრინშოტით, დაწერეთ სტატუსი ან გამოაცხადეთ ლაივი.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl text-ink sm:text-3xl">
+            ჩემი ფსონები
+          </h1>
+          <p className="mt-1.5 text-ink-muted">
+            დადეთ ფსონი სკრინშოტით, დაწერეთ სტატუსი ან გამოაცხადეთ ლაივი.
+          </p>
+        </div>
+        <Link
+          href="/analyst/earnings"
+          className="rounded-md border border-line px-3 py-1.5 text-sm text-ink-muted hover:border-line-strong hover:text-ink"
+        >
+          ანაზღაურება
+        </Link>
       </header>
 
       {/*

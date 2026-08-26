@@ -32,6 +32,8 @@ type Recorded = {
   renewals: { subscriptionId: string; currentPeriodEnd: Date }[];
   balanceCredits: { paymentId: string; amountMinor: number }[];
   balanceReversals: { paymentId: string; amountMinor: number; reason: string }[];
+  earningCredits: { paymentId: string; analystUserId: string; grossAmountMinor: number }[];
+  earningReversals: { paymentId: string; analystUserId: string; reason: string }[];
 };
 
 /** The order id the fake database knows about; anything else is a stranger. */
@@ -48,6 +50,8 @@ function makePort(payment: PaymentSnapshot | null) {
     renewals: [],
     balanceCredits: [],
     balanceReversals: [],
+    earningCredits: [],
+    earningReversals: [],
   };
 
   let counter = 0;
@@ -106,17 +110,41 @@ function makePort(payment: PaymentSnapshot | null) {
     },
 
     async recordRenewalPayment(input) {
+      // Mirrors the unique index on providerOrderId: a repeat writes nothing
+      // and reports no id, so the caller credits the analyst only once.
+      const seen = recorded.renewalPayments.some(
+        (row) => row.orderId === input.orderId,
+      );
+      if (seen) return { paymentId: null };
+
       recorded.renewalPayments.push({
         orderId: input.orderId,
         parentPaymentId: input.parentPaymentId,
         amountMinor: input.amountMinor,
       });
+      return { paymentId: `renewal-payment-${recorded.renewalPayments.length}` };
     },
 
     async renewSubscription(input) {
       recorded.renewals.push({
         subscriptionId: input.subscriptionId,
         currentPeriodEnd: input.currentPeriodEnd,
+      });
+    },
+
+    async creditAnalystEarning(input) {
+      recorded.earningCredits.push({
+        paymentId: input.paymentId,
+        analystUserId: input.analystUserId,
+        grossAmountMinor: input.grossAmountMinor,
+      });
+    },
+
+    async reverseAnalystEarning(input) {
+      recorded.earningReversals.push({
+        paymentId: input.paymentId,
+        analystUserId: input.analystUserId,
+        reason: input.reason,
       });
     },
 
@@ -149,6 +177,8 @@ const PAYMENT: PaymentSnapshot = {
   amountMinor: 2900,
   currency: 'GEL',
   billingPeriod: 'MONTHLY',
+  analystProfileId: 'analyst-1',
+  analystUserId: 'analyst-user-1',
 };
 
 /** A balance top-up: same pipeline, no plan and no subscription attached. */
@@ -162,6 +192,8 @@ const TOPUP_PAYMENT: PaymentSnapshot = {
   amountMinor: 5000,
   currency: 'GEL',
   billingPeriod: null,
+  analystProfileId: null,
+  analystUserId: null,
 };
 
 function result(overrides: Partial<WebhookResult> = {}): WebhookResult {
@@ -652,5 +684,146 @@ describe('balance top-ups', () => {
 
     expect(second.action).toBe('DUPLICATE_IGNORED');
     expect(recorded.balanceCredits).toHaveLength(1);
+  });
+});
+
+describe('analyst earnings', () => {
+  it('credits the analyst on a verified subscription payment', async () => {
+    const { port, recorded } = makePort({ ...PAYMENT });
+    await processPaymentWebhook('mock', result(), port);
+
+    // The gross is handed over; the split itself is the port's job and is
+    // tested directly on analystShareMinor.
+    expect(recorded.earningCredits).toEqual([
+      {
+        paymentId: 'payment-1',
+        analystUserId: 'analyst-user-1',
+        grossAmountMinor: 2900,
+      },
+    ]);
+  });
+
+  it('credits nothing on a declined payment', async () => {
+    const { port, recorded } = makePort({ ...PAYMENT });
+    await processPaymentWebhook(
+      'mock',
+      result({ status: 'FAILED', rawStatus: 'declined' }),
+      port,
+    );
+
+    expect(recorded.earningCredits).toHaveLength(0);
+  });
+
+  it('credits nothing on a forged signature', async () => {
+    const { port, recorded } = makePort({ ...PAYMENT });
+    await processPaymentWebhook(
+      'mock',
+      result({ signatureValid: false }),
+      port,
+    );
+
+    expect(recorded.earningCredits).toHaveLength(0);
+  });
+
+  it('takes the share back when the subscriber is refunded', async () => {
+    const { port, recorded } = makePort({ ...PAYMENT, status: 'SUCCEEDED' });
+    await processPaymentWebhook(
+      'mock',
+      result({
+        eventId: 'evt-refund',
+        status: 'REFUNDED',
+        rawStatus: 'reversed',
+      }),
+      port,
+    );
+
+    expect(recorded.earningReversals).toEqual([
+      {
+        paymentId: 'payment-1',
+        analystUserId: 'analyst-user-1',
+        reason: 'subscriber payment refunded',
+      },
+    ]);
+  });
+
+  it('takes the share back on a chargeback', async () => {
+    const { port, recorded } = makePort({ ...PAYMENT, status: 'SUCCEEDED' });
+    await processPaymentWebhook(
+      'mock',
+      result({
+        eventId: 'evt-dispute',
+        status: 'DISPUTED',
+        rawStatus: 'disputed',
+      }),
+      port,
+    );
+
+    expect(recorded.earningReversals).toHaveLength(1);
+  });
+
+  it('credits nothing for a plan with no analyst behind it', async () => {
+    const { port, recorded } = makePort({
+      ...PAYMENT,
+      analystProfileId: null,
+      analystUserId: null,
+    });
+    await processPaymentWebhook('mock', result(), port);
+
+    expect(recorded.earningCredits).toHaveLength(0);
+  });
+
+  it('does not credit an analyst for a balance top-up', async () => {
+    // A top-up is the subscriber putting money in, not buying anything.
+    const { port, recorded } = makePort({ ...TOPUP_PAYMENT });
+    await processPaymentWebhook('mock', result({ amountMinor: 5000 }), port);
+
+    expect(recorded.earningCredits).toHaveLength(0);
+    expect(recorded.balanceCredits).toHaveLength(1);
+  });
+
+  it('credits once per delivery, not once per redelivery', async () => {
+    const { port, recorded } = makePort({ ...PAYMENT });
+    await processPaymentWebhook('mock', result(), port);
+    await processPaymentWebhook('mock', result(), port);
+
+    expect(recorded.earningCredits).toHaveLength(1);
+  });
+
+  it('credits the analyst again on a gateway-scheduled renewal', async () => {
+    const { port, recorded } = makePort({ ...PAYMENT, status: 'SUCCEEDED' });
+    await processPaymentWebhook('mock', renewalResult(), port);
+
+    // Keyed on the renewal's own payment row, not the original.
+    expect(recorded.earningCredits).toEqual([
+      {
+        paymentId: 'renewal-payment-1',
+        analystUserId: 'analyst-user-1',
+        grossAmountMinor: 2900,
+      },
+    ]);
+  });
+
+  it('does not credit twice for a redelivered renewal', async () => {
+    const { port, recorded } = makePort({ ...PAYMENT, status: 'SUCCEEDED' });
+    await processPaymentWebhook('mock', renewalResult(), port);
+    await processPaymentWebhook(
+      'mock',
+      renewalResult({ eventId: 'evt-renewal-again' }),
+      port,
+    );
+
+    expect(recorded.renewalPayments).toHaveLength(1);
+    expect(recorded.earningCredits).toHaveLength(1);
+  });
+
+  it('credits nothing for a declined renewal', async () => {
+    const { port, recorded } = makePort({ ...PAYMENT, status: 'SUCCEEDED' });
+    await processPaymentWebhook(
+      'mock',
+      renewalResult({ status: 'FAILED', rawStatus: 'declined' }),
+      port,
+    );
+
+    expect(recorded.earningCredits).toHaveLength(0);
   });
 });

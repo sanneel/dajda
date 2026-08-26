@@ -1,10 +1,14 @@
 // DAJDA - sports analysis & transparent prediction records.
 //
-// DELIBERATE ABSENCE: there is no wallet, balance, stake escrow, bet slip or
-// payout table anywhere in this schema. DAJDA sells access to written analysis.
-// Money enters the system only as a subscription fee (Payment -> UserSubscription)
-// and never as a wager. "Units" are a bookkeeping measure of an analyst's
-// published record, not a currency and not redeemable for anything.
+// DELIBERATE ABSENCE: there is no stake escrow and no bet slip anywhere in this
+// schema. DAJDA sells access to written analysis. Money enters the system only
+// as a subscription fee or a balance top-up, never as a wager, and leaves it
+// only as an analyst's earned share. "Units" are a bookkeeping measure of an
+// analyst's published record, not a currency and not redeemable for anything.
+//
+// The two balances a user carries are not interchangeable: SPENDING is money
+// they put in and can spend here, EARNINGS is money subscribers paid them and
+// is the only thing a payout may draw on. See BalanceAccount.
 //
 // NUMERIC CONVENTION: every non-integer quantity is stored as an integer in
 // minor units so that no floating point or Decimal type ever reaches the UI.
@@ -126,6 +130,39 @@ enum BalanceEntryKind {
   TOPUP_REVERSAL
   /// A manual correction by an administrator.
   ADJUSTMENT
+  /// An analyst's share of a subscriber's verified payment.
+  ANALYST_EARNING
+  /// That share taken back after the subscriber's payment was reversed.
+  ANALYST_EARNING_REVERSAL
+  /// Earnings moved out into a payout request.
+  WITHDRAWAL
+  /// A refused or failed payout returned the earnings.
+  WITHDRAWAL_REVERSAL
+}
+
+/// Which of a user's two balances a ledger row moves.
+///
+/// They are separate on purpose rather than as bookkeeping detail. SPENDING
+/// holds money the person put in with a card and can spend here; EARNINGS
+/// holds money they were paid by subscribers and can withdraw. Keeping one
+/// sum would make a card top-up withdrawable to a card, which is a cash-out
+/// route the platform must not offer and no payment provider would approve.
+enum BalanceAccount {
+  SPENDING
+  EARNINGS
+}
+
+enum PayoutStatus {
+  /// The analyst asked; the earnings are already held out of their balance.
+  REQUESTED
+  /// An administrator released it and the provider call is in flight.
+  APPROVED
+  /// The provider confirmed the credit.
+  PAID
+  /// An administrator refused it; the earnings went back.
+  REJECTED
+  /// The provider refused or errored; the earnings went back.
+  FAILED
 }
 
 enum TransitionSource {
@@ -199,10 +236,20 @@ model User {
   ageConfirmedAt   DateTime?
   telegramUsername String?
 
-  /// Cached current balance in minor units. The BalanceTransaction ledger is
-  /// the source of truth; this column is only ever written in the same
+  /// Cached spendable balance in minor units. The BalanceTransaction ledger
+  /// is the source of truth; this column is only ever written in the same
   /// transaction as a ledger row, so the two cannot drift.
   balanceMinor Int @default(0)
+
+  /// Cached withdrawable earnings, maintained the same way. Never fed by a
+  /// card top-up: only a subscriber's verified payment credits it, so what
+  /// can leave the platform is always money the platform received on this
+  /// person's behalf.
+  ///
+  /// May go negative. A chargeback landing after the analyst has withdrawn
+  /// that month leaves them owing it, and the next period's earnings absorb
+  /// the debt rather than the platform forgiving it.
+  earningsMinor Int @default(0)
 
   isDemo    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -217,6 +264,7 @@ model User {
   savedAnalysts       SavedAnalyst[]
   predictionViews     PredictionView[]
   balanceTransactions BalanceTransaction[]
+  payouts             AnalystPayout[]
   notificationPrefs   NotificationPreference?
   auditLogs           AuditLog[]
   reportsFiled        Report[]                @relation("ReportAuthor")
@@ -284,6 +332,29 @@ model AnalystProfile {
   headline    String?
   status      AnalystStatus @default(PENDING)
 
+  /// Legal name as given on the application, kept apart from displayName
+  /// because the public byline and the person an administrator verifies are
+  /// not the same thing.
+  firstName String?
+  lastName  String?
+
+  /// How this person reached the platform: who recommended them, or which
+  /// channel they came from. Free text, taken as given on the application.
+  referralSource String?
+
+  /// The sport the applicant said they would mainly cover. AnalystSport still
+  /// records the full set; this is the one they lead with.
+  primarySportId String? @db.Uuid
+  primarySport   Sport?  @relation("AnalystPrimarySport", fields: [primarySportId], references: [id], onDelete: SetNull)
+
+  /// When the applicant accepted the platform's terms.
+  termsAcceptedAt DateTime?
+
+  /// Identity document supporting the application. Never publicly reachable:
+  /// see IdentityDocument and the admin only route that serves it.
+  identityDocumentId String?           @unique @db.Uuid
+  identityDocument   IdentityDocument? @relation(fields: [identityDocumentId], references: [id], onDelete: SetNull)
+
   approvedAt   DateTime?
   approvedById String?   @db.Uuid
   approvedBy   User?     @relation("AnalystApprover", fields: [approvedById], references: [id], onDelete: SetNull)
@@ -295,6 +366,7 @@ model AnalystProfile {
   updatedAt DateTime @updatedAt
 
   sports        AnalystSport[]
+  payouts       AnalystPayout[]
   predictions   Prediction[]
   posts         AnalystPost[]
   plans         SubscriptionPlan[]
@@ -336,6 +408,7 @@ model Sport {
 
   predictions Prediction[]
   analysts    AnalystSport[]
+  ledFor      AnalystProfile[] @relation("AnalystPrimarySport")
 }
 
 // ---------------------------------------------------------------------------
@@ -658,15 +731,23 @@ model BalanceTransaction {
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   kind BalanceEntryKind
+  /// Which of the user's two balances this row moves.
+  account BalanceAccount @default(SPENDING)
   /// Signed: positive credits the balance, negative debits it.
   amountMinor Int
   currency    String @default("GEL")
-  /// The cached balance immediately after this row was applied.
+  /// The cached balance of `account` immediately after this row was applied.
   balanceAfterMinor Int
 
-  /// The provider payment that caused this movement, when one did.
+  /// The provider payment that caused this movement, when one did. For an
+  /// analyst's earning this is the SUBSCRIBER's payment, which is what makes
+  /// the credit idempotent per payment.
   paymentId String?  @db.Uuid
   payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  /// The payout that caused this movement, for the withdrawal side.
+  payoutId String?        @db.Uuid
+  payout   AnalystPayout? @relation(fields: [payoutId], references: [id], onDelete: SetNull)
 
   note String?
 
@@ -675,7 +756,81 @@ model BalanceTransaction {
   /// One credit and one reversal per payment, no matter how often a webhook
   /// is redelivered under fresh event ids.
   @@unique([paymentId, kind])
+  /// The same guarantee on the withdrawal side: a payout can hold earnings
+  /// once and return them once.
+  @@unique([payoutId, kind])
   @@index([userId, createdAt])
+}
+
+/// An identity document supporting an analyst's application.
+///
+/// A separate table from Screenshot, and that separation is the point. A bet
+/// slip is public evidence served to anyone; this is a photograph of somebody's
+/// ID. Sharing one table would mean one forgotten authorisation check exposes
+/// identity documents at a guessable public URL. Here there is no public route
+/// at all: the only reader is an admin only handler.
+///
+/// The bytes go through the same decode and re-encode as every other upload,
+/// so an executable polyglot does not survive being stored.
+model IdentityDocument {
+  id String @id @default(uuid()) @db.Uuid
+
+  mimeType String @default("image/webp")
+  bytes    Bytes
+  byteSize Int
+  width    Int
+  height   Int
+
+  createdAt DateTime @default(now())
+
+  profile AnalystProfile?
+}
+
+/// A request to move earned money out to a card.
+///
+/// The earnings leave the analyst's balance when the request is made, not when
+/// it is approved, so the same money cannot be requested twice while an
+/// administrator is looking at the first request. A refusal or a provider
+/// failure puts it back.
+model AnalystPayout {
+  id String @id @default(uuid()) @db.Uuid
+
+  analystProfileId String         @db.Uuid
+  analystProfile   AnalystProfile @relation(fields: [analystProfileId], references: [id], onDelete: Restrict)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  amountMinor Int
+  currency    String       @default("GEL")
+  status      PayoutStatus @default(REQUESTED)
+
+  /// Only ever the masked form. The number the analyst types is passed to the
+  /// provider for the one credit call and never written down.
+  maskedCard String
+
+  /// Our identifier for the payout, sent as the provider's order_id.
+  providerOrderId  String  @unique
+  providerCode     String?
+  providerPayoutId String?
+  rawStatus        String?
+  failureReason    String?
+
+  /// The activity check taken at request time: what the platform looked at
+  /// when deciding whether the content was actually delivered.
+  periodStart          DateTime
+  periodEnd            DateTime
+  publicationsInPeriod Int
+  activityCheckPassed  Boolean
+
+  requestedAt DateTime  @default(now())
+  decidedAt   DateTime?
+  decidedById String?   @db.Uuid
+
+  balanceEntries BalanceTransaction[]
+
+  @@index([status, requestedAt])
+  @@index([userId, requestedAt])
 }
 
 model PaymentStatusTransition {

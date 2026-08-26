@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { prisma } from '@/lib/db';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { ANALYST_STATUS_KA } from '@/lib/labels';
 import { Alert } from '@/components/ui/feedback';
 
 /**
@@ -38,12 +40,20 @@ export default async function AnalystLayout({
       >
         {!profile ? (
           <Alert tone="warning" title="ანალიტიკოსის პროფილი არ გაქვთ">
-            ფსონების გამოსაქვეყნებლად საჭიროა დამოწმებული ავტორის პროფილი.
+            ფსონების გამოსაქვეყნებლად საჭიროა დამოწმებული ავტორის პროფილი.{' '}
+            <Link href="/apply" className="text-accent hover:underline">
+              შეიტანეთ განაცხადი
+            </Link>
+            .
           </Alert>
         ) : profile.status !== 'APPROVED' ? (
           <Alert tone="warning" title="პროფილი ჯერ არ არის დამოწმებული">
-            თქვენი განაცხადის სტატუსია {profile.status}. დამოწმებამდე
-            გამოქვეყნება შეუძლებელია.
+            თქვენი განაცხადის სტატუსია {ANALYST_STATUS_KA[profile.status]}.
+            დამოწმებამდე გამოქვეყნება შეუძლებელია.{' '}
+            <Link href="/apply" className="text-accent hover:underline">
+              განაცხადის სტატუსი
+            </Link>
+            .
           </Alert>
         ) : (
           children

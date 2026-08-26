@@ -31,6 +31,13 @@ export default async function AdminAnalystsPage() {
       status: true,
       isDemo: true,
       createdAt: true,
+      firstName: true,
+      lastName: true,
+      referralSource: true,
+      termsAcceptedAt: true,
+      identityDocumentId: true,
+      bio: true,
+      primarySport: { select: { nameKa: true } },
       user: { select: { email: true } },
       sports: { select: { sport: { select: { nameKa: true } } } },
       _count: { select: { predictions: true } },
@@ -90,6 +97,60 @@ export default async function AdminAnalystsPage() {
                       </div>
                     </div>
                   </div>
+
+                  <dl className="mt-3 grid gap-x-4 gap-y-2 border-t border-line pt-3 text-sm sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs text-ink-muted">სახელი და გვარი</dt>
+                      <dd className="text-ink">
+                        {profile.firstName || profile.lastName
+                          ? `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim()
+                          : 'მითითებული არაა'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink-muted">ძირითადი მიმართულება</dt>
+                      <dd className="text-ink">
+                        {profile.primarySport?.nameKa ?? 'მითითებული არაა'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink-muted">რეფერალი</dt>
+                      <dd className="text-ink">
+                        {profile.referralSource ?? 'მითითებული არაა'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink-muted">წესებზე თანხმობა</dt>
+                      <dd className="text-ink">
+                        {profile.termsAcceptedAt
+                          ? formatDateKa(profile.termsAcceptedAt)
+                          : 'არ დაფიქსირებულა'}
+                      </dd>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <dt className="text-xs text-ink-muted">პირადობა</dt>
+                      <dd className="text-ink">
+                        {profile.identityDocumentId ? (
+                          <a
+                            href={`/admin/identity-documents/${profile.identityDocumentId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-accent hover:underline"
+                          >
+                            დოკუმენტის ნახვა
+                          </a>
+                        ) : (
+                          'ატვირთული არაა'
+                        )}
+                      </dd>
+                    </div>
+                    {profile.bio ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-xs text-ink-muted">აღწერა</dt>
+                        <dd className="text-ink-muted">{profile.bio}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
 
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                     <ActionButton

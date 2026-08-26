@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@/generated/prisma/client';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
+import { analystShareMinor, applyEarningsMovement } from '@/lib/balance/ledger';
+import { getEnv } from '@/lib/env';
 import type { PaymentSnapshot, WebhookPort } from './webhook';
 
 /** Prisma unique-constraint violation. */
@@ -67,7 +69,13 @@ export const prismaWebhookPort: WebhookPort = {
         status: true,
         amountMinor: true,
         currency: true,
-        plan: { select: { billingPeriod: true } },
+        plan: {
+          select: {
+            billingPeriod: true,
+            analystProfileId: true,
+            analystProfile: { select: { userId: true } },
+          },
+        },
       },
     });
 
@@ -83,6 +91,8 @@ export const prismaWebhookPort: WebhookPort = {
       amountMinor: payment.amountMinor,
       currency: payment.currency,
       billingPeriod: payment.plan?.billingPeriod ?? null,
+      analystProfileId: payment.plan?.analystProfileId ?? null,
+      analystUserId: payment.plan?.analystProfile?.userId ?? null,
     };
   },
 
@@ -198,7 +208,7 @@ export const prismaWebhookPort: WebhookPort = {
 
   async recordRenewalPayment(input) {
     try {
-      await prisma.$transaction(async (tx) => {
+      return await prisma.$transaction(async (tx) => {
         const created = await tx.payment.create({
           data: {
             userId: input.userId,
@@ -242,11 +252,97 @@ export const prismaWebhookPort: WebhookPort = {
           },
           tx,
         );
+
+        return { paymentId: created.id };
       });
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       // The same renewal order arrived under a different event id; the
-      // unique index on providerOrderId already holds the record.
+      // unique index on providerOrderId already holds the record. Reporting
+      // no payment id keeps the caller from crediting the analyst twice.
+      return { paymentId: null };
+    }
+  },
+
+  async creditAnalystEarning(input) {
+    const share = analystShareMinor(
+      input.grossAmountMinor,
+      getEnv().ANALYST_SHARE_PERCENT,
+    );
+    // A share that rounds to nothing is not a movement. The ledger refuses a
+    // zero row by constraint, and writing one would be noise anyway.
+    if (share <= 0) return;
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const { earningsAfterMinor } = await applyEarningsMovement(tx, {
+          userId: input.analystUserId,
+          kind: 'ANALYST_EARNING',
+          amountMinor: share,
+          currency: input.currency,
+          paymentId: input.paymentId,
+          note: 'გამომწერის გადახდიდან კუთვნილი წილი',
+        });
+
+        await writeAuditLog(
+          {
+            action: AUDIT_ACTIONS.BALANCE_CREDITED,
+            entityType: 'AnalystProfile',
+            entityId: input.analystProfileId,
+            summary: `ანალიტიკოსს დაერიცხა: +${share} ${input.currency}`,
+            metadata: {
+              account: 'EARNINGS',
+              paymentId: input.paymentId,
+              grossAmountMinor: input.grossAmountMinor,
+              earningsAfterMinor,
+            },
+          },
+          tx,
+        );
+      });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      // (paymentId, kind) says this payment has already earned once.
+    }
+  },
+
+  async reverseAnalystEarning(input) {
+    const share = analystShareMinor(
+      input.grossAmountMinor,
+      getEnv().ANALYST_SHARE_PERCENT,
+    );
+    if (share <= 0) return;
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const { earningsAfterMinor } = await applyEarningsMovement(tx, {
+          userId: input.analystUserId,
+          kind: 'ANALYST_EARNING_REVERSAL',
+          amountMinor: -share,
+          currency: input.currency,
+          paymentId: input.paymentId,
+          note: input.reason,
+        });
+
+        await writeAuditLog(
+          {
+            action: AUDIT_ACTIONS.BALANCE_DEBITED,
+            entityType: 'User',
+            entityId: input.analystUserId,
+            summary: `ანალიტიკოსს ჩამოეჭრა დაბრუნებული გადახდის წილი: ${share} ${input.currency}`,
+            metadata: {
+              account: 'EARNINGS',
+              paymentId: input.paymentId,
+              reason: input.reason,
+              earningsAfterMinor,
+            },
+          },
+          tx,
+        );
+      });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      // Already reversed once for this payment.
     }
   },
 

@@ -5,6 +5,7 @@ import { getEnv } from '@/lib/env';
 import { AppError, ERROR_CODES } from '@/lib/errors';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { BALANCE_CURRENCY } from '@/lib/balance/service';
+import { analystShareMinor, applyEarningsMovement } from '@/lib/balance/ledger';
 import { getPaymentProvider } from '@/lib/payments';
 import { addBillingPeriod } from '@/lib/payments/webhook';
 
@@ -38,6 +39,7 @@ export async function startSubscriptionCheckout(
       billingPeriod: true,
       isActive: true,
       analystProfileId: true,
+      analystProfile: { select: { userId: true } },
     },
   });
 
@@ -178,6 +180,7 @@ async function activateFromBalance(
     priceMinor: number;
     currency: string;
     billingPeriod: BillingPeriod;
+    analystProfile: { userId: string } | null;
   },
   actor: { userId: string; role: 'USER' | 'ANALYST' | 'ADMIN' },
 ): Promise<{ subscriptionId: string } | null> {
@@ -248,6 +251,23 @@ async function activateFromBalance(
         note: `გამოწერა: ${plan.nameKa}`,
       },
     });
+
+    if (plan.analystProfile) {
+      const share = analystShareMinor(
+        plan.priceMinor,
+        getEnv().ANALYST_SHARE_PERCENT,
+      );
+      if (share > 0) {
+        await applyEarningsMovement(tx, {
+          userId: plan.analystProfile.userId,
+          kind: 'ANALYST_EARNING',
+          amountMinor: share,
+          currency: plan.currency,
+          paymentId: payment.id,
+          note: 'გამომწერის გადახდიდან კუთვნილი წილი',
+        });
+      }
+    }
 
     await writeAuditLog(
       {

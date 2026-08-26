@@ -13,6 +13,7 @@ const NAV = [
   { href: '/admin/reports', label: 'საჩივრები' },
   { href: '/admin/notifications', label: 'შეტყობინებები' },
   { href: '/admin/payments', label: 'გადახდები' },
+  { href: '/admin/payouts', label: 'გატანები' },
   { href: '/admin/audit', label: 'აუდიტის ჟურნალი' },
 ];
 

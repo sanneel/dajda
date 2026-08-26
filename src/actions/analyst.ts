@@ -1,7 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireApprovedAnalyst } from '@/lib/auth/authorization';
+import { requireApprovedAnalyst, requireUser } from '@/lib/auth/authorization';
+import { prisma } from '@/lib/db';
+import type { Prisma } from '@/generated/prisma/client';
+import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
+import { slugify } from '@/lib/slug';
+import { randomBytes } from 'node:crypto';
 import {
   ERROR_CODES,
   fail,
@@ -10,8 +15,9 @@ import {
   type ActionResult,
 } from '@/lib/errors';
 import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
-import { storeScreenshot } from '@/lib/uploads';
+import { storeIdentityDocument, storeScreenshot } from '@/lib/uploads';
 import {
+  analystApplicationSchema,
   createPredictionSchema,
   markFinishedSchema,
 } from '@/lib/validation/schemas';
@@ -176,4 +182,156 @@ export async function markBetFinishedAction(
   } catch (error) {
     return toActionFailure(error);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Becoming an analyst
+// ---------------------------------------------------------------------------
+
+/**
+ * Apply to publish on the platform.
+ *
+ * Creates a PENDING profile and nothing else: no role is granted and nothing
+ * can be published until an administrator approves it. The identity document
+ * goes to its own private store, so a rejected application still leaves a
+ * document only an administrator can open.
+ */
+export async function applyAsAnalystAction(
+  _previous: ActionResult<{ profileId: string }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ profileId: string }>> {
+  try {
+    const actor = await requireUser();
+
+    const limit = rateLimiter.check(
+      `analyst-apply:${actor.userId}`,
+      RATE_LIMITS.analystApplication,
+    );
+    if (!limit.allowed) {
+      return fail(ERROR_CODES.RATE_LIMITED);
+    }
+
+    const existing = await prisma.analystProfile.findUnique({
+      where: { userId: actor.userId },
+      select: { status: true },
+    });
+    if (existing) {
+      return fail(
+        ERROR_CODES.CONFLICT,
+        existing.status === 'REJECTED'
+          ? 'თქვენი განაცხადი უკვე განხილულია. ახლის შესატანად დაგვიკავშირდით.'
+          : 'განაცხადი უკვე შეტანილია.',
+      );
+    }
+
+    const parsed = analystApplicationSchema.safeParse({
+      firstName: formData.get('firstName'),
+      lastName: formData.get('lastName'),
+      displayName: formData.get('displayName'),
+      referralSource: formData.get('referralSource'),
+      primarySportId: formData.get('primarySportId'),
+      headline: formData.get('headline') || undefined,
+      bio: formData.get('bio'),
+      acceptTerms: formData.get('acceptTerms') === 'on',
+    });
+    if (!parsed.success) {
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        fieldErrorsFrom(parsed.error),
+      );
+    }
+
+    const input = parsed.data;
+
+    const sport = await prisma.sport.findFirst({
+      where: { id: input.primarySportId, isActive: true },
+      select: { id: true },
+    });
+    if (!sport) {
+      return fail(ERROR_CODES.VALIDATION_ERROR, undefined, {
+        primarySportId: ['აირჩიეთ ძირითადი მიმართულება.'],
+      });
+    }
+
+    const document = formData.get('identityDocument');
+    if (!(document instanceof File) || document.size === 0) {
+      return fail(ERROR_CODES.VALIDATION_ERROR, undefined, {
+        identityDocument: ['ატვირთეთ პირადობის დამადასტურებელი დოკუმენტი.'],
+      });
+    }
+
+    // Stored before the profile row, so a rejected image never leaves a
+    // half-built application behind.
+    const identityDocumentId = await storeIdentityDocument(document);
+
+    const profile = await prisma.$transaction(async (tx) => {
+      const created = await tx.analystProfile.create({
+        data: {
+          userId: actor.userId,
+          displayName: input.displayName,
+          slug: await uniqueSlug(tx, input.displayName),
+          firstName: input.firstName,
+          lastName: input.lastName,
+          referralSource: input.referralSource,
+          primarySportId: sport.id,
+          headline: input.headline ?? null,
+          bio: input.bio,
+          status: 'PENDING',
+          termsAcceptedAt: new Date(),
+          identityDocumentId,
+        },
+        select: { id: true },
+      });
+
+      // The primary choice is also the first entry in the full sport list, so
+      // every query that reads coverage sees it without a special case.
+      await tx.analystSport.create({
+        data: { analystProfileId: created.id, sportId: sport.id },
+      });
+
+      await writeAuditLog(
+        {
+          action: AUDIT_ACTIONS.ANALYST_APPLIED,
+          entityType: 'AnalystProfile',
+          entityId: created.id,
+          summary: `ანალიტიკოსის განაცხადი: ${input.displayName}`,
+          actorId: actor.userId,
+          actorRole: actor.role,
+          metadata: { referralSource: input.referralSource },
+        },
+        tx,
+      );
+
+      return created;
+    });
+
+    revalidatePath('/admin/analysts');
+    return ok({ profileId: profile.id });
+  } catch (error) {
+    return toActionFailure(error);
+  }
+}
+
+/**
+ * A slug that is free at the moment of insertion.
+ *
+ * A Georgian display name transliterates to something readable, but two people
+ * can still land on the same slug, and a name in an alphabet the map does not
+ * cover can produce nothing at all. Both cases fall back to a random suffix
+ * rather than failing the application.
+ */
+async function uniqueSlug(
+  tx: Prisma.TransactionClient,
+  displayName: string,
+): Promise<string> {
+  const base = slugify(displayName);
+  if (base) {
+    const taken = await tx.analystProfile.findUnique({
+      where: { slug: base },
+      select: { id: true },
+    });
+    if (!taken) return base;
+  }
+  return `${base || 'analyst'}-${randomBytes(3).toString('hex')}`;
 }

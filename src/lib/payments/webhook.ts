@@ -21,6 +21,8 @@ import type { WebhookResult } from './types';
  *     the same amount guard applied against the original payment
  *   - a BALANCE_TOPUP payment credits the balance exactly once on SUCCEEDED
  *     and takes the credit back exactly once on REFUNDED/DISPUTED
+ *   - a SUBSCRIPTION payment credits the analyst's share of it exactly once,
+ *     and takes it back if the subscriber's payment is later reversed
  *
  * The port is injected, so all of the above is exercised in tests against
  * in-memory fakes and the same code runs in production against Prisma.
@@ -36,6 +38,10 @@ export type PaymentSnapshot = {
   amountMinor: number;
   currency: string;
   billingPeriod: BillingPeriod | null;
+  /** The analyst whose plan this paid for, when the plan belongs to one. */
+  analystProfileId: string | null;
+  /** That analyst's user account, which is where their share is credited. */
+  analystUserId: string | null;
 };
 
 export type RecordEventResult = { id: string; duplicate: boolean };
@@ -113,13 +119,42 @@ export interface WebhookPort {
     maskedCard: string | null;
     cardType: string | null;
     rrn: string | null;
-  }): Promise<void>;
+    /** Null when this renewal order was already recorded. */
+  }): Promise<{ paymentId: string | null }>;
 
   /** Extend the paid period after a verified renewal charge. Idempotent. */
   renewSubscription(input: {
     subscriptionId: string;
     userId: string;
     currentPeriodEnd: Date;
+  }): Promise<void>;
+
+  /**
+   * Credit the analyst their share of a subscriber's verified payment.
+   *
+   * Takes the GROSS amount the subscriber paid; splitting it is the port's
+   * job, because the split rate is configuration rather than a fact about
+   * this delivery. Must be idempotent per payment.
+   */
+  creditAnalystEarning(input: {
+    paymentId: string;
+    analystUserId: string;
+    analystProfileId: string;
+    grossAmountMinor: number;
+    currency: string;
+  }): Promise<void>;
+
+  /**
+   * Take that share back after the subscriber's payment was reversed. Also
+   * idempotent per payment. The analyst's earnings may go negative: money
+   * already withdrawn and then charged back is a debt, not a gift.
+   */
+  reverseAnalystEarning(input: {
+    paymentId: string;
+    analystUserId: string;
+    grossAmountMinor: number;
+    currency: string;
+    reason: string;
   }): Promise<void>;
 
   /**
@@ -333,6 +368,29 @@ export async function processPaymentWebhook(
     });
   }
 
+  // The analyst earns from a subscriber's payment, not from a top-up. Both
+  // directions are idempotent per payment inside the port.
+  if (payment.purpose === 'SUBSCRIPTION' && payment.analystUserId) {
+    if (result.status === 'SUCCEEDED') {
+      await port.creditAnalystEarning({
+        paymentId: payment.id,
+        analystUserId: payment.analystUserId,
+        analystProfileId: payment.analystProfileId as string,
+        grossAmountMinor: payment.amountMinor,
+        currency: payment.currency,
+      });
+    }
+    if (result.status === 'REFUNDED' || result.status === 'DISPUTED') {
+      await port.reverseAnalystEarning({
+        paymentId: payment.id,
+        analystUserId: payment.analystUserId,
+        grossAmountMinor: payment.amountMinor,
+        currency: payment.currency,
+        reason: `subscriber payment ${result.status.toLowerCase()}`,
+      });
+    }
+  }
+
   // A top-up moves the balance instead of a subscription. Both directions
   // are idempotent per payment inside the port, so a redelivery under a
   // fresh event id cannot double-credit or double-reverse.
@@ -421,7 +479,7 @@ async function processRenewal(
     return { action: 'AMOUNT_MISMATCH', subscriptionActivated: false };
   }
 
-  await port.recordRenewalPayment({
+  const renewal = await port.recordRenewalPayment({
     orderId: result.orderId as string,
     parentPaymentId: parent.id,
     subscriptionId: parent.subscriptionId,
@@ -436,6 +494,19 @@ async function processRenewal(
     cardType: result.cardType,
     rrn: result.rrn,
   });
+
+  // Every renewal earns the analyst their share, exactly as the first charge
+  // did. Keyed on the renewal's own payment row, so a redelivery credits
+  // nothing twice.
+  if (renewal.paymentId && parent.analystUserId) {
+    await port.creditAnalystEarning({
+      paymentId: renewal.paymentId,
+      analystUserId: parent.analystUserId,
+      analystProfileId: parent.analystProfileId as string,
+      grossAmountMinor: parent.amountMinor,
+      currency: parent.currency,
+    });
+  }
 
   if (result.cardToken) {
     await port.saveCardToken({

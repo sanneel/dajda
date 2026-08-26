@@ -82,6 +82,10 @@ export const RATE_LIMITS = {
   passwordReset: { limit: 5, windowMs: 60 * 60 * 1000 },
   /** Each resend is an outbound email on the platform's reputation. */
   resendVerification: { limit: 3, windowMs: 15 * 60 * 1000 },
+  /** An application decodes an image and is reviewed by a person. */
+  analystApplication: { limit: 3, windowMs: 60 * 60 * 1000 },
+  /** A withdrawal moves money and is reviewed by a person. */
+  withdrawal: { limit: 5, windowMs: 60 * 60 * 1000 },
   report: { limit: 10, windowMs: 60 * 60 * 1000 },
   checkout: { limit: 10, windowMs: 10 * 60 * 1000 },
   /** Each post decodes and re-encodes an image, so it is worth capping. */

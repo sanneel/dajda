@@ -4,12 +4,18 @@ import { prisma } from '@/lib/db';
 import { AppError, ERROR_CODES } from '@/lib/errors';
 
 /**
- * Screenshot storage.
+ * Image storage.
  *
- * This is the product's only upload surface. Everything else is generated
- * (initials avatars exist precisely so that profile pictures never had to be
- * accepted), so the rules here are the whole of the file-upload attack
- * surface and are deliberately strict:
+ * Two surfaces accept a file: bet slips, which are public evidence, and
+ * identity documents supporting an analyst application, which are not. They
+ * share the hardening below and nothing else, and in particular they do not
+ * share a table: a bet slip has a public serving route and a document has no
+ * route at all outside the admin area.
+ *
+ * Everything else in the product is generated (initials avatars exist
+ * precisely so that profile pictures never had to be accepted), so the rules
+ * here are the whole of the file-upload attack surface and are deliberately
+ * strict:
  *
  *   1. Nothing is written to disk or served as a static file. Bytes go into
  *      the database and come back out through a route handler that sets its
@@ -26,10 +32,9 @@ import { AppError, ERROR_CODES } from '@/lib/errors';
  *
  * These were files under an `uploads/` directory until the app needed to run
  * somewhere that gives it no persistent disk. The public shape did not change
- * with the storage: a stored image is still addressed as `/uploads/<name>`,
+ * with the storage: a stored slip is still addressed as `/uploads/<name>`,
  * and every other module in the product only ever sees that string. Moving to
- * object storage later is a change to the two functions below and nothing
- * else.
+ * object storage later is a change to the functions below and nothing else.
  */
 
 /** Refuse anything larger before we even hand it to the decoder. */
@@ -60,13 +65,11 @@ export type StoredScreenshot = {
 };
 
 /**
- * Validate, re-encode and store an uploaded image.
- *
- * Throws an AppError with a Georgian message on anything the UI should show
- * the user; unexpected decode failures are also surfaced as a validation
- * error rather than a 500, because "this is not an image" is a user problem.
+ * The shared gate: size and declared type first, then a real decode and
+ * re-encode. Everything either upload surface relies on for safety happens
+ * here, so neither can be hardened without the other.
  */
-export async function storeScreenshot(file: File): Promise<StoredUpload> {
+async function decodeAndReencode(file: File) {
   if (file.size === 0) {
     throw new AppError(ERROR_CODES.VALIDATION_ERROR, 'ფაილი ცარიელია.');
   }
@@ -76,7 +79,6 @@ export async function storeScreenshot(file: File): Promise<StoredUpload> {
       'ფაილი ძალიან დიდია. მაქსიმუმი 12MB.',
     );
   }
-  // The browser-declared type is a hint only; sharp is the real gate below.
   if (file.type && !ACCEPTED_INPUT.has(file.type)) {
     throw new AppError(
       ERROR_CODES.VALIDATION_ERROR,
@@ -86,9 +88,8 @@ export async function storeScreenshot(file: File): Promise<StoredUpload> {
 
   const input = Buffer.from(await file.arrayBuffer());
 
-  let encoded;
   try {
-    encoded = await sharp(input, { failOn: 'error' })
+    return await sharp(input, { failOn: 'error' })
       .rotate() // honour EXIF orientation before the tag is discarded
       .resize({
         width: MAX_DIMENSION,
@@ -104,8 +105,56 @@ export async function storeScreenshot(file: File): Promise<StoredUpload> {
       'ფაილი არ იკითხება როგორც სურათი.',
     );
   }
+}
 
-  const { data, info } = encoded;
+/**
+ * Store an identity document supporting an analyst application.
+ *
+ * Goes to its own table with NO public serving route. A bet slip is public
+ * evidence; this is a photograph of somebody's ID, and the two must not share
+ * a store where one forgotten authorisation check exposes the second at a
+ * guessable URL. The only reader is the admin-gated handler under
+ * /admin/identity-documents.
+ *
+ * Returns the row id rather than a path, because there is no path.
+ */
+export async function storeIdentityDocument(file: File): Promise<string> {
+  const { data, info } = await decodeAndReencode(file);
+
+  const document = await prisma.identityDocument.create({
+    data: {
+      mimeType: 'image/webp',
+      bytes: new Uint8Array(data),
+      byteSize: data.byteLength,
+      width: info.width,
+      height: info.height,
+    },
+    select: { id: true },
+  });
+
+  return document.id;
+}
+
+/** Read one identity document. Callers MUST have checked for admin first. */
+export async function readIdentityDocument(
+  id: string,
+): Promise<StoredScreenshot | null> {
+  const row = await prisma.identityDocument.findUnique({
+    where: { id },
+    select: { bytes: true, mimeType: true },
+  });
+  return row ? { bytes: row.bytes, mimeType: row.mimeType } : null;
+}
+
+/**
+ * Validate, re-encode and store an uploaded image.
+ *
+ * Throws an AppError with a Georgian message on anything the UI should show
+ * the user; unexpected decode failures are also surfaced as a validation
+ * error rather than a 500, because "this is not an image" is a user problem.
+ */
+export async function storeScreenshot(file: File): Promise<StoredUpload> {
+  const { data, info } = await decodeAndReencode(file);
   const name = `${randomBytes(16).toString('hex')}.webp`;
 
   await prisma.screenshot.create({

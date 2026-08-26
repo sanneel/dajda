@@ -53,6 +53,11 @@ export const AUDIT_ACTIONS = {
   BALANCE_CREDITED: 'balance.credited',
   BALANCE_DEBITED: 'balance.debited',
 
+  PAYOUT_REQUESTED: 'payout.requested',
+  PAYOUT_SENT: 'payout.sent',
+  PAYOUT_REJECTED: 'payout.rejected',
+  PAYOUT_FAILED: 'payout.failed',
+
   REPORT_FILED: 'report.filed',
   REPORT_RESOLVED: 'report.resolved',
 } as const;

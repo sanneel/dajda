@@ -5,6 +5,7 @@ import {
   ConfidenceLevel,
   EditOutcome,
   PaymentStatus,
+  PayoutStatus,
   PlanTier,
   PredictionStatus,
   PredictionVisibility,
@@ -78,6 +79,18 @@ export const BALANCE_KIND_KA: Record<BalanceEntryKind, string> = {
   SUBSCRIPTION_PAYMENT: 'გამოწერის გადახდა',
   TOPUP_REVERSAL: 'შევსების დაბრუნება',
   ADJUSTMENT: 'კორექცია',
+  ANALYST_EARNING: 'დარიცხვა გამომწერისგან',
+  ANALYST_EARNING_REVERSAL: 'დარიცხვის დაბრუნება',
+  WITHDRAWAL: 'გატანა',
+  WITHDRAWAL_REVERSAL: 'გატანის დაბრუნება',
+};
+
+export const PAYOUT_STATUS_KA: Record<PayoutStatus, string> = {
+  REQUESTED: 'მოთხოვნილი',
+  APPROVED: 'დამტკიცებული',
+  PAID: 'გატანილი',
+  REJECTED: 'უარყოფილი',
+  FAILED: 'ვერ შესრულდა',
 };
 
 export const SUBSCRIPTION_STATUS_KA: Record<SubscriptionStatus, string> = {
