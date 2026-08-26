@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@/generated/prisma/client';
+import type { PlanTier } from '@/generated/prisma/enums';
 import type { TicketFilter } from '@/lib/validation/schemas';
 
 /**
@@ -49,41 +50,218 @@ export type PublicTicket = Prisma.PredictionGetPayload<{
   select: typeof publicTicketSelect;
 }>;
 
+export type TicketSort = 'soon' | 'profit';
+
 /**
- * The free feed.
- *
- * PUBLIC only, deliberately. Everything a subscriber pays for lives on the
- * author's own profile; this page is the part of the product that costs
- * nothing, so a paid bet must never leak into it through a filter.
+ * A feed row: the ticket plus the two things a buyer reads next to it - the
+ * author's record (win rate for the column, profit for the sort) and, on the
+ * paid feed, what unlocking the author's tier costs per period.
  */
-export async function listFreeTickets(filter: TicketFilter) {
+export type FeedTicket = PublicTicket & {
+  /** Null for a community ticket, or an author with nothing decided yet. */
+  authorHitRateBps: number | null;
+  authorDecided: number;
+  authorProfitUnitsCenti: number | null;
+  /** Only set on the paid feed, from the author's plan for this tier. */
+  priceMinor: number | null;
+  priceCurrency: string | null;
+  priceBillingPeriod: 'MONTHLY' | 'QUARTERLY' | null;
+};
+
+/**
+ * One implementation for both feeds; only the visibility filter differs.
+ *
+ * PUBLIC stays strictly out of PAID and vice versa, so a paid bet can never
+ * leak into the free list through a filter. Listing is still not showing:
+ * whether a viewer sees the pick or a locked row is decided per row by
+ * `isTicketLocked` at the page.
+ *
+ * Rows are fetched unpaginated and sorted in memory. Both orders depend on
+ * per-author aggregates that SQL would need a maintained materialised view
+ * for, and the whole table is hundreds of rows - the read below costs less
+ * than keeping that view honest.
+ */
+async function listTicketFeed(kind: 'FREE' | 'PAID', filter: TicketFilter) {
   const where: Prisma.PredictionWhereInput = {
     publishedAt: { not: null },
     supersededAt: null,
-    visibility: 'PUBLIC',
+    visibility: kind === 'FREE' ? 'PUBLIC' : { in: ['PREMIUM', 'VIP'] },
     ...(filter.sport ? { sport: { code: filter.sport } } : {}),
     ...(filter.status ? { status: filter.status } : {}),
   };
 
-  const page = filter.page ?? 1;
+  const rows = await prisma.prediction.findMany({
+    where,
+    orderBy: { publishedAt: 'desc' },
+    select: publicTicketSelect,
+  });
 
-  const [items, total] = await Promise.all([
-    prisma.prediction.findMany({
-      where,
-      orderBy: { publishedAt: 'desc' },
-      skip: (page - 1) * TICKET_PAGE_SIZE,
-      take: TICKET_PAGE_SIZE,
-      select: publicTicketSelect,
-    }),
-    prisma.prediction.count({ where }),
-  ]);
+  const authorIds = [
+    ...new Set(
+      rows.flatMap((row) => (row.author ? [row.author.id] : [])),
+    ),
+  ];
+
+  // Every author's decided record, in one query. The record spans ALL their
+  // published bets, free and paid alike - the column answers "who is this
+  // author", not "how did this feed do".
+  const recordRows = authorIds.length
+    ? await prisma.prediction.findMany({
+        where: {
+          authorId: { in: authorIds },
+          publishedAt: { not: null },
+          supersededAt: null,
+          status: { in: ['WON', 'LOST'] },
+        },
+        select: {
+          authorId: true,
+          status: true,
+          result: { select: { profitUnitsCenti: true } },
+        },
+      })
+    : [];
+
+  const recordByAuthor = new Map<
+    string,
+    { won: number; decided: number; profitUnitsCenti: number }
+  >();
+  for (const row of recordRows) {
+    if (row.authorId === null) continue;
+    const bucket = recordByAuthor.get(row.authorId) ?? {
+      won: 0,
+      decided: 0,
+      profitUnitsCenti: 0,
+    };
+    bucket.decided += 1;
+    if (row.status === 'WON') bucket.won += 1;
+    bucket.profitUnitsCenti += row.result?.profitUnitsCenti ?? 0;
+    recordByAuthor.set(row.authorId, bucket);
+  }
+
+  // The unlock price per (author, tier), paid feed only.
+  const planRows =
+    kind === 'PAID' && authorIds.length
+      ? await prisma.subscriptionPlan.findMany({
+          where: {
+            analystProfileId: { in: authorIds },
+            isActive: true,
+            tier: { in: ['PREMIUM', 'VIP'] },
+          },
+          select: {
+            analystProfileId: true,
+            tier: true,
+            priceMinor: true,
+            currency: true,
+            billingPeriod: true,
+          },
+        })
+      : [];
+  const planByAuthorTier = new Map(
+    planRows.map((plan) => [`${plan.analystProfileId}:${plan.tier}`, plan]),
+  );
+
+  const enriched: FeedTicket[] = rows.map((row) => {
+    const record = row.author ? recordByAuthor.get(row.author.id) : undefined;
+    const plan = row.author
+      ? planByAuthorTier.get(`${row.author.id}:${row.visibility}`)
+      : undefined;
+
+    return {
+      ...row,
+      authorHitRateBps:
+        record && record.decided > 0
+          ? Math.round((record.won * 10_000) / record.decided)
+          : null,
+      authorDecided: record?.decided ?? 0,
+      authorProfitUnitsCenti: record ? record.profitUnitsCenti : null,
+      priceMinor: plan?.priceMinor ?? null,
+      priceCurrency: plan?.currency ?? null,
+      priceBillingPeriod: plan?.billingPeriod ?? null,
+    };
+  });
+
+  sortFeed(enriched, filter.sort ?? 'soon');
+
+  const page = filter.page ?? 1;
+  const total = enriched.length;
 
   return {
-    items,
+    items: enriched.slice((page - 1) * TICKET_PAGE_SIZE, page * TICKET_PAGE_SIZE),
     total,
     page,
     pageCount: Math.max(1, Math.ceil(total / TICKET_PAGE_SIZE)),
   };
+}
+
+function sortFeed(items: FeedTicket[], sort: TicketSort, now = Date.now()) {
+  const publishedDesc = (a: FeedTicket, b: FeedTicket) =>
+    (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0);
+
+  if (sort === 'profit') {
+    // Tickets from the most profitable records first. Community tickets have
+    // no record and sink to the bottom rather than pretending to a zero.
+    items.sort((a, b) => {
+      const pa = a.authorProfitUnitsCenti;
+      const pb = b.authorProfitUnitsCenti;
+      if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
+      if (pa !== null && pb !== null && pa !== pb) return pb - pa;
+      return publishedDesc(a, b);
+    });
+    return;
+  }
+
+  // 'soon': what can still be acted on, nearest kickoff first; everything
+  // already started or without a time falls back to newest-published.
+  const upcoming = (ticket: FeedTicket) =>
+    ticket.eventAt !== null && ticket.eventAt.getTime() >= now;
+
+  items.sort((a, b) => {
+    const ua = upcoming(a);
+    const ub = upcoming(b);
+    if (ua !== ub) return ua ? -1 : 1;
+    if (ua && ub) {
+      // Both have an eventAt by construction of `upcoming`.
+      return (a.eventAt as Date).getTime() - (b.eventAt as Date).getTime();
+    }
+    return publishedDesc(a, b);
+  });
+}
+
+/** The free feed: PUBLIC only, whoever posted it. */
+export async function listFreeTickets(filter: TicketFilter) {
+  return listTicketFeed('FREE', filter);
+}
+
+/** The paid feed: every PREMIUM/VIP bet. */
+export async function listPaidTickets(filter: TicketFilter) {
+  return listTicketFeed('PAID', filter);
+}
+
+export type PlanGrant = { tier: PlanTier; analystProfileId: string | null };
+
+/**
+ * The viewer's currently-active plan grants, fetched once per page rather than
+ * once per ticket. Mirrors the subscription conditions in `canViewPrediction`
+ * so a list and a detail page can never disagree about who is entitled.
+ */
+export async function activePlanGrants(
+  userId: string | undefined,
+): Promise<PlanGrant[]> {
+  if (!userId) return [];
+
+  const subscriptions = await prisma.userSubscription.findMany({
+    where: {
+      userId,
+      status: 'ACTIVE',
+      OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: new Date() } }],
+      plan: { isActive: true },
+    },
+    select: {
+      plan: { select: { tier: true, analystProfileId: true } },
+    },
+  });
+
+  return subscriptions.map((subscription) => subscription.plan);
 }
 
 export async function getTicketById(id: string) {

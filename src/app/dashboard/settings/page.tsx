@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import { prisma } from '@/lib/db';
 import { requireUser } from '@/lib/auth/authorization';
+import { telegramBotConfigured } from '@/lib/auth/telegram';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { ProfileForm } from './profile-form';
 import { NotificationForm } from './notification-form';
+import { TelegramConnect } from './telegram-connect';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +20,12 @@ export default async function SettingsPage() {
   const [user, preferences] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: actor.userId },
-      select: { name: true, email: true, telegramUsername: true },
+      select: {
+        name: true,
+        email: true,
+        telegramUsername: true,
+        telegramChatId: true,
+      },
     }),
     prisma.notificationPreference.findUnique({
       where: { userId: actor.userId },
@@ -58,21 +65,38 @@ export default async function SettingsPage() {
       <div className="mt-5">
         <Card>
           <CardHeader
+            title="Telegram"
+            description="შეტყობინებები ბოტიდან. ბოტი პირველ შეტყობინებას ვერ გიგზავნით სანამ თქვენ არ დაიწყებთ საუბარს."
+          />
+          <CardBody>
+            <TelegramConnect
+              connected={user.telegramChatId !== null}
+              username={user.telegramUsername}
+              configured={telegramBotConfigured()}
+            />
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="mt-5">
+        <Card>
+          <CardHeader
             title="შეტყობინებები"
-            description="Telegram-ის ინტეგრაცია ჯერ არ არის აქტიური: არჩევანი შეინახება მომავლისთვის."
+            description="რაზე მოგივიდეთ შეტყობინება. ელფოსტის გაგზავნა ჯერ არ არის აქტიური."
           />
           <CardBody>
             <NotificationForm
-              defaults={
-                preferences ?? {
+              defaults={{
+                ...(preferences ?? {
                   emailOnNewPrediction: true,
                   emailOnSettlement: true,
                   emailOnLiveSession: true,
                   emailProductUpdates: false,
                   telegramEnabled: false,
                   telegramUsername: null,
-                }
-              }
+                }),
+                telegramConnected: user.telegramChatId !== null,
+              }}
             />
           </CardBody>
         </Card>

@@ -211,6 +211,17 @@ export async function getAnalystBySlug(slug: string) {
     predictions,
     allTime: summarizePerformance(records),
     last30Days: summarizePerformance(withinDays(records, 30)),
+    /*
+     * The same record cut the way a buyer reads it: what the free tickets
+     * returned versus what the subscription ones did. Derived from the same
+     * rows as `allTime`, so the three figures can never disagree.
+     */
+    freeAllTime: summarizePerformance(
+      toRecords(predictions.filter((p) => p.visibility === 'PUBLIC')),
+    ),
+    paidAllTime: summarizePerformance(
+      toRecords(predictions.filter((p) => p.visibility !== 'PUBLIC')),
+    ),
     records,
   };
 }

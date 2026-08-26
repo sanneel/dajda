@@ -1,44 +1,89 @@
 'use client';
 
 import { useActionState, useRef, useState } from 'react';
-import { Radio } from 'lucide-react';
+import { Megaphone, MessageSquare, Radio, Ticket } from 'lucide-react';
 import { announceLiveAction, postNoteAction } from '@/actions/posts';
 import { Field, Input, Textarea } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
+import { PostBetForm } from './post-form';
+import { BroadcastForm } from './broadcast-form';
+
+type Mode = 'bet' | 'note' | 'live' | 'broadcast';
 
 /**
- * The feed composer: a status, or a live announcement.
+ * One composer, four things an analyst can publish.
  *
- * One box with a mode switch rather than two forms, because they are the same
- * gesture with one difference, and that difference is stated plainly under the
- * switch: a status is read whenever it is read, an announcement lands in
- * people's inboxes. An analyst should know which one they are about to do
- * before they write it, not after.
+ * These used to be three cards stacked down the page plus a fourth nowhere,
+ * which meant the page opened on whichever form happened to be first and the
+ * rest were a scroll away. They are all the same gesture - write something,
+ * publish it - and what actually differs between them is WHO it reaches, so
+ * that is what the tab strip is sorted by: the bet goes on the public record,
+ * a status is read by whoever visits, a live notice and a broadcast land in
+ * other people's notifications.
+ *
+ * The two that interrupt people say so inside themselves rather than here, at
+ * the moment of writing.
  */
-export function FeedComposer() {
-  const [mode, setMode] = useState<'note' | 'live'>('note');
+export function AnalystComposer({
+  sports,
+  audienceSize,
+  broadcastsRemaining,
+  broadcastsPerDay,
+}: {
+  sports: { value: string; label: string }[];
+  audienceSize: number;
+  broadcastsRemaining: number;
+  broadcastsPerDay: number;
+}) {
+  const [mode, setMode] = useState<Mode>('bet');
 
   return (
     <div>
       <div
-        role="radiogroup"
-        aria-label="პოსტის ტიპი"
-        className="mb-4 flex gap-1 border-b border-line"
+        role="tablist"
+        aria-label="რას ვაქვეყნებ"
+        className="flex flex-wrap gap-1 border-b border-line"
       >
+        <ModeTab
+          selected={mode === 'bet'}
+          onSelect={() => setMode('bet')}
+          icon={<Ticket className="size-4" aria-hidden="true" />}
+          label="ახალი ბილეთი"
+        />
         <ModeTab
           selected={mode === 'note'}
           onSelect={() => setMode('note')}
+          icon={<MessageSquare className="size-4" aria-hidden="true" />}
           label="სტატუსი"
         />
         <ModeTab
           selected={mode === 'live'}
           onSelect={() => setMode('live')}
-          label="ლაივის გამოცხადება"
+          icon={<Radio className="size-4" aria-hidden="true" />}
+          label="ლაივი"
+        />
+        <ModeTab
+          selected={mode === 'broadcast'}
+          onSelect={() => setMode('broadcast')}
+          icon={<Megaphone className="size-4" aria-hidden="true" />}
+          label="შეტყობინება"
+          badge={`${broadcastsRemaining}/${broadcastsPerDay}`}
         />
       </div>
 
-      {mode === 'note' ? <NoteForm /> : <LiveForm />}
+      <div className="pt-5">
+        {mode === 'bet' ? <PostBetForm sports={sports} /> : null}
+        {mode === 'note' ? <NoteForm /> : null}
+        {mode === 'live' ? <LiveForm /> : null}
+        {mode === 'broadcast' ? (
+          <BroadcastForm
+            audienceSize={audienceSize}
+            remaining={broadcastsRemaining}
+            perDay={broadcastsPerDay}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -47,24 +92,34 @@ function ModeTab({
   selected,
   onSelect,
   label,
+  icon,
+  badge,
 }: {
   selected: boolean;
   onSelect: () => void;
   label: string;
+  icon: React.ReactNode;
+  badge?: string;
 }) {
   return (
     <button
       type="button"
-      role="radio"
-      aria-checked={selected}
+      role="tab"
+      aria-selected={selected}
       onClick={onSelect}
-      className={`-mb-px min-h-11 border-b-2 px-4 text-sm transition-colors ${
+      className={`-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm transition-colors ${
         selected
           ? 'border-ink font-semibold text-ink'
           : 'border-transparent text-ink-muted hover:text-ink'
       }`}
     >
+      {icon}
       {label}
+      {badge ? (
+        <span className="tabular rounded-full bg-elevated px-1.5 text-xs text-ink-faint">
+          {badge}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -119,8 +174,7 @@ function LiveForm() {
         <Alert tone="success" title="ლაივი გამოცხადდა">
           შეტყობინება მომზადდა{' '}
           <span className="tabular">{state.data.queued}</span> მიმღებისთვის.
-          გაგზავნა ჩაირთვება არხის კონფიგურაციის შემდეგ. ახლა შეგიძლიათ
-          დაიწყოთ ლაივ პოსტების დამატება ქვემოთ.
+          ახლა შეგიძლიათ დაიწყოთ ლაივ პოსტების დამატება.
         </Alert>
         <Button
           type="button"
@@ -140,12 +194,12 @@ function LiveForm() {
       ) : null}
 
       {/*
-       * Stated before the fields, not after the send. This is the only action
-       * in the product that writes into other people's inboxes.
+       * Stated before the fields, not after the send. This and the broadcast
+       * are the only actions that write into other people's notifications.
        */}
       <p className="flex items-start gap-2 rounded-card border border-line bg-canvas px-3.5 py-3 text-sm text-ink-muted">
         <Radio className="mt-0.5 size-4 shrink-0 text-signal" aria-hidden="true" />
-        გამომწერებსა და შემნახველებს მიუვათ შეტყობინება მეილზე ან ტელეგრამზე.
+        გამომწერებსა და შემნახველებს მიუვათ შეტყობინება.
       </p>
 
       <Field

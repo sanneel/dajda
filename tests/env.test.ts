@@ -143,3 +143,59 @@ describe('environment configuration', () => {
     expect(env.APP_URL).toBe('http://localhost:3000');
   });
 });
+
+describe('messaging configuration', () => {
+  const DEV = {
+    NODE_ENV: 'development',
+    DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/postgres',
+    AUTH_SECRET: 'x'.repeat(32),
+  } as const;
+
+  function setMessagingEnv(values: Record<string, string | undefined>) {
+    for (const key of [
+      'EMAIL_PROVIDER',
+      'EMAIL_API_KEY',
+      'EMAIL_FROM',
+      'TELEGRAM_BOT_TOKEN',
+      'TELEGRAM_BOT_USERNAME',
+    ]) {
+      delete process.env[key];
+    }
+    setEnv({ ...DEV, ...values });
+  }
+
+  it('defaults email to the provider that cannot reach anyone', () => {
+    // The default has to be the safe one: a laptop with seeded demo accounts
+    // must not mail addresses nobody owns the first time a button is pressed.
+    setMessagingEnv({});
+    expect(getEnv().EMAIL_PROVIDER).toBe('log');
+  });
+
+  it('refuses a real email provider with no key or sender', () => {
+    setMessagingEnv({ EMAIL_PROVIDER: 'resend' });
+    expect(() => getEnv()).toThrow(/EMAIL_API_KEY/);
+
+    setMessagingEnv({ EMAIL_PROVIDER: 'brevo', EMAIL_API_KEY: 'key' });
+    expect(() => getEnv()).toThrow(/EMAIL_FROM/);
+  });
+
+  it('accepts a fully configured email provider', () => {
+    setMessagingEnv({
+      EMAIL_PROVIDER: 'resend',
+      EMAIL_API_KEY: 'key',
+      EMAIL_FROM: 'DAJDA <no-reply@dajda.ge>',
+    });
+    expect(getEnv().EMAIL_PROVIDER).toBe('resend');
+  });
+
+  it('refuses a bot username with no token behind it', () => {
+    // The deep link would open a chat that can never answer.
+    setMessagingEnv({ TELEGRAM_BOT_USERNAME: 'dajda_bot' });
+    expect(() => getEnv()).toThrow(/TELEGRAM_BOT_TOKEN/);
+  });
+
+  it('allows a token on its own: that is login-only Telegram', () => {
+    setMessagingEnv({ TELEGRAM_BOT_TOKEN: '123456:secret-value' });
+    expect(() => getEnv()).not.toThrow();
+  });
+});
