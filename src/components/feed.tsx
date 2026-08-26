@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Radio } from 'lucide-react';
+import { Lock, Radio } from 'lucide-react';
 import type { FeedEntry } from '@/lib/queries/feed';
 import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
 import { StatusBadge } from './ui/badge';
+import { ShowMoreList } from './ui/show-more';
 
 /**
  * An analyst's feed.
@@ -20,24 +21,40 @@ import { StatusBadge } from './ui/badge';
 export function Feed({
   entries,
   emptyText = 'ჯერ არაფერია.',
+  lockedBetIds,
 }: {
   entries: FeedEntry[];
   emptyText?: string;
+  /**
+   * Bets whose pick this viewer has not paid for. The entry stays in the
+   * timeline (odds, status, date), but the title and the slip are withheld.
+   * Decided by the caller, because only the page knows who is looking.
+   */
+  lockedBetIds?: ReadonlySet<string>;
 }) {
   if (entries.length === 0) {
     return <p className="py-6 text-sm text-ink-faint">{emptyText}</p>;
   }
 
+  /*
+   * Five entries, then a button. The entries are rendered HERE, on the
+   * server, and only sliced client-side - so the collapse never becomes a
+   * second code path around the lock masking above it.
+   */
   return (
-    <ol className="border-t border-line">
+    <ShowMoreList className="border-t border-line" initial={5}>
       {entries.map((entry) =>
         entry.type === 'post' ? (
           <PostEntry key={`post-${entry.post.id}`} post={entry.post} />
         ) : (
-          <BetEntry key={`bet-${entry.bet.id}`} bet={entry.bet} />
+          <BetEntry
+            key={`bet-${entry.bet.id}`}
+            bet={entry.bet}
+            locked={lockedBetIds?.has(entry.bet.id) ?? false}
+          />
         ),
       )}
-    </ol>
+    </ShowMoreList>
   );
 }
 
@@ -104,7 +121,13 @@ function PostEntry({ post }: { post: Extract<FeedEntry, { type: 'post' }>['post'
   );
 }
 
-function BetEntry({ bet }: { bet: Extract<FeedEntry, { type: 'bet' }>['bet'] }) {
+function BetEntry({
+  bet,
+  locked,
+}: {
+  bet: Extract<FeedEntry, { type: 'bet' }>['bet'];
+  locked: boolean;
+}) {
   return (
     <li className="border-b border-line py-5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -115,15 +138,21 @@ function BetEntry({ bet }: { bet: Extract<FeedEntry, { type: 'bet' }>['bet'] }) 
       <div className="mt-2 flex flex-wrap items-start gap-4">
         <Link
           href={`/free/${bet.id}`}
-          className="relative h-16 w-24 shrink-0 overflow-hidden rounded border border-line bg-canvas"
+          className={`relative h-16 w-24 shrink-0 overflow-hidden rounded border border-line ${
+            locked ? 'flex items-center justify-center bg-elevated' : 'bg-canvas'
+          }`}
         >
-          <Image
-            src={bet.screenshotPath}
-            alt=""
-            fill
-            sizes="6rem"
-            className="object-cover"
-          />
+          {locked ? (
+            <Lock className="size-4 text-ink-faint" aria-hidden="true" />
+          ) : (
+            <Image
+              src={bet.screenshotPath}
+              alt=""
+              fill
+              sizes="6rem"
+              className="object-cover"
+            />
+          )}
         </Link>
 
         <div className="min-w-0 flex-1">
@@ -132,7 +161,7 @@ function BetEntry({ bet }: { bet: Extract<FeedEntry, { type: 'bet' }>['bet'] }) 
               href={`/free/${bet.id}`}
               className="font-medium text-ink hover:text-accent"
             >
-              {bet.titleKa}
+              {locked ? 'დახურული ბილეთი' : bet.titleKa}
             </Link>
             <StatusBadge status={bet.status} />
           </div>

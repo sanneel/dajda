@@ -64,7 +64,7 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h3 className="truncate text-lg font-bold text-ink">
                 <Link
-                  href={`/analysts/${analyst.slug}`}
+                  href={`/analysts/${analyst.slug}?tab=plans`}
                   className="hover:underline"
                 >
                   {analyst.displayName}
@@ -136,14 +136,14 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
          * analysis" were the same click.
          */}
         <Link
-          href={`/analysts/${analyst.slug}`}
+          href={`/analysts/${analyst.slug}?tab=free`}
           className="inline-flex min-h-11 w-full items-center justify-center rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-ink-faint"
         >
           გადახედე
         </Link>
 
         <Link
-          href={`/analysts/${analyst.slug}`}
+          href={`/analysts/${analyst.slug}?tab=plans`}
           className="inline-flex min-h-11 w-full items-center justify-center rounded-control bg-ink px-4 text-sm font-semibold text-on-ink transition-colors hover:bg-accent"
         >
           {cheapestPlan === null

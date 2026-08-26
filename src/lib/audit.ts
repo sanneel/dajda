@@ -50,6 +50,11 @@ export const AUDIT_ACTIONS = {
 
   REPORT_FILED: 'report.filed',
   REPORT_RESOLVED: 'report.resolved',
+
+  TELEGRAM_LINKED: 'telegram.linked',
+  TELEGRAM_UNLINKED: 'telegram.unlinked',
+  /** An analyst wrote to their whole audience. Capped, so worth logging. */
+  BROADCAST_SENT: 'broadcast.sent',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

@@ -2,7 +2,7 @@
 
 import { useActionState } from 'react';
 import { updateNotificationPreferencesAction } from '@/actions/account';
-import { Checkbox, Field, Input } from '@/components/ui/field';
+import { Checkbox } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 
@@ -16,6 +16,8 @@ export function NotificationForm({
     emailProductUpdates: boolean;
     telegramEnabled: boolean;
     telegramUsername: string | null;
+    /** Whether a chat is actually connected, so the switch can say so. */
+    telegramConnected: boolean;
   };
 }) {
   const [state, action, pending] = useActionState(
@@ -64,28 +66,28 @@ export function NotificationForm({
       <fieldset className="border-t border-line pt-4">
         <legend className="mb-1 text-sm font-medium text-ink">Telegram</legend>
 
+        {/*
+         * The switch, not the address. The address is the chat itself and is
+         * set by pressing Start in the bot, one card above - there is nothing
+         * here for a person to type, and a username field would collect a
+         * string that looks like an address and delivers nothing.
+         */}
         <Checkbox
           id="telegramEnabled"
           name="telegramEnabled"
           defaultChecked={defaults.telegramEnabled}
-          label="მინდა შეტყობინებები Telegram-ში (როცა ჩაირთვება)"
+          label="შეტყობინებები Telegram-ში"
         />
-
-        <div className="mt-2">
-          <Field
-            label="Telegram-ის მომხმარებელი"
-            htmlFor="notif-telegram"
-            error={fieldErrors?.telegramUsername?.[0]}
-          >
-            <Input
-              id="notif-telegram"
-              name="telegramUsername"
-              defaultValue={defaults.telegramUsername ?? ''}
-              placeholder="@username"
-              error={Boolean(fieldErrors?.telegramUsername?.[0])}
-            />
-          </Field>
-        </div>
+        {!defaults.telegramConnected ? (
+          <p className="text-xs text-ink-faint">
+            ჯერ დააკავშირეთ ბოტი ზემოთ, თორემ გასაგზავნი მისამართი არ არსებობს.
+          </p>
+        ) : null}
+        <input
+          type="hidden"
+          name="telegramUsername"
+          value={defaults.telegramUsername ?? ''}
+        />
       </fieldset>
 
       <Button type="submit" disabled={pending}>

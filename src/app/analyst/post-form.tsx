@@ -160,10 +160,10 @@ export function PostBetForm({
         </Field>
 
         <Field
-          label="მოვლენის დრო"
+          label="პირველი პოზიციის დაწყება"
           htmlFor="eventAt"
           error={errorFor('eventAt')}
-          hint="არასავალდებულო. გვეხმარება დასრულების შეხსენებაში."
+          hint="როდის იწყება ბილეთის პირველი მატჩი. ფასიან ბილეთზე მყიდველი ამას შეძენამდე ხედავს."
         >
           <Input id="eventAt" name="eventAt" type="datetime-local" />
         </Field>

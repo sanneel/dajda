@@ -26,6 +26,17 @@ export async function generateMetadata({
   const ticket = await getTicketById(id);
   if (!ticket) return { title: 'ბილეთი ვერ მოიძებნა' };
 
+  // A live bet's title IS the pick, and every open pick now costs at least an
+  // account. Metadata is viewer-independent (link previews, crawlers), so
+  // while the bet is open the title is masked for everyone.
+  if (ticket.status === 'PENDING') {
+    const kind =
+      ticket.visibility !== 'PUBLIC' && ticket.authorId !== null
+        ? 'ფასიანი'
+        : 'უფასო';
+    return { title: `${kind} ბილეთი · ${ticket.sport.nameKa}` };
+  }
+
   return {
     title: ticket.titleKa,
     description: ticket.descriptionKa ?? undefined,
@@ -71,11 +82,24 @@ export default async function TicketPage({
 
   const { author, result } = ticket;
 
+  /*
+   * The pick (title and slip) is closed while the bet is still open: to
+   * everyone without the right subscription on a paid bet, and to signed-out
+   * visitors on any bet, because free tickets cost an account. `canView`
+   * already answers the subscription question; once settled, the pick is
+   * public record and nothing here locks.
+   */
+  const isPaid = ticket.visibility !== 'PUBLIC' && ticket.authorId !== null;
+  const locked = ticket.status === 'PENDING' && (!actor || !canView);
+
+  const feedHref = isPaid ? '/paid' : '/free';
+  const feedLabel = isPaid ? 'ფასიანი ბილეთები' : 'უფასო ბილეთები';
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <nav className="mb-5 text-sm text-ink-muted" aria-label="ნავიგაცია">
-        <Link href="/free" className="hover:text-ink">
-          უფასო ბილეთები
+        <Link href={feedHref} className="hover:text-ink">
+          {feedLabel}
         </Link>
         <span aria-hidden="true"> / </span>
         <span className="text-ink">{ticket.sport.nameKa}</span>
@@ -102,7 +126,7 @@ export default async function TicketPage({
         </div>
 
         <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">
-          {ticket.titleKa}
+          {locked ? `დახურული ბილეთი · ${ticket.sport.nameKa}` : ticket.titleKa}
         </h1>
 
         <p className="tabular mt-2 text-sm text-ink-muted">
@@ -111,33 +135,87 @@ export default async function TicketPage({
         </p>
       </header>
 
-      {/* The slip, exactly as posted. */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card border border-line bg-canvas">
-        <Image
-          src={ticket.screenshotPath}
-          alt={`ბილეთის სკრინშოტი: ${ticket.titleKa}`}
-          fill
-          sizes="(min-width: 768px) 42rem, 92vw"
-          className="object-contain"
-          priority
-        />
-      </div>
+      {locked ? (
+        /*
+         * What a buyer decides on, and nothing that gives the pick away:
+         * total odds, when the first leg starts, and where buying happens.
+         */
+        <div className="flex flex-col items-start gap-4 rounded-card border border-line bg-surface p-5 sm:p-6">
+          <Lock className="size-5 text-ink-faint" aria-hidden="true" />
+          <p className="font-medium text-ink">
+            {isPaid
+              ? 'ეს ბილეთი იხსნება ავტორის გამოწერით'
+              : 'ეს ბილეთი იხსნება შესვლის შემდეგ'}
+          </p>
 
-      {/* Description. Free tickets are never gated; a paid bet is. */}
-      {canView ? (
+          <div className="grid w-full grid-cols-2 gap-4 border-y border-line py-4 sm:max-w-sm">
+            <div>
+              <p className="text-xs text-ink-faint">კოეფიციენტი</p>
+              <p className="tabular text-xl font-bold text-ink">
+                {formatOdds(ticket.oddsMilli)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-ink-faint">პირველი პოზიცია იწყება</p>
+              <p className="tabular text-sm font-medium leading-7 text-ink">
+                {ticket.eventAt
+                  ? formatDateTimeKa(ticket.eventAt)
+                  : 'დაუზუსტებელია'}
+              </p>
+            </div>
+          </div>
+
+          <p className="text-sm text-ink-muted">
+            შედეგის დათვლის შემდეგ ბილეთი ავტომატურად ხდება საჯარო ჩანაწერის
+            ნაწილი.
+          </p>
+
+          {isPaid && author ? (
+            <ButtonLink href={`/analysts/${author.slug}?tab=plans#plans-heading`}>
+              შეძენა გამოწერით
+            </ButtonLink>
+          ) : !isPaid ? (
+            <div className="flex flex-wrap gap-3">
+              <ButtonLink href="/login">შესვლა</ButtonLink>
+              <ButtonLink href="/register" variant="secondary">
+                რეგისტრაცია
+              </ButtonLink>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        /* The slip, exactly as posted. */
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card border border-line bg-canvas">
+          <Image
+            src={ticket.screenshotPath}
+            alt={`ბილეთის სკრინშოტი: ${ticket.titleKa}`}
+            fill
+            sizes="(min-width: 768px) 42rem, 92vw"
+            className="object-contain"
+            priority
+          />
+        </div>
+      )}
+
+      {/* Description. Gated with the pick while the ticket is locked - prose
+          can restate the pick, so it must never outlive the slip's gate. On a
+          settled paid bet the pick opens but the analysis stays subscriber-only
+          (`canView`). While locked, the panel above already carries the gate
+          and the CTA, so nothing repeats here. */}
+      {canView && !locked ? (
         ticket.descriptionKa ? (
           <p className="mt-5 whitespace-pre-line text-[0.9375rem] leading-relaxed text-ink-muted">
             {ticket.descriptionKa}
           </p>
         ) : null
-      ) : (
+      ) : locked ? null : (
         <div className="mt-5 flex flex-col items-start gap-3 rounded-card border border-dashed border-line bg-surface p-5">
           <Lock className="size-5 text-ink-faint" aria-hidden="true" />
           <p className="font-medium text-ink">
             აღწერა ხელმისაწვდომია გამოწერით
           </p>
           {author ? (
-            <ButtonLink href={`/analysts/${author.slug}`}>
+            <ButtonLink href={`/analysts/${author.slug}?tab=plans`}>
               გეგმების ნახვა
             </ButtonLink>
           ) : null}
@@ -198,7 +276,7 @@ export default async function TicketPage({
       <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-card border border-line bg-surface p-4">
         {author ? (
           <Link
-            href={`/analysts/${author.slug}`}
+            href={`/analysts/${author.slug}?tab=${isPaid ? 'paid' : 'free'}`}
             className="flex items-center gap-3"
           >
             <Avatar name={author.displayName} size="md" />
