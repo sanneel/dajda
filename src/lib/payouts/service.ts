@@ -10,6 +10,7 @@ import {
   maskCardNumber,
   normaliseCardNumber,
   payoutPeriod,
+  weeklyActivity,
   WITHDRAWAL_REFUSAL_KA,
 } from './rules';
 
@@ -78,15 +79,23 @@ export async function requestWithdrawal(
   }
 
   // What the platform saw of this month, recorded at request time so the
-  // administrator judges the same figures the analyst was judged on.
+  // administrator judges the same figures the analyst was judged on. The
+  // dates are read rather than counted, because the check is per week.
   const period = payoutPeriod(now);
-  const publications = await prisma.prediction.count({
+  const published = await prisma.prediction.findMany({
     where: {
       authorId: profile.id,
       publishedAt: { gte: period.start, lt: period.end },
     },
+    select: { publishedAt: true },
   });
-  const activityCheckPassed = publications >= env.ANALYST_MIN_PUBLICATIONS;
+  const activity = weeklyActivity({
+    period,
+    publishedAt: published
+      .map((row) => row.publishedAt)
+      .filter((value): value is Date => value !== null),
+    minimumPerWeek: env.ANALYST_MIN_PUBLICATIONS_PER_WEEK,
+  });
 
   const maskedCard = maskCardNumber(input.cardNumber);
 
@@ -115,8 +124,10 @@ export async function requestWithdrawal(
         providerOrderId: `dajda-payout-${randomUUID()}`,
         periodStart: period.start,
         periodEnd: period.end,
-        publicationsInPeriod: publications,
-        activityCheckPassed,
+        publicationsInPeriod: activity.total,
+        weeksInPeriod: activity.weeks,
+        weeksMeetingMinimum: activity.weeksMet,
+        activityCheckPassed: activity.passed,
       },
       select: { id: true },
     });
@@ -147,12 +158,19 @@ export async function requestWithdrawal(
         summary: `გატანის მოთხოვნა: ${input.amountMinor} GEL`,
         actorId: actor.userId,
         actorRole: actor.role,
-        metadata: { publications, activityCheckPassed, maskedCard },
+        metadata: {
+          publications: activity.total,
+          perWeek: activity.perWeek,
+          weeksMet: activity.weeksMet,
+          weeks: activity.weeks,
+          activityCheckPassed: activity.passed,
+          maskedCard,
+        },
       },
       tx,
     );
 
-    return { payoutId: payout.id, activityCheckPassed };
+    return { payoutId: payout.id, activityCheckPassed: activity.passed };
   });
 }
 

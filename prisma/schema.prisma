@@ -818,9 +818,16 @@ model AnalystPayout {
 
   /// The activity check taken at request time: what the platform looked at
   /// when deciding whether the content was actually delivered.
+  ///
+  /// Judged per week, not on the monthly total. A subscriber pays for a month
+  /// of analysis and receives it as the month goes, so the figures kept here
+  /// are how many whole weeks the period held and how many of them reached
+  /// the minimum.
   periodStart          DateTime
   periodEnd            DateTime
   publicationsInPeriod Int
+  weeksInPeriod        Int      @default(0)
+  weeksMeetingMinimum  Int      @default(0)
   activityCheckPassed  Boolean
 
   requestedAt DateTime  @default(now())

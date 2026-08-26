@@ -8,6 +8,7 @@ import {
   isWithdrawalWindowOpen,
   nextWithdrawalWindow,
   payoutPeriod,
+  weeklyActivity,
 } from '@/lib/payouts/rules';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +37,7 @@ export default async function AnalystEarningsPage() {
   const now = new Date();
   const period = payoutPeriod(now);
 
-  const [user, entries, payouts, publications] = await Promise.all([
+  const [user, entries, payouts, published] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: analyst.userId },
       select: { earningsMinor: true },
@@ -68,16 +69,23 @@ export default async function AnalystEarningsPage() {
         requestedAt: true,
       },
     }),
-    prisma.prediction.count({
+    prisma.prediction.findMany({
       where: {
         authorId: analyst.analystProfileId,
         publishedAt: { gte: period.start, lt: period.end },
       },
+      select: { publishedAt: true },
     }),
   ]);
 
   const windowOpen = isWithdrawalWindowOpen(now);
-  const activityMet = publications >= env.ANALYST_MIN_PUBLICATIONS;
+  const activity = weeklyActivity({
+    period,
+    publishedAt: published
+      .map((row) => row.publishedAt)
+      .filter((value): value is Date => value !== null),
+    minimumPerWeek: env.ANALYST_MIN_PUBLICATIONS_PER_WEEK,
+  });
   const hasPending = payouts.some(
     (payout) => payout.status === 'REQUESTED' || payout.status === 'APPROVED',
   );
@@ -104,8 +112,12 @@ export default async function AnalystEarningsPage() {
             <div className="text-right text-sm">
               <p className="text-ink-muted">
                 ამ თვის პუბლიკაციები:{' '}
-                <span className="tabular text-ink">{publications}</span> /{' '}
-                <span className="tabular">{env.ANALYST_MIN_PUBLICATIONS}</span>
+                <span className="tabular text-ink">{activity.total}</span>
+              </p>
+              <p className="mt-0.5 text-ink-muted">
+                კვირები ნორმის შესრულებით:{' '}
+                <span className="tabular text-ink">{activity.weeksMet}</span> /{' '}
+                <span className="tabular">{activity.weeks}</span>
               </p>
               <p className="mt-0.5 text-ink-faint">
                 {windowOpen
@@ -115,13 +127,32 @@ export default async function AnalystEarningsPage() {
             </div>
           </div>
 
-          {!activityMet ? (
+          {activity.weeks > 0 ? (
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {activity.perWeek.map((count, index) => (
+                <li
+                  key={index}
+                  className={
+                    count >= env.ANALYST_MIN_PUBLICATIONS_PER_WEEK
+                      ? 'rounded-md border border-line px-2.5 py-1 text-sm text-ink'
+                      : 'rounded-md border border-loss/40 px-2.5 py-1 text-sm text-ink-muted'
+                  }
+                >
+                  {index + 1} კვირა:{' '}
+                  <span className="tabular">{count}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {!activity.passed ? (
             <div className="mt-4">
               <Alert tone="warning" title="აქტივობის შემოწმება">
-                ამ თვეში {env.ANALYST_MIN_PUBLICATIONS} პუბლიკაციაზე ნაკლები
-                გაქვთ. მოთხოვნის შეტანა მაინც შეგიძლიათ, თუმცა მას ცალკე
-                განიხილავს ადმინისტრაცია, რადგან გამომწერს მიწოდებული უნდა
-                ჰქონდეს ის, რაშიც გადაიხადა.
+                ყოველ კვირაში საჭიროა მინიმუმ{' '}
+                {env.ANALYST_MIN_PUBLICATIONS_PER_WEEK} პუბლიკაცია. მოთხოვნის
+                შეტანა მაინც შეგიძლიათ, თუმცა მას ცალკე განიხილავს
+                ადმინისტრაცია, რადგან გამომწერს მიწოდებული უნდა ჰქონდეს ის,
+                რაშიც გადაიხადა.
               </Alert>
             </div>
           ) : null}

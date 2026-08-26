@@ -38,6 +38,8 @@ export default async function AdminPayoutsPage() {
       periodStart: true,
       periodEnd: true,
       publicationsInPeriod: true,
+      weeksInPeriod: true,
+      weeksMeetingMinimum: true,
       activityCheckPassed: true,
       failureReason: true,
       rawStatus: true,
@@ -119,10 +121,18 @@ export default async function AdminPayoutsPage() {
                     <span className="tabular text-ink">
                       {payout.publicationsInPeriod}
                     </span>{' '}
-                    პუბლიკაცია.{' '}
+                    პუბლიკაცია, ნორმა შესრულებულია{' '}
+                    <span className="tabular text-ink">
+                      {payout.weeksMeetingMinimum}
+                    </span>{' '}
+                    კვირაში{' '}
+                    <span className="tabular text-ink">
+                      {payout.weeksInPeriod}
+                    </span>
+                    დან.{' '}
                     {payout.activityCheckPassed
                       ? 'შემოწმება გავლილია.'
-                      : 'შემოწმება ვერ გაიარა: გადაამოწმეთ, მიიღეს თუ არა გამომწერებმა კონტენტი.'}
+                      : 'შემოწმება ვერ გაიარა: გადაამოწმეთ, იღებდნენ თუ არა გამომწერები კონტენტს მთელი თვის განმავლობაში.'}
                   </div>
 
                   <DecidePayoutForm

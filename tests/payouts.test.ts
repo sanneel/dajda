@@ -10,6 +10,7 @@ import {
   normaliseCardNumber,
   payoutPeriod,
   tbilisiParts,
+  weeklyActivity,
 } from '@/lib/payouts/rules';
 
 /**
@@ -22,18 +23,28 @@ import {
 
 describe('analyst share', () => {
   it('takes the configured percentage of the gross', () => {
-    expect(analystShareMinor(3000, 70)).toBe(2100);
-    expect(analystShareMinor(5000, 50)).toBe(2500);
+    // The shipped default: 85% to the analyst on a 30 GEL plan.
+    expect(analystShareMinor(3000, 85)).toBe(2550);
+    expect(analystShareMinor(5000, 85)).toBe(4250);
+    expect(analystShareMinor(4000, 85)).toBe(3400);
   });
 
   it('rounds down, so the platform never owes out more than it took', () => {
-    // 70% of 2999 is 2099.3
-    expect(analystShareMinor(2999, 70)).toBe(2099);
+    // 85% of 2999 is 2549.15
+    expect(analystShareMinor(2999, 85)).toBe(2549);
   });
 
   it('handles the ends of the range', () => {
     expect(analystShareMinor(3000, 0)).toBe(0);
     expect(analystShareMinor(3000, 100)).toBe(3000);
+  });
+
+  it('leaves the platform its cut', () => {
+    // What the platform keeps is the complement, and it is never negative.
+    for (const gross of [3000, 4000, 5000, 2999, 1]) {
+      const share = analystShareMinor(gross, 85);
+      expect(gross - share).toBeGreaterThanOrEqual(0);
+    }
   });
 
   it('never returns anything for a non-positive amount', () => {
@@ -198,5 +209,132 @@ describe('withdrawal checks', () => {
         hasPendingRequest: true,
       }),
     ).toEqual({ allowed: false, reason: 'PENDING_REQUEST_EXISTS' });
+  });
+});
+
+describe('weekly activity', () => {
+  // August 2026 in Tbilisi: 31 days, so four whole weeks and three days over.
+  const period = payoutPeriod(new Date('2026-08-15T09:00:00Z'));
+
+  /** `day` is the day of the month in Tbilisi; noon keeps it away from edges. */
+  function onDay(day: number): Date {
+    return new Date(Date.UTC(2026, 7, day, 8, 0, 0));
+  }
+
+  function posts(perDay: Record<number, number>): Date[] {
+    return Object.entries(perDay).flatMap(([day, count]) =>
+      Array.from({ length: count }, () => onDay(Number(day))),
+    );
+  }
+
+  it('cuts the month into whole seven-day blocks', () => {
+    const activity = weeklyActivity({
+      period,
+      publishedAt: [],
+      minimumPerWeek: 10,
+    });
+    expect(activity.weeks).toBe(4);
+    expect(activity.perWeek).toEqual([0, 0, 0, 0]);
+  });
+
+  it('passes when every week reaches the minimum', () => {
+    const activity = weeklyActivity({
+      period,
+      publishedAt: posts({ 3: 10, 10: 10, 17: 10, 24: 10 }),
+      minimumPerWeek: 10,
+    });
+
+    expect(activity.perWeek).toEqual([10, 10, 10, 10]);
+    expect(activity.weeksMet).toBe(4);
+    expect(activity.passed).toBe(true);
+  });
+
+  it('fails a month that was silent for a week, however high the total', () => {
+    // Forty posts, which clears any monthly total, but one week is empty.
+    const activity = weeklyActivity({
+      period,
+      publishedAt: posts({ 3: 10, 10: 10, 24: 20 }),
+      minimumPerWeek: 10,
+    });
+
+    expect(activity.total).toBe(40);
+    expect(activity.perWeek).toEqual([10, 10, 0, 20]);
+    expect(activity.weeksMet).toBe(3);
+    expect(activity.passed).toBe(false);
+  });
+
+  it('does not let a burst at the end stand in for the month', () => {
+    const activity = weeklyActivity({
+      period,
+      publishedAt: posts({ 26: 40 }),
+      minimumPerWeek: 10,
+    });
+
+    expect(activity.passed).toBe(false);
+  });
+
+  it('counts the leftover days in the total but does not judge them', () => {
+    // Days 29 to 31 fall outside the four whole weeks.
+    const activity = weeklyActivity({
+      period,
+      publishedAt: posts({ 3: 10, 10: 10, 17: 10, 24: 10, 30: 5 }),
+      minimumPerWeek: 10,
+    });
+
+    expect(activity.remainder).toBe(5);
+    expect(activity.total).toBe(45);
+    // The stub week is short by five and must not fail anybody.
+    expect(activity.passed).toBe(true);
+  });
+
+  it('ignores anything published outside the period', () => {
+    const activity = weeklyActivity({
+      period,
+      publishedAt: [
+        new Date('2026-07-20T09:00:00Z'),
+        new Date('2026-09-05T09:00:00Z'),
+        ...posts({ 3: 10, 10: 10, 17: 10, 24: 10 }),
+      ],
+      minimumPerWeek: 10,
+    });
+
+    expect(activity.total).toBe(40);
+    expect(activity.passed).toBe(true);
+  });
+
+  it('is satisfied by a minimum of zero', () => {
+    const activity = weeklyActivity({
+      period,
+      publishedAt: [],
+      minimumPerWeek: 0,
+    });
+    expect(activity.passed).toBe(true);
+  });
+
+  it('does not fail a period too short to hold a whole week', () => {
+    const activity = weeklyActivity({
+      period: {
+        start: new Date('2026-08-01T00:00:00Z'),
+        end: new Date('2026-08-04T00:00:00Z'),
+      },
+      publishedAt: [],
+      minimumPerWeek: 10,
+    });
+
+    expect(activity.weeks).toBe(0);
+    expect(activity.passed).toBe(true);
+  });
+
+  it('respects the Tbilisi month boundary', () => {
+    // 21:00 UTC on 31 July is already 1 August in Tbilisi, so it is the
+    // first week's first day rather than the previous month's.
+    const activity = weeklyActivity({
+      period,
+      publishedAt: [new Date('2026-07-31T21:00:00Z')],
+      minimumPerWeek: 10,
+    });
+
+    expect(activity.total).toBe(1);
+    expect(activity.perWeek[0]).toBe(1);
   });
 });

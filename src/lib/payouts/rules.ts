@@ -179,3 +179,73 @@ export const WITHDRAWAL_REFUSAL_KA: Record<WithdrawalRefusal, string> = {
   PENDING_REQUEST_EXISTS:
     'თქვენ უკვე გაქვთ განსახილველი მოთხოვნა. დაელოდეთ მის დამუშავებას.',
 };
+
+/**
+ * The month's delivery, week by week.
+ *
+ * Counted per week rather than as a monthly total on purpose. A subscriber
+ * pays for a month of analysis and receives it as the month goes; forty posts
+ * in the last three days after three silent weeks is not the same product,
+ * and a monthly total cannot tell the two apart.
+ *
+ * The period is cut into seven-day blocks from its first day. Only WHOLE
+ * blocks are judged: a month leaves one to three days over, and requiring a
+ * full week's output from a two-day stub would fail everybody every time.
+ * Posts in those leftover days still count in the total.
+ *
+ * Georgia has no daylight saving, so seven days is always exactly 7 x 24h
+ * here and the blocks need no calendar arithmetic.
+ */
+export type WeeklyActivity = {
+  /** Whole seven-day blocks the period contains. */
+  weeks: number;
+  /** How many of them reached the minimum. */
+  weeksMet: number;
+  /** Per-block counts, oldest first. */
+  perWeek: number[];
+  /** Posts in the leftover days at the end, which gate nothing. */
+  remainder: number;
+  total: number;
+  passed: boolean;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function weeklyActivity(input: {
+  period: { start: Date; end: Date };
+  publishedAt: Date[];
+  minimumPerWeek: number;
+}): WeeklyActivity {
+  const startMs = input.period.start.getTime();
+  const endMs = input.period.end.getTime();
+  const weeks = Math.floor((endMs - startMs) / (7 * DAY_MS));
+
+  const perWeek = new Array<number>(Math.max(0, weeks)).fill(0);
+  let remainder = 0;
+  let total = 0;
+
+  for (const published of input.publishedAt) {
+    const at = published.getTime();
+    if (at < startMs || at >= endMs) continue;
+    total += 1;
+
+    const block = Math.floor((at - startMs) / (7 * DAY_MS));
+    if (block < weeks) perWeek[block] = (perWeek[block] ?? 0) + 1;
+    else remainder += 1;
+  }
+
+  const weeksMet = perWeek.filter(
+    (count) => count >= input.minimumPerWeek,
+  ).length;
+
+  return {
+    weeks,
+    weeksMet,
+    perWeek,
+    remainder,
+    total,
+    // A period with no whole week in it cannot be judged this way, so it is
+    // not treated as a failure.
+    passed: weeks === 0 || weeksMet === weeks,
+  };
+}
