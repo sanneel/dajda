@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import { Lock } from 'lucide-react';
 import { getAnalystBySlug } from '@/lib/queries/analysts';
+import { activePlanGrants } from '@/lib/queries/tickets';
 import { getCurrentUser } from '@/lib/auth/authorization';
+import { isTicketLocked } from '@/lib/auth/entitlements';
 import { prisma } from '@/lib/db';
 import {
   cumulativeUnits,
@@ -13,25 +15,33 @@ import {
 import {
   formatDateTimeKa,
   formatOdds,
-  formatPercentBps,
-  formatPercentBpsSigned,
   formatUnitsSigned,
 } from '@/lib/format';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge, DemoBadge, StatusBadge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
-import { Stat, RecordBar } from '@/components/ui/stat';
 import { Alert, EmptyState } from '@/components/ui/feedback';
 import { analystFeed } from '@/lib/queries/feed';
 import { Feed } from '@/components/feed';
 import { CumulativeUnitsChart } from '@/components/charts/cumulative-units';
 import { MonthlyBars } from '@/components/charts/monthly-bars';
-import { PlanCard } from '@/components/plan-card';
+import { RecordTabs } from './record-tabs';
 import { ReportForm } from '@/components/report-form';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 import { SaveAnalystButton } from './save-button';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * `?tab=` values, as the rest of the product writes them. Anything else - a
+ * typo, a stale link, nothing at all - falls back to the free record rather
+ * than erroring: a bad query string is not worth a broken page.
+ */
+const TAB_BY_PARAM: Record<string, 'FREE' | 'PAID' | 'PLANS' | undefined> = {
+  free: 'FREE',
+  paid: 'PAID',
+  plans: 'PLANS',
+};
 
 export async function generateMetadata({
   params,
@@ -52,18 +62,32 @@ export async function generateMetadata({
 
 export default async function AnalystProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
+  /*
+   * Which panel to open, carried by whoever linked here.
+   *
+   * The point is that the panel answers the question the reader arrived with:
+   * from the free feed they are comparing free records, from the paid feed
+   * paid ones, and from the analyst listing they are shopping, so they get the
+   * plans. A query parameter rather than the hash so the SERVER picks it -
+   * reading location.hash could only happen after hydration, which means
+   * rendering the wrong panel first and swapping it under the reader.
+   */
+  const requestedTab = TAB_BY_PARAM[String((await searchParams).tab ?? '')];
   const data = await getAnalystBySlug(slug);
 
   if (!data) notFound();
 
-  const { profile, predictions, allTime, records } = data;
+  const { profile, predictions, allTime, freeAllTime, paidAllTime, records } =
+    data;
   const actor = await getCurrentUser();
 
-  const [saved, subscriptions, feed] = await Promise.all([
+  const [saved, subscriptions, feed, grants] = await Promise.all([
     actor
       ? prisma.savedAnalyst.count({
           where: { userId: actor.userId, analystProfileId: profile.id },
@@ -80,6 +104,7 @@ export default async function AnalystProfilePage({
         })
       : Promise.resolve([]),
     analystFeed(profile.id, 20),
+    activePlanGrants(actor?.userId),
   ]);
 
   const statusByPlan = new Map(
@@ -89,9 +114,33 @@ export default async function AnalystProfilePage({
     ]),
   );
 
+  /*
+   * Open paid bets keep their pick hidden here too. The profile is the public
+   * record, but a record entry is a pick plus an outcome, and while the bet is
+   * still running the pick is what subscribers are paying for. The row itself
+   * stays visible - odds, date, status - so the count can not be gamed.
+   */
+  const viewer = actor
+    ? { role: actor.role, analystProfileId: actor.analystProfileId }
+    : null;
+  const lockedBetIds = new Set(
+    predictions
+      .filter((prediction) =>
+        isTicketLocked(
+          {
+            visibility: prediction.visibility,
+            authorId: profile.id,
+            status: prediction.status,
+          },
+          viewer,
+          grants,
+        ),
+      )
+      .map((prediction) => prediction.id),
+  );
+
   const cumulative = cumulativeUnits(records);
   const monthly = monthlyPerformance(records);
-  const streak = allTime.currentStreak;
 
   return (
     <div className="mx-auto max-w-page px-4 py-10 sm:px-6">
@@ -144,91 +193,19 @@ export default async function AnalystProfilePage({
       ) : null}
 
       {/* ------------------------------------------------------------- */}
-      {/* Performance summary                                             */}
+      {/* The record: one panel, switched between free, paid and plans.   */}
       {/* ------------------------------------------------------------- */}
-      <section className="mt-8" aria-labelledby="performance-heading">
-        <h2 id="performance-heading" className="sr-only">
-          შედეგების მიმოხილვა
-        </h2>
-
-        <Card>
-          <CardBody>
-            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
-              <Stat
-                label="სულ ფსონი"
-                value={allTime.total}
-                hint={`${allTime.pending} მოლოდინში`}
-                size="lg"
-              />
-              <Stat
-                label="მოგებული"
-                value={allTime.won}
-                tone="positive"
-                size="lg"
-              />
-              <Stat
-                label="წაგებული"
-                value={allTime.lost}
-                tone="negative"
-                size="lg"
-              />
-              <Stat
-                label="სიზუსტე"
-                value={
-                  allTime.decided === 0
-                    ? '·'
-                    : formatPercentBps(allTime.hitRateBps)
-                }
-                hint={`${allTime.decided} დათვლილი`}
-                size="lg"
-              />
-              <Stat
-                label="ROI"
-                value={
-                  allTime.decided === 0
-                    ? '·'
-                    : formatPercentBpsSigned(allTime.roiBps)
-                }
-                tone={
-                  allTime.roiBps > 0
-                    ? 'positive'
-                    : allTime.roiBps < 0
-                      ? 'negative'
-                      : 'default'
-                }
-                hint={`${formatUnitsSigned(allTime.profitUnitsCenti)} ერთეული`}
-                size="lg"
-              />
-              {/*
-               * The streak is a count, not an omen. A flame or a snowflake
-               * here would editorialise a number the hint already explains,
-               * in the visual language of the bookmakers this product is not.
-               */}
-              <Stat
-                label="მიმდინარე სერია"
-                value={streak.kind === 'NONE' ? '·' : streak.count}
-                tone={streak.kind === 'LOST' ? 'negative' : 'default'}
-                hint={
-                  streak.kind === 'WON'
-                    ? 'ზედიზედ მოგება'
-                    : streak.kind === 'LOST'
-                      ? 'ზედიზედ წაგება'
-                      : undefined
-                }
-                size="lg"
-              />
-            </div>
-
-            <div className="mt-6 border-t border-line pt-5">
-              <RecordBar
-                won={allTime.won}
-                lost={allTime.lost}
-                pending={allTime.pending}
-              />
-            </div>
-
-          </CardBody>
-        </Card>
+      <section className="mt-8" aria-labelledby="plans-heading">
+        <RecordTabs
+          free={freeAllTime}
+          paid={paidAllTime}
+          plans={profile.plans.map((plan) => ({
+            ...plan,
+            currentStatus: statusByPlan.get(plan.id),
+          }))}
+          isAuthenticated={Boolean(actor)}
+          initialTab={requestedTab}
+        />
       </section>
 
       {/* ------------------------------------------------------------- */}
@@ -257,67 +234,6 @@ export default async function AnalystProfilePage({
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* Plans                                                           */}
-      {/* ------------------------------------------------------------- */}
-      {profile.plans.length > 0 ? (
-        <section className="mt-10" aria-labelledby="plans-heading">
-          <h2
-            id="plans-heading"
-            className="text-2xl font-semibold tracking-tight text-ink"
-          >
-            გამოწერა
-          </h2>
-          <p className="ph mt-1.5 max-w-2xl text-sm">
-            [1 წინადადება: რა იხსნება გამოწერით და რა რჩება უფასოდ]
-          </p>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {profile.plans.map((plan) => (
-              <PlanCard
-                key={plan.id}
-                plan={plan}
-                featured={plan.tier === 'PREMIUM'}
-                isAuthenticated={Boolean(actor)}
-                currentStatus={statusByPlan.get(plan.id)}
-              />
-            ))}
-          </div>
-
-          {/*
-           * Billing terms sit at the point of purchase. They used to live on a
-           * platform-wide subscriptions page; that page is gone, so the two
-           * facts a buyer needs before paying have to travel with the plans.
-           */}
-          {/*
-           * Billing terms sit at the point of purchase - there is no
-           * platform-wide subscriptions page any more. The two links are real
-           * because they are navigation, not copy; the sentences are not.
-           */}
-          <div className="mt-5 border-t border-line pt-4">
-            <p className="ph text-xs leading-relaxed">
-              [3 პუნქტი გადახდამდე: (1) როდის აქტიურდება გეგმა, (2) ავტომატური
-              განახლება და გაუქმება, (3) ბარათის მონაცემები]
-            </p>
-            <p className="mt-2 text-xs text-ink-muted">
-              <Link
-                href="/dashboard"
-                className="text-accent underline decoration-line-strong underline-offset-2 hover:decoration-accent"
-              >
-                პროფილი → გამოწერები
-              </Link>
-              {' · '}
-              <Link
-                href="/legal#refunds"
-                className="text-accent underline decoration-line-strong underline-offset-2 hover:decoration-accent"
-              >
-                დაბრუნების პოლიტიკა
-              </Link>
-            </p>
-          </div>
-        </section>
-      ) : null}
-
-      {/* ------------------------------------------------------------- */}
       {/* Feed: what the author says, next to what they bet               */}
       {/* ------------------------------------------------------------- */}
       <section className="mt-10" aria-labelledby="feed-heading">
@@ -333,7 +249,11 @@ export default async function AnalystProfilePage({
         </p>
 
         <div className="mt-4">
-          <Feed entries={feed} emptyText="ავტორს ჯერ არაფერი დაუპოსტავს." />
+          <Feed
+            entries={feed}
+            emptyText="ავტორს ჯერ არაფერი დაუპოსტავს."
+            lockedBetIds={lockedBetIds}
+          />
         </div>
       </section>
 
@@ -394,7 +314,17 @@ export default async function AnalystProfilePage({
                         href={`/free/${prediction.id}`}
                         className="font-medium text-ink hover:text-accent"
                       >
-                        {prediction.titleKa}
+                        {lockedBetIds.has(prediction.id) ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Lock
+                              className="size-3.5 text-ink-faint"
+                              aria-hidden="true"
+                            />
+                            დახურული ბილეთი
+                          </span>
+                        ) : (
+                          prediction.titleKa
+                        )}
                       </a>
                       <div className="text-xs text-ink-faint">
                         {prediction.sport.nameKa}
@@ -402,21 +332,31 @@ export default async function AnalystProfilePage({
                     </td>
                     <td className="px-4 py-3">
                       {/* The slip, small. Proof that the row is not just a
-                          claim typed into a table. */}
-                      <a
-                        href={prediction.screenshotPath}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="relative block h-12 w-16 overflow-hidden rounded border border-line bg-canvas"
-                      >
-                        <Image
-                          src={prediction.screenshotPath}
-                          alt=""
-                          fill
-                          sizes="4rem"
-                          className="object-cover"
-                        />
-                      </a>
+                          claim typed into a table. A locked bet shows no slip,
+                          because the slip IS the pick being sold. */}
+                      {lockedBetIds.has(prediction.id) ? (
+                        <span className="flex h-12 w-16 items-center justify-center rounded border border-line bg-elevated">
+                          <Lock
+                            className="size-4 text-ink-faint"
+                            aria-hidden="true"
+                          />
+                        </span>
+                      ) : (
+                        <a
+                          href={prediction.screenshotPath}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="relative block h-12 w-16 overflow-hidden rounded border border-line bg-canvas"
+                        >
+                          <Image
+                            src={prediction.screenshotPath}
+                            alt=""
+                            fill
+                            sizes="4rem"
+                            className="object-cover"
+                          />
+                        </a>
+                      )}
                     </td>
                     <td className="tabular px-4 py-3 text-ink">
                       {formatOdds(prediction.oddsMilli)}

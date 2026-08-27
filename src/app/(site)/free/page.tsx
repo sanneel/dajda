@@ -1,10 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Ticket } from 'lucide-react';
-import { listFreeTickets, listSports } from '@/lib/queries/tickets';
+import {
+  listFreeTickets,
+  listSports,
+  type TicketSort,
+} from '@/lib/queries/tickets';
 import { ticketFilterSchema } from '@/lib/validation/schemas';
 import { getCurrentUser } from '@/lib/auth/authorization';
-import { TicketCard } from '@/components/ticket-card';
+import { isTicketLocked } from '@/lib/auth/entitlements';
+import { TicketList } from '@/components/ticket-list';
+import { SortSelect } from '@/components/sort-select';
 import { EmptyState } from '@/components/ui/feedback';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 import { FreeTicketForm } from './upload-form';
@@ -13,18 +19,38 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'უფასო ბილეთები',
-  description: '[უფასო ბილეთების გვერდის აღწერა საძიებოსთვის]',
+  description:
+    'უფასო ბილეთები ანალიტიკოსებისა და მომხმარებლებისგან, ავტორის ღია ჩანაწერით.',
 };
 
+/*
+ * The hint under each option is the sort key in plain words. Both orderings
+ * are defensible and neither is guessable from its name alone, so the menu
+ * says which question it answers rather than making the reader try one.
+ */
+const SORTS: { value: TicketSort; label: string; hintKa: string }[] = [
+  {
+    value: 'soon',
+    label: 'მალე იწყება',
+    hintKa: 'პირველი პოზიციის დაწყების დროით',
+  },
+  {
+    value: 'profit',
+    label: 'პროფიტი',
+    hintKa: 'ავტორის ჩანაწერის მოგებით',
+  },
+];
+
 /**
- * The free feed: every public ticket, whoever posted it.
+ * The free feed, in the same table as /paid so the two read as one product.
+ * The differences are inherent, not layout: no price column (nothing is for
+ * sale here) and an upload box (community tickets are allowed).
  *
- * Analysts and ordinary users share one list on purpose. What separates them
- * is not where their ticket appears but whether it counts: an analyst's name
- * links to a record you can check, a community poster's does not.
- *
- * Uploading is a disclosure rather than a separate page, so posting a ticket
- * never takes you away from the tickets.
+ * Signed-out visitors see the same table the paid page shows them: every row
+ * with its odds, author and first-leg time, and the pick itself locked while
+ * the bet is open. The gate is on the pick, not the page - what a free
+ * ticket costs is an account, and a locked row is better advertising for one
+ * than a wall.
  */
 export default async function FreeTicketsPage({
   searchParams,
@@ -33,18 +59,30 @@ export default async function FreeTicketsPage({
 }) {
   const raw = await searchParams;
   const parsed = ticketFilterSchema.safeParse(raw);
-  const filter = parsed.success ? parsed.data : { page: 1 };
+  const filter = parsed.success ? parsed.data : { page: 1, sort: 'soon' as const };
 
-  const [{ items, total, page, pageCount }, sports, actor] = await Promise.all([
+  const actor = await getCurrentUser();
+  const viewer = actor
+    ? { role: actor.role, analystProfileId: actor.analystProfileId }
+    : null;
+
+  const [{ items, total, page, pageCount }, sports] = await Promise.all([
     listFreeTickets(filter),
     listSports(),
-    getCurrentUser(),
   ]);
 
-  const hrefForPage = (target: number) => {
+  const hrefFor = (overrides: {
+    sport?: string | null;
+    sort?: TicketSort;
+    page?: number;
+  }) => {
     const query = new URLSearchParams();
-    if (filter.sport) query.set('sport', filter.sport);
-    if (target > 1) query.set('page', String(target));
+    const sport =
+      overrides.sport === undefined ? filter.sport : overrides.sport;
+    const sort = overrides.sort ?? filter.sort ?? 'soon';
+    if (sport) query.set('sport', sport);
+    if (sort !== 'soon') query.set('sort', sort);
+    if ((overrides.page ?? 1) > 1) query.set('page', String(overrides.page));
     const suffix = query.toString();
     return suffix ? `/free?${suffix}` : '/free';
   };
@@ -55,14 +93,14 @@ export default async function FreeTicketsPage({
         <h1 className="font-display text-3xl text-ink sm:text-4xl">
           უფასო ბილეთები
         </h1>
-        <p className="ph mt-2 max-w-2xl">
-          [ერთი წინადადება: ვის შეუძლია ატვირთვა და რატომ არ ითვლება ეს
-          სტატისტიკაში]
+        <p className="mt-2 max-w-2xl text-sm text-ink-muted">
+          ატვირთვა შეუძლია ყველა დარეგისტრირებულ მომხმარებელს. ავტორის
+          სვეტში ჩანს ვისი ბილეთია და როგორი ჩანაწერი უდგას უკან.
         </p>
       </header>
 
       {/* --------------------------------------------------------------- */}
-      {/* Upload                                                            */}
+      {/* Upload for members; the way in for everyone else                  */}
       {/* --------------------------------------------------------------- */}
       {actor ? (
         <details className="mb-6 rounded-card border border-line bg-surface">
@@ -80,27 +118,27 @@ export default async function FreeTicketsPage({
         </details>
       ) : (
         <p className="mb-6 rounded-card border border-line bg-surface px-4 py-3.5 text-sm text-ink-muted sm:px-5">
-          ბილეთის ასატვირთად{' '}
+          დახურული ბილეთები და ატვირთვა იხსნება შესვლის შემდეგ.{' '}
           <Link href="/login" className="text-accent underline">
-            შედით
+            შესვლა
           </Link>{' '}
           ან{' '}
           <Link href="/register" className="text-accent underline">
-            დარეგისტრირდით
+            რეგისტრაცია
           </Link>
-          .
+          , Telegram-ითაც შეგიძლიათ.
         </p>
       )}
 
       {/* --------------------------------------------------------------- */}
-      {/* Sport filter: one control, no date pickers, no status tabs       */}
+      {/* One control bar: sport left, order and count right                */}
       {/* --------------------------------------------------------------- */}
       <nav
         className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-line py-3 text-sm"
-        aria-label="სპორტის ფილტრი"
+        aria-label="ფილტრი და სორტირება"
       >
         <Link
-          href="/free"
+          href={hrefFor({ sport: null })}
           className={
             filter.sport ? 'text-ink-muted hover:text-ink' : 'text-accent'
           }
@@ -110,7 +148,7 @@ export default async function FreeTicketsPage({
         {sports.map((sport) => (
           <Link
             key={sport.code}
-            href={`/free?sport=${sport.code}`}
+            href={hrefFor({ sport: sport.code })}
             className={
               filter.sport === sport.code
                 ? 'text-accent'
@@ -120,8 +158,18 @@ export default async function FreeTicketsPage({
             {sport.nameKa}
           </Link>
         ))}
-        <span className="tabular ml-auto text-xs text-ink-faint">
-          {total} ბილეთი
+
+        <span className="ml-auto flex items-center gap-x-4">
+          <SortSelect
+            value={filter.sort ?? 'soon'}
+            options={SORTS.map((sort) => ({
+              ...sort,
+              href: hrefFor({ sort: sort.value }),
+            }))}
+          />
+          <span className="tabular text-xs text-ink-faint">
+            {total} ბილეთი
+          </span>
         </span>
       </nav>
 
@@ -132,11 +180,27 @@ export default async function FreeTicketsPage({
           description="აირჩიეთ სხვა სპორტი ან ატვირთეთ პირველი."
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((ticket) => (
-            <TicketCard key={ticket.id} ticket={ticket} />
-          ))}
-        </div>
+        <TicketList
+          tickets={items}
+          lockedIds={
+            new Set(
+              items
+                .filter((ticket) =>
+                  isTicketLocked(
+                    {
+                      visibility: ticket.visibility,
+                      authorId: ticket.author?.id ?? null,
+                      status: ticket.status,
+                    },
+                    viewer,
+                    // Free tickets never need a subscription, so no grants.
+                    [],
+                  ),
+                )
+                .map((ticket) => ticket.id),
+            )
+          }
+        />
       )}
 
       {pageCount > 1 ? (
@@ -145,7 +209,10 @@ export default async function FreeTicketsPage({
           aria-label="გვერდები"
         >
           {page > 1 ? (
-            <Link href={hrefForPage(page - 1)} className="text-ink hover:text-accent">
+            <Link
+              href={hrefFor({ page: page - 1 })}
+              className="text-ink hover:text-accent"
+            >
               წინა
             </Link>
           ) : (
@@ -155,7 +222,10 @@ export default async function FreeTicketsPage({
             {page} / {pageCount}
           </span>
           {page < pageCount ? (
-            <Link href={hrefForPage(page + 1)} className="text-ink hover:text-accent">
+            <Link
+              href={hrefFor({ page: page + 1 })}
+              className="text-ink hover:text-accent"
+            >
               შემდეგი
             </Link>
           ) : (

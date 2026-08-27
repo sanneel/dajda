@@ -1,4 +1,5 @@
 import { getAnalystBySlug } from '@/lib/queries/analysts';
+import { isTicketLocked } from '@/lib/auth/entitlements';
 import { cumulativeUnits, monthlyPerformance } from '@/lib/stats/performance';
 import { errorResponse, jsonResponse } from '@/lib/errors';
 import { formatOdds, formatUnits } from '@/lib/format';
@@ -7,7 +8,9 @@ import { formatOdds, formatUnits } from '@/lib/format';
  * Public analyst profile.
  *
  * The full published record is exposed - including losses - because a
- * verifiable history is the product. The written analysis is not included.
+ * verifiable history is the product. The written analysis is not included,
+ * and an OPEN paid bet keeps its pick (title, slip) back too: this endpoint
+ * is unauthenticated, so it answers as the signed-out viewer.
  */
 export const dynamic = 'force-dynamic';
 
@@ -49,18 +52,32 @@ export async function GET(
         lost: bucket.lost,
         units: formatUnits(bucket.profitUnitsCenti),
       })),
-      predictions: data.predictions.map((prediction) => ({
-        id: prediction.id,
-        title: prediction.titleKa,
-        sport: prediction.sport.code,
-        screenshot: prediction.screenshotPath,
-        oddsAtPublication: formatOdds(prediction.oddsMilli),
-        publishedAt: prediction.publishedAt,
-        status: prediction.status,
-        units: prediction.result
-          ? formatUnits(prediction.result.profitUnitsCenti)
-          : null,
-      })),
+      predictions: data.predictions.map((prediction) => {
+        const locked = isTicketLocked(
+          {
+            visibility: prediction.visibility,
+            authorId: data.profile.id,
+            status: prediction.status,
+          },
+          null,
+          [],
+        );
+
+        return {
+          id: prediction.id,
+          title: locked ? null : prediction.titleKa,
+          sport: prediction.sport.code,
+          screenshot: locked ? null : prediction.screenshotPath,
+          locked,
+          oddsAtPublication: formatOdds(prediction.oddsMilli),
+          firstLegAt: prediction.eventAt,
+          publishedAt: prediction.publishedAt,
+          status: prediction.status,
+          units: prediction.result
+            ? formatUnits(prediction.result.profitUnitsCenti)
+            : null,
+        };
+      }),
       plans: data.profile.plans.map((plan) => ({
         id: plan.id,
         tier: plan.tier,

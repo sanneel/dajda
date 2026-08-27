@@ -20,8 +20,9 @@ const VALID_PRODUCTION = {
   MOCK_PAYMENT_SECRET: 'not-the-shared-default',
   FLITT_MERCHANT_ID: '1000',
   FLITT_SECRET_KEY: 'flitt-secret',
-  EMAIL_PROVIDER: 'smtp',
-  SMTP_HOST: 'smtp.example.com',
+  EMAIL_PROVIDER: 'resend',
+  EMAIL_API_KEY: 're_test_key',
+  EMAIL_FROM: 'DAJDA <no-reply@dajda.ge>',
 } as const;
 
 /** Replaces the whole environment so a stray real variable cannot leak in. */
@@ -123,18 +124,19 @@ describe('environment configuration', () => {
     expect(() => getEnv()).toThrow(/FLITT_SECRET_KEY/);
   });
 
-  it('refuses to boot production with the console email sender', () => {
-    // The console sender logs mail instead of delivering it; registration
+  it('refuses to boot production with the log email provider', () => {
+    // The log provider prints mail instead of delivering it; registration
     // and password reset would silently promise emails nobody receives.
     setEnv({
       ...VALID_PRODUCTION,
-      EMAIL_PROVIDER: 'console',
-      SMTP_HOST: undefined,
+      EMAIL_PROVIDER: 'log',
+      EMAIL_API_KEY: undefined,
+      EMAIL_FROM: undefined,
     });
     expect(() => getEnv()).toThrow(/EMAIL_PROVIDER/);
   });
 
-  it('lets an explicit demo keep the console email sender', () => {
+  it('lets an explicit demo keep the log email provider', () => {
     setEnv({
       NODE_ENV: 'production',
       DATABASE_URL: VALID_PRODUCTION.DATABASE_URL,
@@ -144,12 +146,7 @@ describe('environment configuration', () => {
       MOCK_PAYMENT_SECRET: 'dev-mock-secret',
       DEMO_MODE: 'true',
     });
-    expect(getEnv().EMAIL_PROVIDER).toBe('console');
-  });
-
-  it('requires SMTP_HOST whenever the smtp sender is selected', () => {
-    setEnv({ ...VALID_PRODUCTION, SMTP_HOST: undefined });
-    expect(() => getEnv()).toThrow(/SMTP_HOST/);
+    expect(getEnv().EMAIL_PROVIDER).toBe('log');
   });
 
   it('lets `next build` compile without production secrets', () => {
@@ -173,5 +170,61 @@ describe('environment configuration', () => {
     const env = getEnv();
     expect(env.PAYMENT_PROVIDER).toBe('mock');
     expect(env.APP_URL).toBe('http://localhost:3000');
+  });
+});
+
+describe('messaging configuration', () => {
+  const DEV = {
+    NODE_ENV: 'development',
+    DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/postgres',
+    AUTH_SECRET: 'x'.repeat(32),
+  } as const;
+
+  function setMessagingEnv(values: Record<string, string | undefined>) {
+    for (const key of [
+      'EMAIL_PROVIDER',
+      'EMAIL_API_KEY',
+      'EMAIL_FROM',
+      'TELEGRAM_BOT_TOKEN',
+      'TELEGRAM_BOT_USERNAME',
+    ]) {
+      delete process.env[key];
+    }
+    setEnv({ ...DEV, ...values });
+  }
+
+  it('defaults email to the provider that cannot reach anyone', () => {
+    // The default has to be the safe one: a laptop with seeded demo accounts
+    // must not mail addresses nobody owns the first time a button is pressed.
+    setMessagingEnv({});
+    expect(getEnv().EMAIL_PROVIDER).toBe('log');
+  });
+
+  it('refuses a real email provider with no key or sender', () => {
+    setMessagingEnv({ EMAIL_PROVIDER: 'resend' });
+    expect(() => getEnv()).toThrow(/EMAIL_API_KEY/);
+
+    setMessagingEnv({ EMAIL_PROVIDER: 'brevo', EMAIL_API_KEY: 'key' });
+    expect(() => getEnv()).toThrow(/EMAIL_FROM/);
+  });
+
+  it('accepts a fully configured email provider', () => {
+    setMessagingEnv({
+      EMAIL_PROVIDER: 'resend',
+      EMAIL_API_KEY: 'key',
+      EMAIL_FROM: 'DAJDA <no-reply@dajda.ge>',
+    });
+    expect(getEnv().EMAIL_PROVIDER).toBe('resend');
+  });
+
+  it('refuses a bot username with no token behind it', () => {
+    // The deep link would open a chat that can never answer.
+    setMessagingEnv({ TELEGRAM_BOT_USERNAME: 'dajda_bot' });
+    expect(() => getEnv()).toThrow(/TELEGRAM_BOT_TOKEN/);
+  });
+
+  it('allows a token on its own: that is login-only Telegram', () => {
+    setMessagingEnv({ TELEGRAM_BOT_TOKEN: '123456:secret-value' });
+    expect(() => getEnv()).not.toThrow();
   });
 });

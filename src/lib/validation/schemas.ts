@@ -81,6 +81,12 @@ export const resetPasswordSchema = z.object({
 export const ticketFilterSchema = z.object({
   sport: z.string().trim().min(1).max(40).optional(),
   status: z.enum(PredictionStatus).optional(),
+  /**
+   * Exactly two orders, both buyer questions: "what starts soonest" and
+   * "whose record earned the most". Anything else the feed could sort by is
+   * derivable from these two pages of context or is noise.
+   */
+  sort: z.enum(['soon', 'profit']).default('soon'),
   page: z.coerce.number().int().min(1).max(500).default(1),
 });
 
@@ -194,6 +200,26 @@ export const liveNoticeSchema = z.object({
 export const liveUpdateSchema = z.object({
   parentId: z.uuid(),
   bodyKa: postBodySchema,
+});
+
+/**
+ * A broadcast to the analyst's audience.
+ *
+ * A subject is required and short: it is the whole message in a Telegram
+ * notification preview, and an inbox line with no subject is indistinguishable
+ * from spam.
+ */
+export const broadcastSchema = z.object({
+  subjectKa: z
+    .string()
+    .trim()
+    .min(4, 'სათაური ძალიან მოკლეა.')
+    .max(120, 'სათაური ძალიან გრძელია.'),
+  bodyKa: z
+    .string()
+    .trim()
+    .min(10, 'ტექსტი ძალიან მოკლეა.')
+    .max(2000, 'ტექსტი ძალიან გრძელია.'),
 });
 
 /** The author handing a finished bet to an admin. */

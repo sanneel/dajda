@@ -56,29 +56,6 @@ const envSchema = z
       .transform((value) => value === 'true'),
 
     /**
-     * Which email transport to load: "console" (development - prints mail to
-     * the server log) or "smtp" (production).
-     */
-    EMAIL_PROVIDER: z.enum(['console', 'smtp']).default('console'),
-    /** The From header, e.g. `DAJDA <no-reply@dajda.ge>`. */
-    EMAIL_FROM: z.string().min(3).default('DAJDA <no-reply@localhost>'),
-    SMTP_HOST: z.string().optional(),
-    SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
-    SMTP_USER: z.string().optional(),
-    SMTP_PASSWORD: z.string().optional(),
-    /** "true" => TLS from the first byte (port 465). Otherwise STARTTLS. */
-    SMTP_SECURE: z
-      .enum(['true', 'false'])
-      .default('false')
-      .transform((value) => value === 'true'),
-
-    /**
-     * Bearer secret for the notification dispatch endpoint, so an external
-     * cron can drain the outbox. The endpoint refuses to run while unset.
-     */
-    CRON_SECRET: z.string().min(16).optional(),
-
-    /**
      * The analyst's percentage of a subscriber's payment. The remainder is
      * the platform's commission. Whatever is set here must match the figure
      * in the signed agreement (docs/legal/agreement.md, clause 5.3), because
@@ -117,8 +94,98 @@ const envSchema = z
      */
     FLITT_CREDIT_KEY: z.string().optional(),
     FLITT_API_URL: z.url().default('https://pay.flitt.com'),
+
+    /**
+     * BotFather token, `<numeric id>:<secret>`. Optional: without it the
+     * "log in with Telegram" button simply does not render, so a deployment
+     * that has not registered a bot loses nothing. The bot must also have its
+     * domain set via BotFather /setdomain to the APP_URL host, or Telegram
+     * refuses to redirect back.
+     */
+    TELEGRAM_BOT_TOKEN: z
+      .string()
+      .regex(/^\d+:[\w-]+$/, 'TELEGRAM_BOT_TOKEN must look like "123456:secret"')
+      .optional(),
+
+    /**
+     * The bot's @name, without the @. Needed for the `t.me/<name>?start=...`
+     * deep link, which the token alone cannot supply - it carries the bot's
+     * numeric id, and t.me addresses bots by username.
+     */
+    TELEGRAM_BOT_USERNAME: z
+      .string()
+      .regex(
+        /^[A-Za-z0-9_]{5,32}$/,
+        'TELEGRAM_BOT_USERNAME must be the bot name without the @',
+      )
+      .optional(),
+
+    /**
+     * Shared secret echoed by Telegram in the X-Telegram-Bot-Api-Secret-Token
+     * header of every webhook call. Set it when registering the webhook; the
+     * endpoint refuses any request that does not carry it, which is what stops
+     * anyone who guesses the URL from forging "this chat is user X".
+     */
+    TELEGRAM_WEBHOOK_SECRET: z.string().min(16).optional(),
+
+    /**
+     * Where email goes. "log" prints to the server console and sends nothing,
+     * which is the default because the default must not be able to reach a
+     * real person: a laptop running seeded demo accounts would otherwise mail
+     * addresses nobody owns the first time a button is pressed.
+     *
+     * The two real adapters are HTTP APIs with free tiers. Either way the
+     * sending domain needs SPF and DKIM records set up with the provider, or
+     * the mail is filed as spam no matter what this app does.
+     */
+    EMAIL_PROVIDER: z.enum(['log', 'resend', 'brevo']).default('log'),
+    EMAIL_API_KEY: z.string().min(1).optional(),
+    /** RFC form: `DAJDA <no-reply@dajda.ge>`, or a bare address. */
+    EMAIL_FROM: z.string().min(3).optional(),
+
+    /**
+     * Bearer secret for the outbox sweep endpoint. Unset means the endpoint
+     * refuses everyone, which is the right default: a queue drained by
+     * anybody who finds the URL is a way to make the app send its backlog on
+     * demand.
+     */
+    CRON_SECRET: z.string().min(16).optional(),
   })
   .superRefine((value, ctx) => {
+    /*
+     * Telegram comes in two steps and either is legitimate on its own terms:
+     * the token alone enables "log in with Telegram", and the username plus
+     * the webhook secret add bot messaging on top. What is never legitimate is
+     * naming a bot we have no token for - the deep link would open a chat that
+     * can never answer.
+     */
+    if (value.TELEGRAM_BOT_USERNAME && !value.TELEGRAM_BOT_TOKEN) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['TELEGRAM_BOT_TOKEN'],
+        message:
+          'TELEGRAM_BOT_USERNAME is set without TELEGRAM_BOT_TOKEN: the bot link would open a chat nothing can reply to.',
+      });
+    }
+
+    /*
+     * A real email provider needs both a key and a From address. Missing
+     * either means every send fails at the provider, which looks from the
+     * outside like mail that silently never arrives - the worst way for this
+     * to be misconfigured.
+     */
+    if (value.EMAIL_PROVIDER !== 'log') {
+      for (const key of ['EMAIL_API_KEY', 'EMAIL_FROM'] as const) {
+        if (!value[key]) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} is required when EMAIL_PROVIDER="${value.EMAIL_PROVIDER}"`,
+          });
+        }
+      }
+    }
+
     // Fail fast at boot rather than at the first customer checkout.
     if (value.PAYMENT_PROVIDER === 'flitt') {
       for (const key of ['FLITT_MERCHANT_ID', 'FLITT_SECRET_KEY'] as const) {
@@ -130,14 +197,6 @@ const envSchema = z
           });
         }
       }
-    }
-
-    if (value.EMAIL_PROVIDER === 'smtp' && !value.SMTP_HOST) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['SMTP_HOST'],
-        message: 'SMTP_HOST is required when EMAIL_PROVIDER="smtp"',
-      });
     }
 
     if (value.NODE_ENV !== 'production') return;
@@ -200,18 +259,18 @@ const envSchema = z
       }
 
       /*
-       * The console sender logs mail instead of delivering it. Registration
+       * The log provider prints mail instead of delivering it. Registration
        * and password reset promise the visitor an email, so a production
        * deployment that only logs them is broken in a way nobody notices
        * until a customer is locked out. A demo, by contrast, has no real
        * recipients - so the waiver above extends to this check.
        */
-      if (value.EMAIL_PROVIDER === 'console') {
+      if (value.EMAIL_PROVIDER === 'log') {
         ctx.addIssue({
           code: 'custom',
           path: ['EMAIL_PROVIDER'],
           message:
-            'EMAIL_PROVIDER="console" only logs email and must not be used in production. Configure SMTP, or set DEMO_MODE="true" to run an openly-labelled demo.',
+            'EMAIL_PROVIDER="log" only logs email and must not be used in production. Configure resend or brevo, or set DEMO_MODE="true" to run an openly-labelled demo.',
         });
       }
     }

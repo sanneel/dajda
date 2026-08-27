@@ -46,6 +46,10 @@ enum UserStatus {
 enum AuthTokenPurpose {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+  /// Handed to Telegram as the `?start=` payload of a deep link. The bot sends
+  /// it back when the person presses Start, which is what proves the chat on
+  /// the other end belongs to this account.
+  TELEGRAM_LINK
 }
 
 enum AnalystStatus {
@@ -235,6 +239,18 @@ model User {
   /// Timestamp of the 18+ self-certification taken at registration.
   ageConfirmedAt   DateTime?
   telegramUsername String?
+  /// Telegram's numeric user id, stored as text. Set once the account signs in
+  /// through Telegram; it is the lookup key for that flow, because usernames
+  /// on Telegram are optional and changeable while the id is neither.
+  telegramId       String?   @unique
+  /// The chat the bot may write into, learned when the person presses Start.
+  ///
+  /// Separate from `telegramId` on purpose: knowing WHO somebody is on Telegram
+  /// does not entitle us to message them. A bot cannot open a conversation, so
+  /// this stays null - and delivery stays impossible - until they start one.
+  /// Clearing it is therefore a complete opt-out, whatever the preference says.
+  telegramChatId   String?   @unique
+  telegramLinkedAt DateTime?
 
   /// Cached spendable balance in minor units. The BalanceTransaction ledger
   /// is the source of truth; this column is only ever written in the same
@@ -372,6 +388,7 @@ model AnalystProfile {
   plans         SubscriptionPlan[]
   savedBy       SavedAnalyst[]
   reports       Report[]
+  broadcasts    AnalystBroadcast[]
 
   @@index([status])
   @@index([createdAt])
@@ -481,8 +498,10 @@ model Prediction {
 
   // --- lifecycle ------------------------------------------------------------
   publishedAt DateTime?
-  /// When the event this bet covers is expected to be over. Used for sorting
-  /// and for nudging an author who has not marked a bet finished.
+  /// When the first leg of this bet kicks off. Shown to a buyer BEFORE they
+  /// pay (a paid ticket whose first match already started is not worth
+  /// buying), and used for sorting and for nudging an author who has not
+  /// marked a bet finished.
   eventAt     DateTime?
   /// Set by the AUTHOR to hand the bet to an admin for settlement. Never set
   /// by the admin, so "who said it was over" stays answerable.
@@ -1014,6 +1033,42 @@ model AnalystPost {
 }
 
 /**
+ * One deliberate message from an analyst to their audience.
+ *
+ * This is a row rather than a counter because the daily cap is a promise to
+ * the people receiving it, not merely abuse protection: an in-process limiter
+ * forgets everything on the next deploy, and "how many did I already send
+ * today" has to survive that. It also gives the analyst a record of what they
+ * said, which the per-recipient outbox rows below cannot show without
+ * deduplicating hundreds of copies.
+ *
+ * Deliberately NOT an AnalystPost: a post is published prose that anyone may
+ * read on the profile, a broadcast is addressed mail. Merging them would mean
+ * either spamming the feed with private notes or quietly mailing the feed.
+ */
+model AnalystBroadcast {
+  id String @id @default(uuid()) @db.Uuid
+
+  authorId String         @db.Uuid
+  author   AnalystProfile @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  subjectKa String
+  bodyKa    String
+
+  /// Counted at send time, so the analyst's history stays truthful even as the
+  /// audience changes afterwards.
+  recipientCount Int @default(0)
+  emailCount     Int @default(0)
+  telegramCount  Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  notifications Notification[]
+
+  @@index([authorId, createdAt])
+}
+
+/**
  * Outbox row: one intended message to one person on one channel.
  *
  * Nothing here sends anything. Delivery is a separate, later concern, and the
@@ -1046,12 +1101,21 @@ model Notification {
   predictionId String?     @db.Uuid
   prediction   Prediction? @relation(fields: [predictionId], references: [id], onDelete: SetNull)
 
+  broadcastId String?           @db.Uuid
+  broadcast   AnalystBroadcast? @relation(fields: [broadcastId], references: [id], onDelete: SetNull)
+
   failureReason String?
   sentAt        DateTime?
+  /// How many delivery attempts this row has had. A row that keeps failing is
+  /// retried a bounded number of times and then left alone, so a permanently
+  /// bad address cannot occupy the sender forever.
+  attempts      Int       @default(0)
   createdAt     DateTime  @default(now())
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
+  /// The sender's queue: pending rows on one channel, oldest first.
+  @@index([channel, status, createdAt])
 }
 
 // ---------------------------------------------------------------------------

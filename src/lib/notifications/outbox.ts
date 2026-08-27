@@ -2,14 +2,14 @@ import { prisma } from '@/lib/db';
 import type { Prisma } from '@/generated/prisma/client';
 
 /**
- * The notification outbox.
+ * The notification outbox: who should be told, on which channel, at which
+ * address, and about what.
  *
- * Nothing in this file sends anything, and that is deliberate rather than
- * unfinished. Delivery needs an SMTP account and a Telegram bot token that do
- * not exist yet; what CAN be settled now is who should be told, on which
- * channel, at which address, and about what. Writing that down as durable rows
- * means switching a sender on later is a background job that reads PENDING
- * rows, not a change to any of the code that decides what is worth sending.
+ * Nothing in this file sends anything. Telegram rows are drained by
+ * `telegram-sender.ts`; email has no sender yet and its rows stay PENDING
+ * until one exists. Keeping the decision and the delivery apart is what makes
+ * a failed send a retry rather than a lost message, and it means the rules
+ * about who gets contacted stay testable without a network.
  *
  * Two things are resolved at enqueue time on purpose:
  *
@@ -26,15 +26,27 @@ export type NotifiableEvent = {
   linkPath: string;
   postId?: string;
   predictionId?: string;
+  broadcastId?: string;
 };
 
-/** Which preference flag governs a given event. */
-export type NotificationTopic = 'LIVE_SESSION' | 'NEW_BET' | 'SETTLEMENT';
+/**
+ * Which preference flag governs a given event.
+ *
+ * BROADCAST has no flag of its own: it is a message from an analyst the
+ * recipient chose to follow or pay for, and it is capped at twice a day by the
+ * sender. An unsubscribe exists and is the real one - stop following, or /stop
+ * the bot - rather than a checkbox that leaves the relationship in place.
+ */
+export type NotificationTopic =
+  | 'LIVE_SESSION'
+  | 'NEW_BET'
+  | 'SETTLEMENT'
+  | 'BROADCAST';
 
 type Recipient = {
   userId: string;
   email: string;
-  telegramUsername: string | null;
+  telegramChatId: string | null;
   prefs: {
     emailOnNewPrediction: boolean;
     emailOnSettlement: boolean;
@@ -52,11 +64,13 @@ type Recipient = {
  * "tell me about this person" action. A reader who has done neither is never
  * contacted, so this can never become a broadcast list.
  */
-async function audienceFor(analystProfileId: string): Promise<Recipient[]> {
+export async function audienceFor(
+  analystProfileId: string,
+): Promise<Recipient[]> {
   const select = {
     id: true,
     email: true,
-    telegramUsername: true,
+    telegramChatId: true,
     notificationPrefs: {
       select: {
         emailOnNewPrediction: true,
@@ -93,12 +107,15 @@ async function audienceFor(analystProfileId: string): Promise<Recipient[]> {
   return users.map((user) => ({
     userId: user.id,
     email: user.email,
-    telegramUsername: user.telegramUsername,
+    telegramChatId: user.telegramChatId,
     prefs: user.notificationPrefs,
   }));
 }
 
 function wantsEmail(recipient: Recipient, topic: NotificationTopic): boolean {
+  // A broadcast is the analyst writing to their own audience; following them
+  // is the subscription, so there is no separate flag to consult.
+  if (topic === 'BROADCAST') return true;
   // No preference row yet means the defaults apply, and the defaults opt in.
   if (!recipient.prefs) return true;
   if (topic === 'LIVE_SESSION') return recipient.prefs.emailOnLiveSession;
@@ -109,59 +126,69 @@ function wantsEmail(recipient: Recipient, topic: NotificationTopic): boolean {
 /**
  * Write one row per person per enabled channel.
  *
- * A recipient who has switched Telegram on but never supplied a handle gets a
- * SKIPPED row rather than nothing at all: "we had no address for them" is a
- * fact worth being able to see, and it is not the same as a delivery failure.
+ * The Telegram destination is the CHAT ID, never a username: a username is
+ * something a person typed and might not own, while a chat id only exists
+ * because they opened a conversation with the bot themselves. Somebody who
+ * switched the preference on but never pressed Start therefore has no address,
+ * and gets a SKIPPED row rather than nothing at all - "we had nowhere to send
+ * it" is a fact worth seeing, and it is not the same as a delivery failure.
  */
 export async function enqueueForAnalystAudience(
   analystProfileId: string,
   topic: NotificationTopic,
   event: NotifiableEvent,
-): Promise<{ queued: number; skipped: number }> {
+): Promise<{ queued: number; skipped: number; telegram: number; email: number }> {
   const recipients = await audienceFor(analystProfileId);
-  if (recipients.length === 0) return { queued: 0, skipped: 0 };
+  const empty = { queued: 0, skipped: 0, telegram: 0, email: 0 };
+  if (recipients.length === 0) return empty;
 
   const rows: Prisma.NotificationCreateManyInput[] = [];
 
   for (const recipient of recipients) {
+    const common = {
+      subjectKa: event.subjectKa,
+      bodyKa: event.bodyKa,
+      linkPath: event.linkPath,
+      postId: event.postId ?? null,
+      predictionId: event.predictionId ?? null,
+      broadcastId: event.broadcastId ?? null,
+    };
+
     if (wantsEmail(recipient, topic)) {
       rows.push({
+        ...common,
         userId: recipient.userId,
         channel: 'EMAIL',
         status: 'PENDING',
         destination: recipient.email,
-        subjectKa: event.subjectKa,
-        bodyKa: event.bodyKa,
-        linkPath: event.linkPath,
-        postId: event.postId ?? null,
-        predictionId: event.predictionId ?? null,
       });
     }
 
     if (recipient.prefs?.telegramEnabled) {
-      const handle =
-        recipient.prefs.telegramUsername ?? recipient.telegramUsername;
+      const chatId = recipient.telegramChatId;
       rows.push({
+        ...common,
         userId: recipient.userId,
         channel: 'TELEGRAM',
-        status: handle ? 'PENDING' : 'SKIPPED',
-        destination: handle,
-        subjectKa: event.subjectKa,
-        bodyKa: event.bodyKa,
-        linkPath: event.linkPath,
-        postId: event.postId ?? null,
-        predictionId: event.predictionId ?? null,
-        failureReason: handle ? null : 'ტელეგრამის მომხმარებელი მითითებული არაა.',
+        status: chatId ? 'PENDING' : 'SKIPPED',
+        destination: chatId,
+        failureReason: chatId
+          ? null
+          : 'Telegram-ის ჩატი დაკავშირებული არაა (ბოტში Start არ დაუჭერია).',
       });
     }
   }
 
-  if (rows.length === 0) return { queued: 0, skipped: 0 };
+  if (rows.length === 0) return empty;
 
   await prisma.notification.createMany({ data: rows });
 
+  const pending = rows.filter((row) => row.status === 'PENDING');
+
   return {
-    queued: rows.filter((row) => row.status === 'PENDING').length,
+    queued: pending.length,
     skipped: rows.filter((row) => row.status === 'SKIPPED').length,
+    telegram: pending.filter((row) => row.channel === 'TELEGRAM').length,
+    email: pending.filter((row) => row.channel === 'EMAIL').length,
   };
 }

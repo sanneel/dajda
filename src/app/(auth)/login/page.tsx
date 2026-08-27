@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { LoginForm } from '@/components/auth/login-form';
+import { TelegramLoginButton } from '@/components/auth/telegram-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ export default async function LoginPage() {
 
       <div className="mt-6">
         <LoginForm />
+        <TelegramLoginButton />
       </div>
 
       <p className="mt-6 border-t border-line pt-5 text-sm text-ink-muted">

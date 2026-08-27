@@ -1,4 +1,8 @@
-import type { PlanTier, PredictionVisibility } from '@/generated/prisma/enums';
+import type {
+  PlanTier,
+  PredictionStatus,
+  PredictionVisibility,
+} from '@/generated/prisma/enums';
 
 /**
  * Entitlement rules.
@@ -49,4 +53,54 @@ export function applicableTiers(
         plan.analystProfileId === null || plan.analystProfileId === authorId,
     )
     .map((plan) => plan.tier);
+}
+
+/** What a lock decision needs to know about a ticket. */
+export type TicketAccessFacts = {
+  visibility: PredictionVisibility;
+  authorId: string | null;
+  status: PredictionStatus;
+};
+
+/** What a lock decision needs to know about the viewer. Null = signed out. */
+export type TicketViewer = {
+  role: 'USER' | 'ANALYST' | 'ADMIN';
+  analystProfileId: string | null;
+} | null;
+
+/**
+ * Is this ticket's CONTENT (the pick: title and slip) closed to this viewer?
+ *
+ * The rule has a deliberate time axis. A pick is merchandise only while the
+ * bet is still open (PENDING); the moment an admin settles it, it becomes part
+ * of the public record - a history that hides its entries is not checkable,
+ * and the checkable record is the whole product.
+ *
+ * While open, the price depends on the ticket: a free or community ticket
+ * costs an ACCOUNT (any signed-in viewer may read it, signed-out may not),
+ * and a PREMIUM/VIP ticket costs the matching subscription.
+ *
+ * The written analysis (description) is NOT governed here: that stays behind
+ * the subscription even after settlement, which `satisfiesVisibility` already
+ * decides.
+ */
+export function isTicketLocked(
+  ticket: TicketAccessFacts,
+  viewer: TicketViewer,
+  plans: readonly { tier: PlanTier; analystProfileId: string | null }[],
+): boolean {
+  // Settled: the pick is evidence now, not merchandise.
+  if (ticket.status !== 'PENDING') return false;
+  // Every open pick asks for at least an account.
+  if (!viewer) return true;
+  // A free bet, or a community ticket, opens to any signed-in viewer.
+  if (ticket.visibility === 'PUBLIC' || ticket.authorId === null) return false;
+  // Admins moderate everything; the author owns their own record.
+  if (viewer.role === 'ADMIN') return false;
+  if (viewer.analystProfileId === ticket.authorId) return false;
+
+  return !satisfiesVisibility(
+    applicableTiers(plans, ticket.authorId),
+    ticket.visibility,
+  );
 }

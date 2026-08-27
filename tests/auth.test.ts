@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth/tokens';
 import {
   applicableTiers,
+  isTicketLocked,
   satisfiesVisibility,
 } from '@/lib/auth/entitlements';
 
@@ -161,5 +162,87 @@ describe('entitlements', () => {
     expect(
       satisfiesVisibility(applicableTiers(plans, 'anyone'), 'PREMIUM'),
     ).toBe(true);
+  });
+});
+
+describe('ticket lock', () => {
+  const openPaidBet = {
+    visibility: 'PREMIUM' as const,
+    authorId: 'analyst-a',
+    status: 'PENDING' as const,
+  };
+
+  it('closes an open paid bet to signed-out and unentitled viewers', () => {
+    expect(isTicketLocked(openPaidBet, null, [])).toBe(true);
+    expect(
+      isTicketLocked(
+        openPaidBet,
+        { role: 'USER', analystProfileId: null },
+        [{ tier: 'FREE', analystProfileId: null }],
+      ),
+    ).toBe(true);
+  });
+
+  it('opens it to a matching subscription', () => {
+    expect(
+      isTicketLocked(
+        openPaidBet,
+        { role: 'USER', analystProfileId: null },
+        [{ tier: 'PREMIUM', analystProfileId: 'analyst-a' }],
+      ),
+    ).toBe(false);
+    // Another analyst's plan buys nothing here.
+    expect(
+      isTicketLocked(
+        openPaidBet,
+        { role: 'USER', analystProfileId: null },
+        [{ tier: 'VIP', analystProfileId: 'analyst-b' }],
+      ),
+    ).toBe(true);
+  });
+
+  it('never locks a settled bet: the pick becomes public record', () => {
+    for (const status of ['WON', 'LOST', 'VOID', 'PUSH'] as const) {
+      expect(isTicketLocked({ ...openPaidBet, status }, null, [])).toBe(false);
+      expect(
+        isTicketLocked(
+          { ...openPaidBet, visibility: 'PUBLIC', status },
+          null,
+          [],
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it('asks signed-out viewers for an account even on open free tickets', () => {
+    expect(
+      isTicketLocked({ ...openPaidBet, visibility: 'PUBLIC' }, null, []),
+    ).toBe(true);
+    expect(isTicketLocked({ ...openPaidBet, authorId: null }, null, [])).toBe(
+      true,
+    );
+  });
+
+  it('opens free and community tickets to any signed-in account', () => {
+    const viewer = { role: 'USER' as const, analystProfileId: null };
+    expect(
+      isTicketLocked({ ...openPaidBet, visibility: 'PUBLIC' }, viewer, []),
+    ).toBe(false);
+    expect(
+      isTicketLocked({ ...openPaidBet, authorId: null }, viewer, []),
+    ).toBe(false);
+  });
+
+  it('never locks the author or an admin out of the pick', () => {
+    expect(
+      isTicketLocked(
+        openPaidBet,
+        { role: 'ANALYST', analystProfileId: 'analyst-a' },
+        [],
+      ),
+    ).toBe(false);
+    expect(
+      isTicketLocked(openPaidBet, { role: 'ADMIN', analystProfileId: null }, []),
+    ).toBe(false);
   });
 });

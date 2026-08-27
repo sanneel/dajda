@@ -1,15 +1,20 @@
 import { listFreeTickets } from '@/lib/queries/tickets';
 import { ticketFilterSchema } from '@/lib/validation/schemas';
+import { getCurrentUser } from '@/lib/auth/authorization';
+import { isTicketLocked } from '@/lib/auth/entitlements';
 import { errorResponse, jsonResponse } from '@/lib/errors';
 import { formatOdds } from '@/lib/format';
 
 /**
- * Public free-ticket feed.
+ * The free-ticket feed.
  *
- * Returns only what is already free to read: the slip, the odds and the
- * outcome. The written description is deliberately NOT included, because an
- * analyst's paid bets share this table and a JSON feed must not become the
- * unauthenticated path to them.
+ * Answers exactly as the /free page would answer the same caller: signed-out
+ * requests get every row with its odds, author and first-leg time, but an
+ * OPEN pick's title and slip come back null with `locked: true` - a free
+ * ticket costs an account. Settled rows are the public record and open to
+ * everyone. The written description is never included: an analyst's paid
+ * bets share this table, and a JSON feed must not become the unauthenticated
+ * path to them.
  */
 export const dynamic = 'force-dynamic';
 
@@ -34,28 +39,47 @@ export async function GET(request: Request) {
       );
     }
 
+    const actor = await getCurrentUser();
+    const viewer = actor
+      ? { role: actor.role, analystProfileId: actor.analystProfileId }
+      : null;
+
     const { items, total, page, pageCount } = await listFreeTickets(parsed.data);
 
     return jsonResponse({
       total,
       page,
       pageCount,
-      items: items.map((ticket) => ({
-        id: ticket.id,
-        title: ticket.titleKa,
-        sport: ticket.sport.code,
-        screenshot: ticket.screenshotPath,
-        oddsAtPublication: formatOdds(ticket.oddsMilli),
-        publishedAt: ticket.publishedAt,
-        eventAt: ticket.eventAt,
-        finishedAt: ticket.finishedAt,
-        status: ticket.status,
-        // Null for a community ticket: it belongs to nobody's record.
-        analyst: ticket.author
-          ? { slug: ticket.author.slug, displayName: ticket.author.displayName }
-          : null,
-        settledAt: ticket.result?.settledAt ?? null,
-      })),
+      items: items.map((ticket) => {
+        const locked = isTicketLocked(
+          {
+            visibility: ticket.visibility,
+            authorId: ticket.author?.id ?? null,
+            status: ticket.status,
+          },
+          viewer,
+          // Free tickets never need a subscription, so no grants.
+          [],
+        );
+
+        return {
+          id: ticket.id,
+          title: locked ? null : ticket.titleKa,
+          sport: ticket.sport.code,
+          screenshot: locked ? null : ticket.screenshotPath,
+          locked,
+          oddsAtPublication: formatOdds(ticket.oddsMilli),
+          publishedAt: ticket.publishedAt,
+          eventAt: ticket.eventAt,
+          finishedAt: ticket.finishedAt,
+          status: ticket.status,
+          // Null for a community ticket: it belongs to nobody's record.
+          analyst: ticket.author
+            ? { slug: ticket.author.slug, displayName: ticket.author.displayName }
+            : null,
+          settledAt: ticket.result?.settledAt ?? null,
+        };
+      }),
     });
   } catch (error) {
     return errorResponse(error);

@@ -22,11 +22,9 @@ import {
 } from '@/lib/auth/tokens';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import {
-  getEmailSender,
-  passwordResetEmail,
-  verificationEmail,
-} from '@/lib/email';
-import { getEnv } from '@/lib/env';
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from '@/lib/auth/mail';
 import {
   ERROR_CODES,
   fail,
@@ -57,27 +55,6 @@ async function requestContext() {
     ipAddress: headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
     userAgent: headerList.get('user-agent'),
   };
-}
-
-/**
- * Deliver the verification link. Failure is logged, never thrown: an account
- * must not fail to exist because a mail relay hiccuped - the dashboard offers
- * a resend for exactly that case.
- */
-async function sendVerificationEmail(email: string, rawToken: string) {
-  const env = getEnv();
-  const link = `${env.APP_URL}/verify-email?token=${rawToken}`;
-  const content = verificationEmail(link);
-  const outcome = await getEmailSender().send({
-    to: email,
-    subject: content.subject,
-    text: content.text,
-  });
-  if (!outcome.delivered) {
-    console.error(
-      `[dajda] verification email to ${email} failed: ${outcome.detail ?? 'unknown'}`,
-    );
-  }
 }
 
 /**
@@ -374,20 +351,7 @@ export async function forgotPasswordAction(
         },
       });
 
-      const env = getEnv();
-      const content = passwordResetEmail(
-        `${env.APP_URL}/reset-password?token=${token}`,
-      );
-      const outcome = await getEmailSender().send({
-        to: parsed.data.email,
-        subject: content.subject,
-        text: content.text,
-      });
-      if (!outcome.delivered) {
-        console.error(
-          `[dajda] password reset email failed: ${outcome.detail ?? 'unknown'}`,
-        );
-      }
+      await sendPasswordResetEmail(parsed.data.email, token);
     }
 
     return ok({ sent: true });

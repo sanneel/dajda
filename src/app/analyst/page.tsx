@@ -4,71 +4,84 @@ import Image from 'next/image';
 import { prisma } from '@/lib/db';
 import { requireApprovedAnalyst } from '@/lib/auth/authorization';
 import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
+import { summarizePerformance } from '@/lib/stats/performance';
+import { formatPercentBps } from '@/lib/format';
+import {
+  BROADCASTS_PER_DAY,
+  broadcastAllowance,
+} from '@/lib/notifications/broadcast';
+import { audienceFor } from '@/lib/notifications/outbox';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge, StatusBadge } from '@/components/ui/badge';
+import { Stat } from '@/components/ui/stat';
 import { EmptyState } from '@/components/ui/feedback';
+import { ShowMoreList } from '@/components/ui/show-more';
 import { analystFeed } from '@/lib/queries/feed';
 import { Feed } from '@/components/feed';
-import { PostBetForm } from './post-form';
 import { FinishBetForm } from './finish-form';
-import { FeedComposer } from './composer';
+import { AnalystComposer } from './composer';
 import { LiveSessionControls } from './live-session';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'ჩემი ფსონები',
+  title: 'ჩემი გვერდი',
   robots: { index: false, follow: false },
 };
 
 /**
- * Everything an analyst does, on one page.
+ * The analyst's workspace.
  *
- * Posting sits at the top because it is the frequent action. Below it the
- * author's own bets are grouped by what they need from the author: live ones
- * need finishing, finished ones are waiting on an admin, and settled ones are
- * just history.
+ * Ordered by what needs the analyst, not by what the database has. A running
+ * live session first (during one, it is the only control they want), then the
+ * numbers they are judged on, then one composer for everything they can
+ * publish, then bets that need finishing. History is last and collapsed - it
+ * is the largest group and the one nobody comes here to act on.
  */
 export default async function AnalystPage() {
   const analyst = await requireApprovedAnalyst();
 
-  const [sports, bets, feed, runningLive] = await Promise.all([
-    prisma.sport.findMany({
-      where: { isActive: true },
-      orderBy: { nameKa: 'asc' },
-      select: { id: true, nameKa: true },
-    }),
-    prisma.prediction.findMany({
-      where: { authorId: analyst.analystProfileId },
-      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
-      take: 60,
-      select: {
-        id: true,
-        titleKa: true,
-        screenshotPath: true,
-        resultScreenshotPath: true,
-        oddsMilli: true,
-        status: true,
-        visibility: true,
-        publishedAt: true,
-        eventAt: true,
-        finishedAt: true,
-        supersededAt: true,
-        sport: { select: { nameKa: true } },
-        result: { select: { profitUnitsCenti: true, settledAt: true } },
-      },
-    }),
-    analystFeed(analyst.analystProfileId, 30),
-    prisma.analystPost.findMany({
-      where: {
-        authorId: analyst.analystProfileId,
-        kind: 'LIVE_NOTICE',
-        endedAt: null,
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, liveLabelKa: true, liveAt: true },
-    }),
-  ]);
+  const [sports, bets, feed, runningLive, audience, allowance] =
+    await Promise.all([
+      prisma.sport.findMany({
+        where: { isActive: true },
+        orderBy: { nameKa: 'asc' },
+        select: { id: true, nameKa: true },
+      }),
+      prisma.prediction.findMany({
+        where: { authorId: analyst.analystProfileId },
+        orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+        take: 60,
+        select: {
+          id: true,
+          titleKa: true,
+          screenshotPath: true,
+          resultScreenshotPath: true,
+          oddsMilli: true,
+          stakeUnitsCenti: true,
+          status: true,
+          visibility: true,
+          publishedAt: true,
+          eventAt: true,
+          finishedAt: true,
+          supersededAt: true,
+          sport: { select: { nameKa: true } },
+          result: { select: { profitUnitsCenti: true, settledAt: true } },
+        },
+      }),
+      analystFeed(analyst.analystProfileId, 30),
+      prisma.analystPost.findMany({
+        where: {
+          authorId: analyst.analystProfileId,
+          kind: 'LIVE_NOTICE',
+          endedAt: null,
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, liveLabelKa: true, liveAt: true },
+      }),
+      audienceFor(analyst.analystProfileId),
+      broadcastAllowance(analyst.analystProfileId),
+    ]);
 
   const live = bets.filter(
     (bet) =>
@@ -82,15 +95,38 @@ export default async function AnalystPage() {
   const settled = bets.filter((bet) => bet.status !== 'PENDING');
   const drafts = bets.filter((bet) => bet.publishedAt === null);
 
+  /*
+   * The record as the public sees it, computed from the same rows and the same
+   * function the profile uses - an analyst should never be looking at a
+   * different number from the one their readers judge them on.
+   */
+  const record = summarizePerformance(
+    bets
+      .filter((bet) => bet.publishedAt !== null && bet.supersededAt === null)
+      .map((bet) => ({
+        status: bet.status,
+        oddsMilli: bet.oddsMilli,
+        stakeUnitsCenti: bet.stakeUnitsCenti,
+        profitUnitsCenti: bet.result?.profitUnitsCenti ?? null,
+        publishedAt: bet.publishedAt as Date,
+      })),
+  );
+
+  /** Reachable now: connected to Telegram, so a message would actually land. */
+  const reachable = audience.filter(
+    (person) => person.telegramChatId !== null && person.prefs?.telegramEnabled,
+  ).length;
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl text-ink sm:text-3xl">
-            ჩემი ფსონები
+            ჩემი გვერდი
           </h1>
           <p className="mt-1.5 text-ink-muted">
-            დადეთ ფსონი სკრინშოტით, დაწერეთ სტატუსი ან გამოაცხადეთ ლაივი.
+            დადეთ ბილეთი, დაწერეთ სტატუსი, გამოაცხადეთ ლაივი ან მიწერეთ
+            გამომწერებს.
           </p>
         </div>
         <Link
@@ -101,11 +137,10 @@ export default async function AnalystPage() {
         </Link>
       </header>
 
-      {/*
-       * Any live session still open is put first and stays there. During a
-       * session this is the only control the author needs, and burying it
-       * under the posting forms would make them scroll for it every time.
-       */}
+      {/* --------------------------------------------------------------- */}
+      {/* A running session outranks everything: during one it is the only  */}
+      {/* control the author needs.                                         */}
+      {/* --------------------------------------------------------------- */}
       {runningLive.map((session) => (
         <Card as="section" key={session.id}>
           <CardHeader
@@ -123,50 +158,103 @@ export default async function AnalystPage() {
         </Card>
       ))}
 
+      {/* --------------------------------------------------------------- */}
+      {/* Where the analyst stands, in one line                             */}
+      {/* --------------------------------------------------------------- */}
       <Card as="section">
-        <CardHeader title="ახალი ფსონი" level={2} />
         <CardBody>
-          <PostBetForm
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
+            <Stat
+              label="მიმდინარე ბილეთი"
+              value={live.length}
+              hint={
+                awaiting.length > 0
+                  ? `${awaiting.length} ადმინთან`
+                  : 'დასასრულებელი არაფერია'
+              }
+              size="lg"
+            />
+            <Stat
+              label="მოგებების პროცენტი"
+              value={
+                record.decided === 0 ? '·' : formatPercentBps(record.hitRateBps)
+              }
+              hint={`${record.decided} დათვლილი`}
+              size="lg"
+            />
+            <Stat
+              label="პროფიტი"
+              value={
+                record.decided === 0
+                  ? '·'
+                  : formatUnitsSigned(record.profitUnitsCenti)
+              }
+              tone={
+                record.profitUnitsCenti > 0
+                  ? 'positive'
+                  : record.profitUnitsCenti < 0
+                    ? 'negative'
+                    : 'default'
+              }
+              hint="ერთეული"
+              size="lg"
+            />
+            <Stat
+              label="აუდიტორია"
+              value={audience.length}
+              hint={`${reachable} Telegram-ში`}
+              size="lg"
+            />
+            <Stat
+              label="შეტყობინება დღეს"
+              value={`${allowance.used}/${BROADCASTS_PER_DAY}`}
+              hint={
+                allowance.remaining > 0
+                  ? `დარჩა ${allowance.remaining}`
+                  : 'ლიმიტი ამოწურულია'
+              }
+              size="lg"
+            />
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* --------------------------------------------------------------- */}
+      {/* One composer for everything publishable                           */}
+      {/* --------------------------------------------------------------- */}
+      <Card as="section">
+        <CardBody>
+          <AnalystComposer
             sports={sports.map((sport) => ({
               value: sport.id,
               label: sport.nameKa,
             }))}
+            audienceSize={audience.length}
+            broadcastsRemaining={allowance.remaining}
+            broadcastsPerDay={BROADCASTS_PER_DAY}
           />
         </CardBody>
       </Card>
 
-      <Card as="section">
-        <CardHeader
-          title="ფიდი"
-          level={2}
-          description="სტატუსი ან ლაივის გამოცხადება. ეს არ ითვლება თქვენს ჩანაწერში."
-        />
-        <CardBody>
-          <FeedComposer />
-        </CardBody>
-      </Card>
-
-      <Card as="section">
-        <CardHeader title="თქვენი ფიდი" level={2} />
-        <CardBody>
-          <Feed entries={feed} emptyText="ჯერ არაფერი დაგიპოსტავთ." />
-        </CardBody>
-      </Card>
-
+      {/* --------------------------------------------------------------- */}
+      {/* Bets that need the analyst                                        */}
+      {/* --------------------------------------------------------------- */}
       <BetGroup
         title="მიმდინარე"
         description="გამოქვეყნებული, ჯერ დაუსრულებელი. მატჩის შემდეგ მონიშნეთ."
         bets={live}
         showFinish
-        emptyText="მიმდინარე ფსონი არ გაქვთ."
+        emptyText="მიმდინარე ბილეთი არ გაქვთ."
       />
 
-      <BetGroup
-        title="ადმინის განხილვაში"
-        description="დაასრულეთ და შედეგს ელოდება."
-        bets={awaiting}
-        emptyText="განსახილველი არაფერია."
-      />
+      {awaiting.length > 0 ? (
+        <BetGroup
+          title="ადმინის განხილვაში"
+          description="დაასრულეთ და შედეგს ელოდება."
+          bets={awaiting}
+          emptyText=""
+        />
+      ) : null}
 
       {drafts.length > 0 ? (
         <BetGroup
@@ -177,11 +265,23 @@ export default async function AnalystPage() {
         />
       ) : null}
 
+      <Card as="section">
+        <CardHeader
+          title="თქვენი ფიდი"
+          level={2}
+          description="ისე, როგორც პროფილზე ჩანს."
+        />
+        <CardBody>
+          <Feed entries={feed} emptyText="ჯერ არაფერი დაგიპოსტავთ." />
+        </CardBody>
+      </Card>
+
       <BetGroup
         title="დათვლილი"
         description="შედეგი დაფიქსირებულია და ჩანაწერი დაიბლოკა."
         bets={settled}
         emptyText="ჯერ არაფერი დათვლილა."
+        collapse
       />
     </div>
   );
@@ -208,13 +308,20 @@ function BetGroup({
   bets,
   emptyText,
   showFinish = false,
+  collapse = false,
 }: {
   title: string;
   description: string;
   bets: Bet[];
   emptyText: string;
   showFinish?: boolean;
+  /** History is long and nobody acts on it: show a few, offer the rest. */
+  collapse?: boolean;
 }) {
+  const rows = bets.map((bet) => (
+    <BetRow key={bet.id} bet={bet} showFinish={showFinish} />
+  ));
+
   return (
     <Card as="section">
       <CardHeader
@@ -225,88 +332,87 @@ function BetGroup({
       <CardBody>
         {bets.length === 0 ? (
           <EmptyState title={emptyText || 'ცარიელია'} />
+        ) : collapse ? (
+          <ShowMoreList className="-m-4 divide-y divide-line sm:-m-5" initial={5}>
+            {rows}
+          </ShowMoreList>
         ) : (
-          <ul className="-m-4 divide-y divide-line sm:-m-5">
-            {bets.map((bet) => (
-              <li
-                key={bet.id}
-                className="flex flex-wrap items-start gap-4 p-4 sm:p-5"
-              >
-                <Link
-                  href={`/free/${bet.id}`}
-                  className="relative h-20 w-28 shrink-0 overflow-hidden rounded border border-line bg-surface"
-                >
-                  <Image
-                    src={bet.screenshotPath}
-                    alt=""
-                    fill
-                    sizes="7rem"
-                    className="object-cover"
-                  />
-                </Link>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                      href={`/free/${bet.id}`}
-                      className="font-medium text-ink hover:text-accent"
-                    >
-                      {bet.titleKa}
-                    </Link>
-                    {bet.visibility === 'PUBLIC' ? (
-                      <Badge tone="accent">უფასო</Badge>
-                    ) : null}
-                    {bet.publishedAt === null ? <Badge>მონახაზი</Badge> : null}
-                    <StatusBadge status={bet.status} />
-                  </div>
-
-                  <p className="mt-1 text-xs text-ink-muted">
-                    {bet.sport.nameKa}
-                    {' · კოეფ. '}
-                    <span className="tabular">{formatOdds(bet.oddsMilli)}</span>
-                    {bet.eventAt ? (
-                      <>
-                        {' · '}
-                        <span className="tabular">
-                          {formatDateTimeKa(bet.eventAt)}
-                        </span>
-                      </>
-                    ) : null}
-                    {bet.result ? (
-                      <>
-                        {' · '}
-                        <span
-                          className={`tabular ${
-                            bet.result.profitUnitsCenti < 0
-                              ? 'text-loss'
-                              : 'text-win'
-                          }`}
-                        >
-                          {formatUnitsSigned(bet.result.profitUnitsCenti)} ერთ.
-                        </span>
-                      </>
-                    ) : null}
-                  </p>
-
-                  {bet.finishedAt && bet.status === 'PENDING' ? (
-                    <p className="mt-1 text-xs text-ink-faint">
-                      {bet.resultScreenshotPath
-                        ? 'შედეგის სკრინშოტი გაგზავნილია.'
-                        : 'შედეგის სკრინშოტის გარეშე. ადმინი ხელით შეამოწმებს.'}
-                    </p>
-                  ) : null}
-
-                  {showFinish ? (
-                    <div className="mt-3">
-                      <FinishBetForm predictionId={bet.id} />
-                    </div>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <ul className="-m-4 divide-y divide-line sm:-m-5">{rows}</ul>
         )}
       </CardBody>
     </Card>
+  );
+}
+
+function BetRow({ bet, showFinish }: { bet: Bet; showFinish: boolean }) {
+  return (
+    <li className="flex flex-wrap items-start gap-4 p-4 sm:p-5">
+      <Link
+        href={`/free/${bet.id}`}
+        className="relative h-20 w-28 shrink-0 overflow-hidden rounded border border-line bg-surface"
+      >
+        <Image
+          src={bet.screenshotPath}
+          alt=""
+          fill
+          sizes="7rem"
+          className="object-cover"
+        />
+      </Link>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/free/${bet.id}`}
+            className="font-medium text-ink hover:text-accent"
+          >
+            {bet.titleKa}
+          </Link>
+          {bet.visibility === 'PUBLIC' ? (
+            <Badge tone="accent">უფასო</Badge>
+          ) : null}
+          {bet.publishedAt === null ? <Badge>მონახაზი</Badge> : null}
+          <StatusBadge status={bet.status} />
+        </div>
+
+        <p className="mt-1 text-xs text-ink-muted">
+          {bet.sport.nameKa}
+          {' · კოეფ. '}
+          <span className="tabular">{formatOdds(bet.oddsMilli)}</span>
+          {bet.eventAt ? (
+            <>
+              {' · '}
+              <span className="tabular">{formatDateTimeKa(bet.eventAt)}</span>
+            </>
+          ) : null}
+          {bet.result ? (
+            <>
+              {' · '}
+              <span
+                className={`tabular ${
+                  bet.result.profitUnitsCenti < 0 ? 'text-loss' : 'text-win'
+                }`}
+              >
+                {formatUnitsSigned(bet.result.profitUnitsCenti)} ერთ.
+              </span>
+            </>
+          ) : null}
+        </p>
+
+        {bet.finishedAt && bet.status === 'PENDING' ? (
+          <p className="mt-1 text-xs text-ink-faint">
+            {bet.resultScreenshotPath
+              ? 'შედეგის სკრინშოტი გაგზავნილია.'
+              : 'შედეგის სკრინშოტის გარეშე. ადმინი ხელით შეამოწმებს.'}
+          </p>
+        ) : null}
+
+        {showFinish ? (
+          <div className="mt-3">
+            <FinishBetForm predictionId={bet.id} />
+          </div>
+        ) : null}
+      </div>
+    </li>
   );
 }
