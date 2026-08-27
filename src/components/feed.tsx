@@ -161,7 +161,7 @@ function BetEntry({
               href={`/free/${bet.id}`}
               className="font-medium text-ink hover:text-accent"
             >
-              {locked ? 'დახურული ბილეთი' : bet.titleKa}
+              {locked ? 'დახურული პროგნოზი' : bet.titleKa}
             </Link>
             <StatusBadge status={bet.status} />
           </div>

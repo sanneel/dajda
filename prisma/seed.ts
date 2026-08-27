@@ -179,7 +179,7 @@ async function main() {
       name: 'გიორგი ბერიძე',
       slug: 'giorgi-beridze',
       headline: 'ეროვნული ლიგა და ინგლისის პრემიერ ლიგა',
-      bio: 'ვაანალიზებ ქართულ და ინგლისურ ფეხბურთს 2019 წლიდან. ვმუშაობ ძირითადად ჯამურ გოლებსა და გუნდურ ტოტალებზე. ყველა ფსონს ვდებ მატჩის დაწყებამდე და არასდროს ვშლი წაგებულს.',
+      bio: 'ვაანალიზებ ქართულ და ინგლისურ ფეხბურთს 2019 წლიდან. ვმუშაობ ძირითადად ჯამურ გოლებსა და გუნდურ ტოტალებზე. ყველა პროგნოზს ვაქვეყნებ მატჩის დაწყებამდე და არასდროს ვშლი წაგებულს.',
       sportId: football.id,
       seed: 11,
       count: 42,
@@ -201,7 +201,7 @@ async function main() {
       name: 'თამარ კვარაცხელია',
       slug: 'tamar-kvaratskhelia',
       headline: 'მოთამაშეთა სტატისტიკა',
-      bio: 'ვმუშაობ ინდივიდუალურ მაჩვენებლებზე: დარტყმები კარისკენ, გადაცემები. მონაცემებს ვამუშავებ ხელით, ამიტომ ფსონების რაოდენობა შეზღუდულია.',
+      bio: 'ვმუშაობ ინდივიდუალურ მაჩვენებლებზე: დარტყმები კარისკენ, გადაცემები. მონაცემებს ვამუშავებ ხელით, ამიტომ პროგნოზების რაოდენობა შეზღუდულია.',
       sportId: football.id,
       seed: 33,
       count: 26,
@@ -212,7 +212,7 @@ async function main() {
       name: 'დავით მაისურაძე',
       slug: 'davit-maisuradze',
       headline: 'ახალი ავტორი, მცირე ისტორია',
-      bio: 'ახლახან დავიწყე ფსონების გამოქვეყნება. ისტორია ჯერ მოკლეა, ამიტომ სტატისტიკა ჯერ არაა რეპრეზენტატული.',
+      bio: 'ახლახან დავიწყე პროგნოზების გამოქვეყნება. ისტორია ჯერ მოკლეა, ამიტომ სტატისტიკა ჯერ არაა რეპრეზენტატული.',
       sportId: football.id,
       seed: 44,
       count: 9,
@@ -287,13 +287,13 @@ async function main() {
           analystProfileId: profile.id,
           tier: 'PREMIUM',
           nameKa: `${seed.name} · Premium`,
-          descriptionKa: 'ყველა ფსონი და ავტორის აღწერა.',
+          descriptionKa: 'ავტორის ყველა პროგნოზი და სრული აღწერა.',
           featuresKa: [
-            'ავტორის ყველა ფსონი',
+            'ავტორის ყველა პროგნოზი',
             'სრული აღწერა თითოეულზე',
             'შედეგების დეტალური ისტორია',
           ],
-          priceMinor: 1900,
+          priceMinor: 3000,
           currency: 'GEL',
           billingPeriod: 'MONTHLY',
           isDemo: true,
@@ -309,7 +309,7 @@ async function main() {
             'ავტორის კვირის შეჯამება',
             'პრიორიტეტული პასუხი',
           ],
-          priceMinor: 3900,
+          priceMinor: 5000,
           currency: 'GEL',
           billingPeriod: 'MONTHLY',
           isDemo: true,
@@ -513,7 +513,7 @@ async function main() {
       authorId: feedAuthor.id,
       kind: 'LIVE_NOTICE',
       bodyKa:
-        'ვიწყებ ლაივ პოსტინგს. ყველა ფსონს აქვე დავდებ სკრინშოტით, კომენტარებთან ერთად.',
+        'ვიწყებ ლაივ პოსტინგს. ყველა პროგნოზს აქვე გამოვაქვეყნებ სკრინშოტით, კომენტარებთან ერთად.',
       liveLabelKa: 'დინამო თბილისი vs საბურთალო',
       liveAt: new Date(now + 90 * 60 * 1000),
       isDemo: true,
@@ -550,9 +550,9 @@ async function main() {
       analystProfileId: null,
       tier: 'FREE',
       nameKa: 'უფასო',
-      descriptionKa: 'ღია ფსონები და სრული სტატისტიკა.',
+      descriptionKa: 'ღია პროგნოზები და სრული სტატისტიკა.',
       featuresKa: [
-        'ყველა უფასო ფსონი',
+        'ყველა უფასო პროგნოზი',
         'ანალიტიკოსების სრული ისტორია',
         'ROI, სიზუსტე და სერიები',
       ],
@@ -618,7 +618,7 @@ async function main() {
   console.info('Seed complete:', totals);
   console.info(`Demo logins (password: ${DEMO_PASSWORD})`);
   console.info('  user@dajda.ge   - მომხმარებელი, აქტიური Premium გამოწერით');
-  console.info('  giorgi@dajda.ge - ანალიტიკოსი, პოსტავს ფსონებს');
+  console.info('  giorgi@dajda.ge - ანალიტიკოსი, აქვეყნებს პროგნოზებს');
   console.info('  admin@dajda.ge  - ადმინი, ამოწმებს სკრინშოტებს');
 }
 

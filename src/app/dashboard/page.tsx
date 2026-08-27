@@ -110,7 +110,7 @@ export default async function DashboardPage() {
           გამარჯობა, {actor.name}
         </h1>
         <p className="ph mt-1.5">
-          [ერთი ხაზი: რას ხედავს მომხმარებელი ამ გვერდზე]
+          თქვენი გამოწერები, ბალანსი და გადახდების ისტორია ერთ გვერდზე.
         </p>
       </header>
 

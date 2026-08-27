@@ -163,7 +163,7 @@ export function PostBetForm({
           label="პირველი პოზიციის დაწყება"
           htmlFor="eventAt"
           error={errorFor('eventAt')}
-          hint="როდის იწყება ბილეთის პირველი მატჩი. ფასიან ბილეთზე მყიდველი ამას შეძენამდე ხედავს."
+          hint="როდის იწყება პროგნოზის პირველი მატჩი. ფასიან პროგნოზზე მყიდველი ამას შეძენამდე ხედავს."
         >
           <Input id="eventAt" name="eventAt" type="datetime-local" />
         </Field>

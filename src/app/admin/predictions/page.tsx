@@ -221,7 +221,7 @@ export default async function AdminPredictionsPage({
                               {prediction.author.displayName}
                             </Link>
                           ) : (
-                            <span>უფასო ბილეთი</span>
+                            <span>უფასო პროგნოზი</span>
                           )}
                           {' · '}
                           {prediction.sport.nameKa}

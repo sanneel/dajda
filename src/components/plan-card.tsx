@@ -132,11 +132,21 @@ export function PlanCard({
         ) : null}
 
         {!isFree ? (
+          /*
+           * The recurring terms sit on the button, not only in the terms
+           * document: the amount, how often it is taken, and how to stop it.
+           * This is the last screen before a card is charged, so it is where
+           * a person decides - and a payment provider checks for exactly this
+           * disclosure at exactly this point.
+           */
           <p className="mt-3 text-xs leading-relaxed text-ink-faint">
-            განახლდება ავტომატურად ყოველ{' '}
-            {BILLING_PERIOD_KA[plan.billingPeriod].replace('ში', 'ს')}. გაუქმება
-            შესაძლებელია ნებისმიერ დროს პროფილიდან: წვდომა რჩება პერიოდის
-            ბოლომდე.
+            ავტომატური განახლება:{' '}
+            <span className="tabular text-ink-muted">
+              {formatMoney(plan.priceMinor, plan.currency)}
+            </span>{' '}
+            ყოველ {BILLING_PERIOD_KA[plan.billingPeriod].replace('ში', 'ს')},
+            სანამ არ გააუქმებთ. გაუქმება შესაძლებელია ნებისმიერ დროს
+            პროფილიდან, წვდომა რჩება გადახდილი პერიოდის ბოლომდე.
           </p>
         ) : null}
       </div>

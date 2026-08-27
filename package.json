@@ -16,6 +16,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "verify:migrations": "node scripts/verify-migrations.mjs",
+    "legal:sync": "node scripts/sync-legal.mjs",
     "verify:payments": "tsx scripts/verify-payment-flow.ts",
     "dev:db": "node scripts/dev-db.mjs --dir ./.pgdata",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",

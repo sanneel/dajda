@@ -23,7 +23,7 @@ export default function NotFound() {
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <ButtonLink href="/">მთავარი გვერდი</ButtonLink>
         <ButtonLink href="/free" variant="secondary">
-          უფასო ბილეთები
+          უფასო პროგნოზები
         </ButtonLink>
       </div>
 

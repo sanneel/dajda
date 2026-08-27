@@ -1,189 +1,89 @@
 import type { Metadata } from 'next';
-import { Alert } from '@/components/ui/feedback';
+import Link from 'next/link';
+import {
+  PRIVACY,
+  RESPONSIBLE_USE,
+  TERMS,
+  type LegalSection,
+} from '@/lib/legal/generated';
 
 export const metadata: Metadata = {
   title: 'იურიდიული ინფორმაცია',
-  description: '[იურიდიული გვერდის აღწერა საძიებოსთვის]',
+  description:
+    'DAJDA-ს წესები და პირობები, კონფიდენციალურობის პოლიტიკა, დაბრუნების პოლიტიკა და პასუხისმგებლიანი გამოყენება.',
 };
 
 /*
- * All four legal documents on one page.
+ * All the legal documents on one page, rendered from the same generated
+ * module that the exported PDFs come from (docs/legal/*.md via
+ * `npm run legal:sync`). There is deliberately no prose written here: a
+ * second copy of the terms with its own numbering is how the site and the
+ * signed document end up disagreeing.
  *
- * They were four routes with a sidebar to move between them. Nobody reads
- * these documents by browsing: they arrive from a footer link, find the one
- * clause they came for, and leave. One page with anchors does that in a
- * single load.
- *
- * Two of the four now carry real prose (the source of truth lives in
- * docs/legal/terms.md, so the document a merchant reviews and the page a
- * visitor reads cannot drift). The other two are still outlines, and say so
- * on their own rather than under a banner covering the whole page: a visitor
- * must be able to tell which text binds and which is not written yet.
- *
- * Bracketed values are the ones only the company can supply. They are left
- * visible on purpose, because a support address invented by a developer is
- * worse than an obvious gap.
+ * #refunds is not a separate document. It renders the two chapters of the
+ * terms that answer cancellation and refunds, verbatim and with their
+ * original numbering, because a person following a "refund policy" footer
+ * link is looking for exactly those clauses - and a paraphrase of them would
+ * be a second version.
  */
 
-type Clause = { heading: string; items: string[] };
-type LegalDocument = {
+const REFUND_SECTION_PREFIXES = ['11.', '12.'];
+
+const refundSections = TERMS.sections.filter((section) =>
+  REFUND_SECTION_PREFIXES.some((prefix) => section.title.startsWith(prefix)),
+);
+
+const BLOCKS: {
   id: string;
   title: string;
-  clauses?: Clause[];
-  outline?: string[];
-};
-
-const TERMS: Clause[] = [
+  updated: string;
+  note?: string;
+  sections: LegalSection[];
+}[] = [
   {
-    heading: 'სერვისის არსი',
-    items: [
-      'პლატფორმა წარმოადგენს სპორტული ანალიტიკის ონლაინ სივრცეს, სადაც ვერიფიცირებული ავტორები აქვეყნებენ სპორტულ მოვლენებზე საკუთარ ანალიზსა და პროგნოზს.',
-      'მომხმარებელი იხდის საფასურს მხოლოდ ინფორმაციულ და ანალიტიკურ კონტენტზე წვდომისთვის. საფასური არ წარმოადგენს ფსონს, შენატანს ან ინვესტიციას.',
-      'ფასიან კონტენტზე წვდომა ხორციელდება კონკრეტულ ავტორზე გაფორმებული თვიური გამოწერით.',
-    ],
+    id: 'terms',
+    title: TERMS.title,
+    updated: TERMS.updated,
+    sections: TERMS.sections,
   },
   {
-    heading: 'რა არ არის პლატფორმა',
-    items: [
-      'პლატფორმა არ არის აზარტული თამაშების ორგანიზატორი, ბუკმეკერი ან ტოტალიზატორი. პლატფორმა არ იღებს ფსონებს, არ ამუშავებს შენატანებს და არ ახორციელებს მოგების გაცემას.',
-      'პლატფორმა არ არის ფინანსური ინსტიტუტი და არ სთავაზობს მომხმარებელს საინვესტიციო ან საბროკერო მომსახურებას.',
-      'პლატფორმა არ არის მხარე მომხმარებელსა და ნებისმიერ ბუკმეკერულ კომპანიას შორის არსებულ ურთიერთობაში.',
-    ],
+    id: 'refunds',
+    title: 'დაბრუნების პოლიტიკა',
+    updated: TERMS.updated,
+    note: 'ეს არის წესებისა და პირობების მე-11 და მე-12 თავები, უცვლელი ნუმერაციით.',
+    sections: refundSections,
   },
-  {
-    heading: 'კონტენტის ხასიათი',
-    items: [
-      'პლატფორმაზე გამოქვეყნებული ნებისმიერი პროგნოზი და ანალიზი წარმოადგენს ავტორის პირად მოსაზრებას და არა რჩევას ან მოქმედების მითითებას.',
-      'არავითარი შედეგი არ არის გარანტირებული. არც პლატფორმა და არც ავტორი არ იძლევა მოგების ან სიზუსტის გარანტიას.',
-      'მომხმარებელი ნებისმიერ გადაწყვეტილებას იღებს დამოუკიდებლად, საკუთარი რისკით და პასუხისმგებლობით.',
-      'პლატფორმაზე ასახული სტატისტიკა აღწერს წარსულ შედეგებს და არ წარმოადგენს მომავალი შედეგების პროგნოზს.',
-    ],
-  },
-  {
-    heading: 'ჩანაწერების უცვლელობა',
-    items: [
-      'პროგნოზი ქვეყნდება სპორტული მოვლენის დაწყებამდე. მოვლენის დაწყების შემდეგ გამოქვეყნებული პროგნოზი არ აისახება ავტორის სტატისტიკაში.',
-      'გამოქვეყნების შემდეგ პროგნოზის ძირითადი პარამეტრები ფიქსირდება უცვლელად. შესწორება ქმნის ახალ ვერსიას და არ შლის თავდაპირველ ჩანაწერს.',
-      'სპორტული მოვლენის შედეგს აფიქსირებს პლატფორმის ადმინისტრაცია. სტატისტიკაში აისახება როგორც წარმატებული, ისე წარუმატებელი პროგნოზები.',
-    ],
-  },
-  {
-    heading: 'ასაკობრივი შეზღუდვა და ანგარიში',
-    items: [
-      'პლატფორმით სარგებლობა დაშვებულია მხოლოდ 18 წლის და მეტი ასაკის პირებისთვის. რეგისტრაციისას მომხმარებელი ადასტურებს ასაკს.',
-      'მომხმარებელი ვალდებულია მიუთითოს უტყუარი ინფორმაცია და უზრუნველყოს საკუთარი ავტორიზაციის მონაცემების დაცვა.',
-      'ანგარიშზე განხორციელებულ ყველა ქმედებაზე პასუხისმგებელია ანგარიშის მფლობელი. ერთ პირს უფლება აქვს ჰქონდეს მხოლოდ ერთი ანგარიში.',
-    ],
-  },
-  {
-    heading: 'ავტორის სტატუსი',
-    items: [
-      'პლატფორმაზე ავტორად რეგისტრაცია ავტომატური არ არის. კანდიდატი წარადგენს განაცხადს, რომელშიც უთითებს სახელს, გვარს, რეფერალს, სპორტის ძირითად მიმართულებას, ატვირთავს პირადობის დამადასტურებელ დოკუმენტს და ეთანხმება წინამდებარე წესებს. დოკუმენტი ხელმისაწვდომია მხოლოდ ადმინისტრაციისთვის და საჯაროდ არასოდეს ქვეყნდება.',
-      'განაცხადს ხელით განიხილავს პლატფორმის ადმინისტრაცია. დაშვების ან უარის შესახებ გადაწყვეტილება ფიქსირდება სისტემაში.',
-      'ავტორი ვალდებულია გამოწერის მოქმედების პერიოდში რეგულარულად, ყოველკვირეულად მიაწოდოს გამომწერებს კონტენტი. ამ ვალდებულების დარღვევა წარმოადგენს ავტორის სტატუსის შეჩერების და მომხმარებლისთვის თანხის დაბრუნების საფუძველს.',
-    ],
-  },
-  {
-    heading: 'გამოწერა, გადახდა და ბალანსი',
-    items: [
-      'გამოწერის თვიურ ფასს ავტორი ირჩევს პლატფორმის მიერ დადგენილი ვარიანტებიდან: 30, 40 ან 50 ლარი კალენდარულ თვეში.',
-      'გამოწერა აქტიურდება მხოლოდ გადახდის სისტემისგან სერვერული დადასტურების მიღების შემდეგ და განახლდება ავტომატურად, სანამ მომხმარებელი არ გააუქმებს მას.',
-      'გადახდა მუშავდება ლიცენზირებული გადახდის პროვაიდერის მეშვეობით. პლატფორმა არ ინახავს მომხმარებლის ბარათის სრულ მონაცემებს.',
-      'მომხმარებელს შეუძლია შეავსოს პლატფორმის შიდა ბალანსი და გამოწერის საფასური გადაიხადოს ბალანსიდან. ბალანსი გამოიყენება მხოლოდ პლატფორმის ფარგლებში.',
-    ],
-  },
-  {
-    heading: 'აკრძალული ქმედებები და ანგარიშის შეჩერება',
-    items: [
-      'აკრძალულია ფასიანი კონტენტის კოპირება, გავრცელება ან მესამე პირისთვის გადაცემა, ავტორიზაციის მონაცემების გაზიარება და სხვა პირის სახელით მოქმედება.',
-      'აკრძალულია პლატფორმის ავტომატური საშუალებებით მასობრივი დამუშავება და უსაფრთხოების სისტემის შემოვლის მცდელობა.',
-      'წესების დარღვევის, თაღლითური გადახდის მცდელობის ან ყალბი ინფორმაციის მითითების შემთხვევაში ანგარიში შეიძლება შეჩერდეს ან დაიბლოკოს. ბლოკირების შესახებ მომხმარებელს ეცნობება ელფოსტით.',
-    ],
-  },
-  {
-    heading: 'პასუხისმგებლობის შეზღუდვა',
-    items: [
-      'პლატფორმა არ აგებს პასუხს მომხმარებლის მიერ კონტენტის საფუძველზე მიღებულ გადაწყვეტილებებზე და მათგან წარმოშობილ ფინანსურ შედეგებზე.',
-      'პლატფორმა არ აგებს პასუხს მესამე მხარის, მათ შორის გადახდის სისტემის ან ინტერნეტ პროვაიდერის, ქმედებით გამოწვეულ შეფერხებაზე.',
-      'კომპანიის პასუხისმგებლობა ნებისმიერ შემთხვევაში შემოიფარგლება მომხმარებლის მიერ ბოლო გამოწერისთვის გადახდილი თანხის ოდენობით.',
-    ],
-  },
-  {
-    heading: 'წესებში ცვლილება, კანონმდებლობა და კონტაქტი',
-    items: [
-      'კომპანიას უფლება აქვს ცალმხრივად შეიტანოს ცვლილება წესებში. არსებითი ცვლილების შესახებ მომხმარებელს ეცნობება ცვლილების ძალაში შესვლამდე. სარგებლობის გაგრძელება ნიშნავს ახალ რედაქციაზე თანხმობას.',
-      'წინამდებარე წესებზე ვრცელდება საქართველოს კანონმდებლობა. დავა წყდება მოლაპარაკებით, ხოლო შეთანხმების მიუღწევლობისას საქართველოს სასამართლოს მიერ.',
-      'კომპანია: [სახელწოდება], ს/კ [კოდი], მისამართი: [მისამართი]. ელფოსტა: [support@dajda.ge].',
-    ],
-  },
-];
-
-const REFUNDS: Clause[] = [
-  {
-    heading: 'რას იხდის მომხმარებელი',
-    items: [
-      'მომხმარებელი იხდის ანალიტიკურ კონტენტზე წვდომისთვის და არა შედეგისთვის. ის გარემოება, რომ ავტორის პროგნოზი არ გამართლდა, თანხის დაბრუნების საფუძველს არ წარმოადგენს.',
-    ],
-  },
-  {
-    heading: 'გამოწერის გაუქმება',
-    items: [
-      'მომხმარებელს შეუძლია ნებისმიერ დროს გააუქმოს გამოწერა პროფილის გვერდიდან. გაუქმების შემდეგ ავტომატური განახლება ჩერდება და თანხა აღარ ჩამოიჭრება.',
-      'გაუქმების შემთხვევაში მომხმარებელს უნარჩუნდება წვდომა უკვე გადახდილი პერიოდის ბოლომდე.',
-    ],
-  },
-  {
-    heading: 'როდის ბრუნდება თანხა: ტექნიკური ხარვეზი',
-    items: [
-      'თანხა ჩამოიჭრა, თუმცა გამოწერა არ გააქტიურდა.',
-      'ერთი და იმავე გამოწერის საფასური ჩამოიჭრა ორჯერ ან მეტჯერ.',
-      'ჩამოიჭრა გამოწერის ფასისგან განსხვავებული თანხა.',
-      'მომხმარებელმა პლატფორმის ტექნიკური ხარვეზის გამო ვერ მიიღო წვდომა გადახდილ კონტენტზე.',
-    ],
-  },
-  {
-    heading: 'როდის ბრუნდება თანხა: სხვა საფუძვლები',
-    items: [
-      'არასანქცირებული ან შეცდომით განხორციელებული გადახდა, რომელიც დადასტურდება შემოწმების შედეგად.',
-      'ავტორის მიერ წესების დარღვევა, კერძოდ, თუ ავტორმა გადახდილი პერიოდის განმავლობაში არ მიაწოდა გამომწერს კონტენტი ან არსებითად დაარღვია პლატფორმის წესები.',
-    ],
-  },
-  {
-    heading: 'როგორ მოვითხოვოთ',
-    items: [
-      'მოთხოვნა მიიღება ელფოსტაზე [support@dajda.ge]. მოთხოვნაში მითითებული უნდა იყოს მომხმარებლის ელფოსტა, გადახდის თარიღი და დაბრუნების მოთხოვნის საფუძველი.',
-      'მოთხოვნა განიხილება [X] სამუშაო დღის განმავლობაში. საფუძვლის დადასტურების შემთხვევაში თანხა უბრუნდება მომხმარებელს იმავე ბარათზე, რომლითაც განხორციელდა გადახდა.',
-    ],
-  },
-];
-
-const DOCUMENTS: LegalDocument[] = [
-  { id: 'terms', title: 'წესები და პირობები', clauses: TERMS },
-  { id: 'refunds', title: 'დაბრუნების პოლიტიკა', clauses: REFUNDS },
   {
     id: 'privacy',
-    title: 'კონფიდენციალურობა',
-    outline: [
-      '[რა მონაცემებს ვინახავთ: სახელი, ელფოსტა, პაროლის ჰეში, სესია, Telegram, გადახდების ისტორია. ჩამონათვალი კოდს უნდა დაემთხვეს]',
-      '[რას არ ვინახავთ: ბარათის მონაცემები]',
-      '[აუდიტის ჟურნალი: რა იწერება და რატომ]',
-      '[მესამე მხარეები: გადახდის პროვაიდერი და რა გადაეცემა]',
-      '[შენახვის ვადა]',
-      '[მომხმარებლის უფლებები: წვდომა, შესწორება, წაშლა]',
-      '[საკონტაქტო მისამართი მონაცემებთან დაკავშირებით]',
-    ],
+    title: PRIVACY.title,
+    updated: PRIVACY.updated,
+    sections: PRIVACY.sections,
   },
   {
     id: 'responsible-use',
-    title: 'პასუხისმგებლიანი გამოყენება',
-    outline: [
-      '[სტატისტიკა არ არის დაპირება: ROI და სიზუსტე აღწერს წარსულს]',
-      '[რატომ ვაქვეყნებთ წაგებულ ფსონებსაც]',
-      '[მცირე შერჩევა: რატომ არ ენდობა მოკლე ისტორიას]',
-      '[18+ და სად მიმართოს ადამიანმა, თუ თამაში პრობლემად ექცევა. საქართველოში მოქმედი დახმარების სამსახურის კონტაქტი უნდა მოიძებნოს]',
-    ],
+    title: RESPONSIBLE_USE.title,
+    updated: RESPONSIBLE_USE.updated,
+    sections: RESPONSIBLE_USE.sections,
   },
 ];
+
+function SectionBody({ section }: { section: LegalSection }) {
+  return (
+    <div className="pt-5">
+      <h3 className="text-base font-semibold text-ink">{section.title}</h3>
+      <div className="mt-2 space-y-2.5">
+        {section.paragraphs.map((paragraph) => (
+          <p
+            key={paragraph}
+            className="whitespace-pre-line text-sm leading-relaxed text-ink-muted"
+          >
+            {paragraph}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function LegalPage() {
   return (
@@ -192,95 +92,55 @@ export default function LegalPage() {
         იურიდიული ინფორმაცია
       </h1>
 
-      {/* Jump list, so a footer link can land on the right clause. */}
+      {/* Jump list, so a footer link can land on the right document. */}
       <nav aria-label="დოკუმენტები" className="mt-8 border-y border-line py-4">
         <ul className="flex flex-wrap gap-x-5 gap-y-2">
-          {DOCUMENTS.map((doc) => (
-            <li key={doc.id}>
+          {BLOCKS.map((block) => (
+            <li key={block.id}>
               <a
-                href={`#${doc.id}`}
+                href={`#${block.id}`}
                 className="text-sm text-accent underline decoration-line-strong underline-offset-4 hover:decoration-accent"
               >
-                {doc.title}
+                {block.title}
               </a>
             </li>
           ))}
         </ul>
       </nav>
 
-      {DOCUMENTS.map((doc) => (
+      {BLOCKS.map((block) => (
         <section
-          key={doc.id}
-          id={doc.id}
-          aria-labelledby={`${doc.id}-heading`}
+          key={block.id}
+          id={block.id}
+          aria-labelledby={`${block.id}-heading`}
           className="scroll-mt-24 pt-12"
         >
-          <h2
-            id={`${doc.id}-heading`}
-            className="font-display text-2xl text-ink"
-          >
-            {doc.title}
-          </h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2
+              id={`${block.id}-heading`}
+              className="font-display text-2xl text-ink"
+            >
+              {block.title}
+            </h2>
+            <p className="text-xs text-ink-faint">
+              ბოლო განახლება: {block.updated}
+            </p>
+          </div>
 
-          {doc.clauses ? (
-            <div className="mt-5 space-y-7 border-t border-line pt-6">
-              {doc.clauses.map((clause, clauseIndex) => (
-                <div key={clause.heading}>
-                  <h3 className="text-sm font-medium text-ink">
-                    <span className="tabular text-ink-faint" aria-hidden="true">
-                      {clauseIndex + 1}.{' '}
-                    </span>
-                    {clause.heading}
-                  </h3>
-                  <ol className="mt-2.5 space-y-2.5">
-                    {clause.items.map((item, itemIndex) => (
-                      <li
-                        key={item}
-                        className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3"
-                      >
-                        <span
-                          className="tabular text-sm text-ink-faint"
-                          aria-hidden="true"
-                        >
-                          {clauseIndex + 1}.{itemIndex + 1}
-                        </span>
-                        <p className="text-sm leading-relaxed text-ink-muted">
-                          {item}
-                        </p>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <>
-              <div className="mt-5">
-                <Alert tone="warning" title="ტექსტი ჯერ არ არის დაწერილი">
-                  ქვემოთ მხოლოდ სტრუქტურაა: რა უნდა დაფაროს ამ დოკუმენტმა.
-                  საბოლოო ფორმულირება იურისტთან უნდა შეთანხმდეს
-                  გამოქვეყნებამდე.
-                </Alert>
-              </div>
+          {block.note ? (
+            <p className="mt-2 text-sm text-ink-faint">
+              {block.note}{' '}
+              <Link href="#terms" className="text-accent hover:underline">
+                სრული ტექსტი
+              </Link>
+            </p>
+          ) : null}
 
-              <ol className="mt-5 border-t border-line">
-                {(doc.outline ?? []).map((section, index) => (
-                  <li
-                    key={section}
-                    className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4 border-b border-line py-4"
-                  >
-                    <span
-                      className="tabular text-sm text-ink-faint"
-                      aria-hidden="true"
-                    >
-                      {index + 1}
-                    </span>
-                    <p className="ph text-sm leading-relaxed">{section}</p>
-                  </li>
-                ))}
-              </ol>
-            </>
-          )}
+          <div className="mt-3 divide-y divide-line border-t border-line">
+            {block.sections.map((section) => (
+              <SectionBody key={section.title} section={section} />
+            ))}
+          </div>
         </section>
       ))}
     </div>

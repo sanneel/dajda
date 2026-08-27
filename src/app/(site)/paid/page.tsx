@@ -18,9 +18,9 @@ import { ResponsibleUseNotice } from '@/components/responsible-use';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'ფასიანი ბილეთები',
+  title: 'ფასიანი პროგნოზები',
   description:
-    'ანალიტიკოსების ფასიანი ბილეთები: შეძენამდე ჩანს კოეფიციენტი, ფასი და პირველი პოზიციის დაწყების დრო, დახურვის შემდეგ კი სრული ჩანაწერი.',
+    'ანალიტიკოსების ფასიანი პროგნოზები: შეძენამდე ჩანს კოეფიციენტი, ფასი და პირველი პოზიციის დაწყების დრო, დახურვის შემდეგ კი სრული ჩანაწერი.',
 };
 
 /*
@@ -89,11 +89,11 @@ export default async function PaidTicketsPage({
     <div className="mx-auto max-w-page px-4 py-10 sm:px-6">
       <header className="mb-6">
         <h1 className="font-display text-3xl text-ink sm:text-4xl">
-          ფასიანი ბილეთები
+          ფასიანი პროგნოზები
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-muted">
           იხსნება ავტორის გამოწერით. შეძენამდე ჩანს კოეფიციენტი, ფასი და
-          პირველი პოზიციის დაწყების დრო; დათვლის შემდეგ ბილეთი საჯარო
+          პირველი პოზიციის დაწყების დრო; დათვლის შემდეგ პროგნოზი საჯარო
           ჩანაწერის ნაწილი ხდება.
         </p>
       </header>
@@ -136,7 +136,7 @@ export default async function PaidTicketsPage({
             }))}
           />
           <span className="tabular text-xs text-ink-faint">
-            {total} ბილეთი
+            {total} პროგნოზი
           </span>
         </span>
       </nav>
@@ -144,7 +144,7 @@ export default async function PaidTicketsPage({
       {items.length === 0 ? (
         <EmptyState
           icon={<Ticket className="size-8" aria-hidden="true" />}
-          title="ბილეთი ჯერ არ არის"
+          title="პროგნოზი ჯერ არ არის"
           description="აირჩიეთ სხვა სპორტი ან შეამოწმეთ მოგვიანებით."
         />
       ) : (

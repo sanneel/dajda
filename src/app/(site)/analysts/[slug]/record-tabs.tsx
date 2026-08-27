@@ -63,7 +63,7 @@ export function RecordTabs({
     <Card as="section">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
         <h2 id="plans-heading" className="font-display text-base text-ink">
-          {tab === 'PLANS' ? 'გამოწერა' : 'ბილეთების ჩანაწერი'}
+          {tab === 'PLANS' ? 'გამოწერა' : 'პროგნოზების ჩანაწერი'}
         </h2>
 
         <div
@@ -139,7 +139,7 @@ function RecordStats({ summary }: { summary: PerformanceSummary }) {
     <div>
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
         <Stat
-          label="სულ ბილეთი"
+          label="სულ პროგნოზი"
           value={summary.total}
           hint={`${summary.pending} მოლოდინში`}
           size="lg"

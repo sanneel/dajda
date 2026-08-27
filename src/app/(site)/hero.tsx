@@ -30,13 +30,15 @@ export function Hero({ analysts }: { analysts: AnalystListItem[] }) {
            * text-5xl ships line-height 1, which clips Mkhedruli descenders.
            */}
           <h1 className="font-display-xl text-[2.25rem] leading-[1.14] text-ink sm:text-5xl sm:leading-[1.14]">
-            ნახე ვინ დადო
+            ნახე, ვისი ანალიზი
             <br />
-            <span className="text-accent">სწორად.</span>
+            <span className="text-accent">მართლდება.</span>
           </h1>
 
           <p className="ph mt-6 max-w-lg text-base leading-relaxed sm:text-lg">
-            [ორი ხაზი: რას აკეთებს DAJDA და რატომ ენდობა მომხმარებელი ციფრებს]
+            DAJDA სპორტული ანალიტიკის პლატფორმაა. ავტორები პროგნოზებს მოვლენის
+            დაწყებამდე აქვეყნებენ, შედეგი უცვლელად ფიქსირდება და სტატისტიკა
+            შემოწმებადია, წაგებული პროგნოზების ჩათვლით.
           </p>
 
           <div className="mt-8">
@@ -140,6 +142,10 @@ export function Hero({ analysts }: { analysts: AnalystListItem[] }) {
               })}
             </ul>
           )}
+
+          <p className="border-t border-line px-5 py-3 text-xs text-ink-faint">
+            ყველა მაჩვენებელი წარსული შედეგია და არა მომავლის გარანტია.
+          </p>
         </div>
       </div>
     </section>

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'ანალიტიკოსები',
-  description: '[ანალიტიკოსების გვერდის აღწერა საძიებოსთვის]',
+  description: 'ყველა ავტორი ერთ სიაში, შემოწმებადი შედეგებით: ROI, სიზუსტე და სრული ისტორია, წაგებული პროგნოზების ჩათვლით.',
 };
 
 const SORTS: { value: AnalystSort; label: string }[] = [
@@ -63,7 +63,8 @@ export default async function AnalystsPage({
           ანალიტიკოსები
         </h1>
         <p className="ph mt-2 max-w-2xl">
-          [ერთი წინადადება: რას ხედავს მომხმარებელი ამ სიაში]
+          ყველა ავტორი და მათი შემოწმებადი შედეგები. სტატისტიკა ასახავს
+          წარსულს და არ არის მომავლის გარანტია.
         </p>
       </header>
 

@@ -8,7 +8,7 @@ type LogoProps = {
 /**
  * DAJDA mark.
  *
- * A ticket with a torn perforation edge and a settled check - "ბილეთი დაჯდა",
+ * A ticket with a torn perforation edge and a settled check - "პროგნოზი დაჯდა",
  * a slip that landed. Deliberately no coin, note, currency glyph, dice, chip
  * or card suit: DAJDA sells analysis, and the mark should not imply a casino.
  */

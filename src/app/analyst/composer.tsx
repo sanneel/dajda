@@ -49,7 +49,7 @@ export function AnalystComposer({
           selected={mode === 'bet'}
           onSelect={() => setMode('bet')}
           icon={<Ticket className="size-4" aria-hidden="true" />}
-          label="ახალი ბილეთი"
+          label="ახალი პროგნოზი"
         />
         <ModeTab
           selected={mode === 'note'}

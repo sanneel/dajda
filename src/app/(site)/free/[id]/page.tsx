@@ -24,7 +24,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const ticket = await getTicketById(id);
-  if (!ticket) return { title: 'ბილეთი ვერ მოიძებნა' };
+  if (!ticket) return { title: 'პროგნოზი ვერ მოიძებნა' };
 
   // A live bet's title IS the pick, and every open pick now costs at least an
   // account. Metadata is viewer-independent (link previews, crawlers), so
@@ -34,7 +34,7 @@ export async function generateMetadata({
       ticket.visibility !== 'PUBLIC' && ticket.authorId !== null
         ? 'ფასიანი'
         : 'უფასო';
-    return { title: `${kind} ბილეთი · ${ticket.sport.nameKa}` };
+    return { title: `${kind} პროგნოზი · ${ticket.sport.nameKa}` };
   }
 
   return {
@@ -93,7 +93,7 @@ export default async function TicketPage({
   const locked = ticket.status === 'PENDING' && (!actor || !canView);
 
   const feedHref = isPaid ? '/paid' : '/free';
-  const feedLabel = isPaid ? 'ფასიანი ბილეთები' : 'უფასო ბილეთები';
+  const feedLabel = isPaid ? 'ფასიანი პროგნოზები' : 'უფასო პროგნოზები';
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -126,7 +126,7 @@ export default async function TicketPage({
         </div>
 
         <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">
-          {locked ? `დახურული ბილეთი · ${ticket.sport.nameKa}` : ticket.titleKa}
+          {locked ? `დახურული პროგნოზი · ${ticket.sport.nameKa}` : ticket.titleKa}
         </h1>
 
         <p className="tabular mt-2 text-sm text-ink-muted">
@@ -144,8 +144,8 @@ export default async function TicketPage({
           <Lock className="size-5 text-ink-faint" aria-hidden="true" />
           <p className="font-medium text-ink">
             {isPaid
-              ? 'ეს ბილეთი იხსნება ავტორის გამოწერით'
-              : 'ეს ბილეთი იხსნება შესვლის შემდეგ'}
+              ? 'ეს პროგნოზი იხსნება ავტორის გამოწერით'
+              : 'ეს პროგნოზი იხსნება შესვლის შემდეგ'}
           </p>
 
           <div className="grid w-full grid-cols-2 gap-4 border-y border-line py-4 sm:max-w-sm">
@@ -166,7 +166,7 @@ export default async function TicketPage({
           </div>
 
           <p className="text-sm text-ink-muted">
-            შედეგის დათვლის შემდეგ ბილეთი ავტომატურად ხდება საჯარო ჩანაწერის
+            შედეგის დათვლის შემდეგ პროგნოზი ავტომატურად ხდება საჯარო ჩანაწერის
             ნაწილი.
           </p>
 
@@ -188,7 +188,7 @@ export default async function TicketPage({
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card border border-line bg-canvas">
           <Image
             src={ticket.screenshotPath}
-            alt={`ბილეთის სკრინშოტი: ${ticket.titleKa}`}
+            alt={`პროგნოზის სკრინშოტი: ${ticket.titleKa}`}
             fill
             sizes="(min-width: 768px) 42rem, 92vw"
             className="object-contain"
@@ -293,7 +293,7 @@ export default async function TicketPage({
             <div>
               <p className="font-medium text-ink">{ticket.postedBy.name}</p>
               <p className="text-sm text-ink-muted">
-                უფასო ბილეთი. სტატისტიკაში არ ითვლება.
+                უფასო პროგნოზი. სტატისტიკაში არ ითვლება.
               </p>
             </div>
           </div>

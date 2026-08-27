@@ -34,19 +34,19 @@ const sans = Google_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL('https://dajda.ge'),
   title: {
-    default: 'DAJDA · ნახე ვინ დადო სწორად.',
+    default: 'DAJDA · სპორტული ანალიტიკა შემოწმებადი ჩანაწერით',
     template: '%s · DAJDA',
   },
   // Search-result copy. Under ~155 characters or Google truncates it.
   description:
-    '[საიტის აღწერა საძიებო სისტემისთვის: 1 წინადადება, 155 სიმბოლომდე]',
+    'სპორტული ანალიტიკის პლატფორმა: ვერიფიცირებული ავტორები, მოვლენამდე გამოქვეყნებული პროგნოზები და უცვლელი, შემოწმებადი სტატისტიკა.',
   applicationName: 'DAJDA',
   openGraph: {
     type: 'website',
     locale: 'ka_GE',
     siteName: 'DAJDA',
-    title: 'DAJDA · ნახე ვინ დადო სწორად.',
-    description: '[სოციალურ ქსელში გაზიარების აღწერა: 1 მოკლე წინადადება]',
+    title: 'DAJDA · სპორტული ანალიტიკა შემოწმებადი ჩანაწერით',
+    description: 'სპორტული ანალიტიკა შემოწმებადი ჩანაწერით.',
   },
   robots: { index: true, follow: true },
 };

@@ -53,7 +53,7 @@ export function TicketList({
         <thead>
           <tr className="border-b border-line bg-elevated text-left">
             <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
-              ბილეთი
+              პროგნოზი
             </th>
             <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
               ავტორი
@@ -116,7 +116,7 @@ export function TicketList({
                         href={`/free/${ticket.id}`}
                         className="font-medium text-ink hover:text-accent"
                       >
-                        {locked ? 'დახურული ბილეთი' : ticket.titleKa}
+                        {locked ? 'დახურული პროგნოზი' : ticket.titleKa}
                       </Link>
                       <div className="mt-0.5 flex items-center gap-2 text-xs text-ink-faint">
                         {ticket.sport.nameKa}

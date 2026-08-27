@@ -23,7 +23,8 @@ export function ResponsibleUseNotice({
   if (variant === 'compact') {
     return (
       <p className="ph text-xs leading-relaxed">
-        [ერთსტრიქონიანი ვერსია: DAJDA არ არის ბუკმეკერი + 18+]
+        DAJDA არ არის ბუკმეკერი და ფსონს არ იღებს. პლატფორმა 18 წელს
+        მიღწეულთათვისაა.
       </p>
     );
   }
@@ -49,18 +50,16 @@ export function ResponsibleUseNotice({
             პასუხისმგებლიანი გამოყენება
           </h2>
 
-          {/*
-           * This one sentence stays as real copy on purpose: it is the product
-           * boundary, it is one line, and shipping the page without it is the
-           * kind of omission that matters. Everything under it is placeholder.
-           */}
           <p className="mt-2.5 text-sm font-semibold leading-relaxed text-ink">
             DAJDA არ არის ბუკმეკერი.
           </p>
 
-          <p className="ph mt-3 max-w-3xl text-sm leading-relaxed">
-            [2–3 მოკლე წინადადება: რას ყიდის პლატფორმა, რას არ აკეთებს
-            (ფსონი / თანხის შენახვა / მოგების დაპირება), და 18+ გაფრთხილება]
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-muted">
+            აქ იყიდება მხოლოდ ანალიტიკური კონტენტი: პლატფორმა ფსონს არ იღებს
+            და მოგებას არ გპირდებათ. ყველა მაჩვენებელი წარსულ შედეგებს ასახავს
+            და მომავლის გარანტია არ არის. პლატფორმა განკუთვნილია მხოლოდ 18
+            წელს მიღწეულთათვის. თუ თამაში პრობლემად იქცა, დახმარების გზები
+            აღწერილია პასუხისმგებლიანი გამოყენების გვერდზე.
           </p>
 
           {/* 18+ is stated visually above; repeated here for assistive tech. */}

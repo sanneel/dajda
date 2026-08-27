@@ -125,7 +125,7 @@ export default async function AnalystPage() {
             ჩემი გვერდი
           </h1>
           <p className="mt-1.5 text-ink-muted">
-            დადეთ ბილეთი, დაწერეთ სტატუსი, გამოაცხადეთ ლაივი ან მიწერეთ
+            დადეთ პროგნოზი, დაწერეთ სტატუსი, გამოაცხადეთ ლაივი ან მიწერეთ
             გამომწერებს.
           </p>
         </div>
@@ -165,7 +165,7 @@ export default async function AnalystPage() {
         <CardBody>
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
             <Stat
-              label="მიმდინარე ბილეთი"
+              label="მიმდინარე პროგნოზი"
               value={live.length}
               hint={
                 awaiting.length > 0
@@ -244,7 +244,7 @@ export default async function AnalystPage() {
         description="გამოქვეყნებული, ჯერ დაუსრულებელი. მატჩის შემდეგ მონიშნეთ."
         bets={live}
         showFinish
-        emptyText="მიმდინარე ბილეთი არ გაქვთ."
+        emptyText="მიმდინარე პროგნოზი არ გაქვთ."
       />
 
       {awaiting.length > 0 ? (

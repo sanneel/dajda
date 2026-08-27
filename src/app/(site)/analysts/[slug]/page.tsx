@@ -320,7 +320,7 @@ export default async function AnalystProfilePage({
                               className="size-3.5 text-ink-faint"
                               aria-hidden="true"
                             />
-                            დახურული ბილეთი
+                            დახურული პროგნოზი
                           </span>
                         ) : (
                           prediction.titleKa

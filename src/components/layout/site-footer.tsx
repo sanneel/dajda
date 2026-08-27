@@ -9,6 +9,8 @@ const LEGAL_LINKS = [
   { href: '/legal#terms', label: 'წესები და პირობები' },
   { href: '/legal#privacy', label: 'კონფიდენციალურობა' },
   { href: '/legal#refunds', label: 'დაბრუნების პოლიტიკა' },
+  { href: '/legal#responsible-use', label: 'პასუხისმგებლიანი გამოყენება' },
+  { href: '/contact', label: 'კონტაქტი' },
 ];
 
 /**

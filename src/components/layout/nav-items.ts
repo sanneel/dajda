@@ -11,7 +11,7 @@ export type NavItem = { href: string; label: string };
  */
 export const NAV_ITEMS: NavItem[] = [
   { href: '/analysts', label: 'ანალიტიკოსები' },
-  { href: '/free', label: 'უფასო ბილეთები' },
-  { href: '/paid', label: 'ფასიანი ბილეთები' },
+  { href: '/free', label: 'უფასო პროგნოზები' },
+  { href: '/paid', label: 'ფასიანი პროგნოზები' },
   { href: '/how-it-works', label: 'როგორ მუშაობს?' },
 ];

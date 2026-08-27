@@ -33,8 +33,8 @@ export function FreeTicketForm({
   if (state?.ok) {
     return (
       <div className="space-y-4">
-        <Alert tone="success" title="ბილეთი აიტვირთა">
-          თქვენი ბილეთი ჩანს სიაში. ის უფასოა და არავის სტატისტიკაში არ ითვლება.
+        <Alert tone="success" title="პროგნოზი აიტვირთა">
+          თქვენი პროგნოზი ჩანს სიაში. ის უფასოა და არავის სტატისტიკაში არ ითვლება.
         </Alert>
         <Button
           type="button"
@@ -59,7 +59,7 @@ export function FreeTicketForm({
       ) : null}
 
       <Field
-        label="ბილეთის სკრინშოტი"
+        label="პროგნოზის სკრინშოტი"
         htmlFor="screenshot"
         required
         error={errorFor('screenshot') ?? errorFor('screenshotPath')}

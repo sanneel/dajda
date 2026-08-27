@@ -177,10 +177,16 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
  */
 export function AnalystList({ analysts }: { analysts: AnalystListItem[] }) {
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded-panel border border-line bg-surface">
-      {analysts.map((analyst) => (
-        <AnalystRow key={analyst.id} analyst={analyst} />
-      ))}
-    </ul>
+    <div>
+      <ul className="divide-y divide-line overflow-hidden rounded-panel border border-line bg-surface">
+        {analysts.map((analyst) => (
+          <AnalystRow key={analyst.id} analyst={analyst} />
+        ))}
+      </ul>
+      <p className="mt-2.5 text-xs text-ink-faint">
+        ROI, სიზუსტე და ერთეულები ასახავს წარსულ შედეგებს და არ არის მომავლის
+        გარანტია.
+      </p>
+    </div>
   );
 }

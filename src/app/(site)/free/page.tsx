@@ -18,9 +18,9 @@ import { FreeTicketForm } from './upload-form';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'უფასო ბილეთები',
+  title: 'უფასო პროგნოზები',
   description:
-    'უფასო ბილეთები ანალიტიკოსებისა და მომხმარებლებისგან, ავტორის ღია ჩანაწერით.',
+    'უფასო პროგნოზები ანალიტიკოსებისა და მომხმარებლებისგან, ავტორის ღია ჩანაწერით.',
 };
 
 /*
@@ -91,11 +91,11 @@ export default async function FreeTicketsPage({
     <div className="mx-auto max-w-page px-4 py-10 sm:px-6">
       <header className="mb-6">
         <h1 className="font-display text-3xl text-ink sm:text-4xl">
-          უფასო ბილეთები
+          უფასო პროგნოზები
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-muted">
           ატვირთვა შეუძლია ყველა დარეგისტრირებულ მომხმარებელს. ავტორის
-          სვეტში ჩანს ვისი ბილეთია და როგორი ჩანაწერი უდგას უკან.
+          სვეტში ჩანს ვისი პროგნოზია და როგორი ჩანაწერი უდგას უკან.
         </p>
       </header>
 
@@ -105,7 +105,7 @@ export default async function FreeTicketsPage({
       {actor ? (
         <details className="mb-6 rounded-card border border-line bg-surface">
           <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-medium text-ink marker:content-none sm:px-5">
-            <span className="text-accent">+</span> ბილეთის ატვირთვა
+            <span className="text-accent">+</span> პროგნოზის ატვირთვა
           </summary>
           <div className="border-t border-line p-4 sm:p-5">
             <FreeTicketForm
@@ -118,7 +118,7 @@ export default async function FreeTicketsPage({
         </details>
       ) : (
         <p className="mb-6 rounded-card border border-line bg-surface px-4 py-3.5 text-sm text-ink-muted sm:px-5">
-          დახურული ბილეთები და ატვირთვა იხსნება შესვლის შემდეგ.{' '}
+          დახურული პროგნოზები და ატვირთვა იხსნება შესვლის შემდეგ.{' '}
           <Link href="/login" className="text-accent underline">
             შესვლა
           </Link>{' '}
@@ -168,7 +168,7 @@ export default async function FreeTicketsPage({
             }))}
           />
           <span className="tabular text-xs text-ink-faint">
-            {total} ბილეთი
+            {total} პროგნოზი
           </span>
         </span>
       </nav>
@@ -176,7 +176,7 @@ export default async function FreeTicketsPage({
       {items.length === 0 ? (
         <EmptyState
           icon={<Ticket className="size-8" aria-hidden="true" />}
-          title="ბილეთი ჯერ არ არის"
+          title="პროგნოზი ჯერ არ არის"
           description="აირჩიეთ სხვა სპორტი ან ატვირთეთ პირველი."
         />
       ) : (
