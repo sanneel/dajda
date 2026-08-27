@@ -4,6 +4,7 @@ import { Logo } from '@/components/brand/logo';
 import { Avatar } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { AuthButtons } from '@/components/auth/auth-buttons';
+import { BottomNav } from './bottom-nav';
 import { MobileNav } from './mobile-nav';
 import { NavLinks } from './nav-links';
 
@@ -21,6 +22,7 @@ export async function SiteHeader() {
   const isAnalyst = Boolean(actor?.analystProfileId);
 
   return (
+    <>
     <header className="relative z-50 border-b border-line bg-surface">
       <div className="mx-auto flex h-[4.25rem] max-w-page items-center gap-8 px-4 sm:px-8">
         <Link href="/" className="shrink-0" aria-label="მთავარი გვერდი">
@@ -83,5 +85,14 @@ export async function SiteHeader() {
         </div>
       </div>
     </header>
+
+    {/*
+     * The app-style tab bar on phones. Rendered here rather than in each
+     * layout so a page cannot end up with the header but without the bar.
+     * It is position:fixed, so its place in the DOM does not matter; the
+     * layouts reserve its height with bottom padding.
+     */}
+    <BottomNav isAuthenticated={Boolean(actor)} isAnalyst={isAnalyst} />
+    </>
   );
 }

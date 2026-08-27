@@ -24,7 +24,7 @@ export default async function DashboardLayout({
   if (!actor) redirect('/login');
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col pb-[calc(3.75rem+env(safe-area-inset-bottom))] lg:pb-0">
       <SiteHeader />
 
       <main

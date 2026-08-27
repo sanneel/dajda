@@ -58,6 +58,9 @@ export const viewport: Viewport = {
   ],
   colorScheme: 'light dark',
   width: 'device-width',
+  // Lets the page extend under the iPhone home indicator, which is what makes
+  // env(safe-area-inset-bottom) non-zero for the bottom tab bar.
+  viewportFit: 'cover',
   initialScale: 1,
 };
 

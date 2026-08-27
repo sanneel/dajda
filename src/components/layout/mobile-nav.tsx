@@ -78,7 +78,7 @@ export function MobileNav({
           id="mobile-nav-panel"
           ref={panelRef}
           tabIndex={-1}
-          className="fixed inset-x-0 bottom-0 top-[4.25rem] z-40 overflow-y-auto border-t border-line bg-surface px-4 py-5"
+          className="fixed inset-x-0 bottom-0 top-[4.25rem] z-40 overflow-y-auto border-t border-line bg-surface px-4 py-5 pb-[calc(4.5rem+env(safe-area-inset-bottom))]"
         >
           <nav aria-label="მთავარი ნავიგაცია">
             <ul className="space-y-1">
