@@ -7,10 +7,20 @@ import { hashPassword } from '../src/lib/auth/password';
 import { computeProfitUnitsCenti } from '../src/lib/predictions/settlement';
 
 /**
- * Development seed.
+ * Database seed, in two halves.
  *
- * EVERY row created here is flagged `isDemo: true` and is labelled "დემო" in
- * the UI. None of it describes a real person or a real result.
+ * STRUCTURE (always): the sports the product needs to function, and one
+ * administrator account so somebody can review the first analyst application.
+ * This half is safe to run against a real deployment.
+ *
+ * DEMO CONTENT (only with --demo): invented analysts, predictions and results.
+ * Off by default, and that default is the point. This platform's entire claim
+ * is that its published record is verifiable; a deployment showing a fabricated
+ * +51.7% ROI next to a person's name undercuts the claim and misleads anyone
+ * reviewing the site, whether a visitor or a payment provider.
+ *
+ * EVERY row in the demo half is flagged `isDemo: true` and is labelled "დემო"
+ * in the UI. None of it describes a real person or a real result.
  *
  * The data is generated from a fixed seed so that repeated runs produce the
  * same record. A demo whose ROI changes on every reset is useless for
@@ -27,6 +37,23 @@ const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error('DATABASE_URL is required to seed.');
 }
+
+/** Invented analysts and results are opt-in: `npm run db:seed -- --demo`. */
+const WITH_DEMO_CONTENT =
+  process.argv.includes('--demo') || process.env.SEED_DEMO === 'true';
+
+/**
+ * The administrator's credentials.
+ *
+ * Taken from the environment when it supplies them; otherwise a random
+ * password is generated and printed once. A published constant would be an
+ * open door on any deployment that ran this script, which is exactly what a
+ * seed script tends to do on first boot.
+ */
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@dajda.ge';
+const ADMIN_PASSWORD =
+  process.env.SEED_ADMIN_PASSWORD ?? randomBytes(9).toString('base64url');
+const ADMIN_PASSWORD_IS_GENERATED = !process.env.SEED_ADMIN_PASSWORD;
 
 const poolMax = process.env.DATABASE_POOL_MAX
   ? Number(process.env.DATABASE_POOL_MAX)
@@ -102,7 +129,11 @@ async function makeSlip(lines: string[], tone: 'bet' | 'result') {
 const DEMO_PASSWORD = 'DemoPass2026';
 
 async function main() {
-  console.info('Seeding DAJDA demo data…');
+  console.info(
+    WITH_DEMO_CONTENT
+      ? 'Seeding structure and DEMO content…'
+      : 'Seeding structure only (pass --demo for invented analysts)…',
+  );
 
   // -------------------------------------------------------------------------
   // Clean slate. Order matters: children before parents.
@@ -145,20 +176,32 @@ async function main() {
   // -------------------------------------------------------------------------
   // People
   // -------------------------------------------------------------------------
-  const password = await hashPassword(DEMO_PASSWORD);
-
   const admin = await prisma.user.create({
     data: {
-      email: 'admin@dajda.ge',
+      email: ADMIN_EMAIL,
       name: 'ადმინისტრატორი',
-      password,
+      password: await hashPassword(ADMIN_PASSWORD),
       role: 'ADMIN',
       emailVerifiedAt: new Date(),
       ageConfirmedAt: new Date(),
-      isDemo: true,
+      // Not demo data: a real deployment needs this account to review the
+      // first analyst application.
+      isDemo: false,
       notificationPrefs: { create: {} },
     },
   });
+
+  if (!WITH_DEMO_CONTENT) {
+    console.info('Seed complete: sports and one administrator.');
+    console.info(`  ${ADMIN_EMAIL}`);
+    if (ADMIN_PASSWORD_IS_GENERATED) {
+      console.info(`  password: ${ADMIN_PASSWORD}`);
+      console.info('  (generated once - save it now, it is not stored anywhere)');
+    }
+    return;
+  }
+
+  const password = await hashPassword(DEMO_PASSWORD);
 
   const subscriber = await prisma.user.create({
     data: {
@@ -619,7 +662,10 @@ async function main() {
   console.info(`Demo logins (password: ${DEMO_PASSWORD})`);
   console.info('  user@dajda.ge   - მომხმარებელი, აქტიური Premium გამოწერით');
   console.info('  giorgi@dajda.ge - ანალიტიკოსი, აქვეყნებს პროგნოზებს');
-  console.info('  admin@dajda.ge  - ადმინი, ამოწმებს სკრინშოტებს');
+  console.info(`  ${ADMIN_EMAIL}  - ადმინი, ამოწმებს სკრინშოტებს`);
+  if (ADMIN_PASSWORD_IS_GENERATED) {
+    console.info(`  (administrator password: ${ADMIN_PASSWORD})`);
+  }
 }
 
 main()

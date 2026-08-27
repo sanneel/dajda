@@ -86,6 +86,34 @@ export function RegisterForm() {
           error={errorFor('ageConfirmed')}
         />
 
+        {/*
+         * The load-bearing clauses, in front of the box that accepts them.
+         * Every line is a restatement of the terms the checkbox below binds
+         * the person to (2.2, 4.1, 7.2, 9.1, 9.3, 11.3), because "I have read
+         * the terms" is only true if the terms that matter were readable
+         * without leaving the form.
+         */}
+        <ul className="space-y-1.5 rounded-md border border-line bg-elevated p-3.5 text-xs leading-relaxed text-ink-muted">
+          <li>
+            DAJDA ყიდის მხოლოდ ანალიტიკურ კონტენტს. პლატფორმა არ არის
+            ბუკმეკერი, ფსონს არ იღებს და მოგებას არ იხდის.
+          </li>
+          <li>
+            არავითარი შედეგი არ არის გარანტირებული. ავტორების სტატისტიკა
+            წარსულ შედეგებს ასახავს.
+          </li>
+          <li>
+            რეგისტრაცია უფასოა. გამოწერა ცალკე ფორმდება კონკრეტულ ავტორზე და
+            ღირს 30, 40 ან 50 ლარი თვეში.
+          </li>
+          <li>
+            გამოწერა ავტომატურად განახლდება, სანამ არ გააუქმებთ. გაუქმება
+            ნებისმიერ დროს შეიძლება და წვდომა რჩება გადახდილი პერიოდის
+            ბოლომდე.
+          </li>
+          <li>პლატფორმა 18 წელს მიღწეულთათვისაა.</li>
+        </ul>
+
         <Checkbox
           id="acceptTerms"
           name="acceptTerms"
@@ -110,9 +138,12 @@ export function RegisterForm() {
         {pending ? 'იქმნება…' : 'ანგარიშის შექმნა'}
       </Button>
 
-      <p className="ph text-xs leading-relaxed">
-        რეგისტრაცია უფასოა. ფასიანი გამოწერა ცალკე ფორმდება კონკრეტულ
-        ავტორზე და ღირს 30, 40 ან 50 ლარი თვეში.
+      <p className="text-xs leading-relaxed text-ink-faint">
+        ანგარიშის შექმნით ეთანხმებით{' '}
+        <Link href="/legal#terms" className="text-accent underline">
+          წესებსა და პირობებს
+        </Link>
+        . ანგარიშის დახურვა ნებისმიერ დროს შეგიძლიათ.
       </p>
     </form>
   );

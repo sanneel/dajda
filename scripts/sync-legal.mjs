@@ -14,7 +14,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const company = JSON.parse(readFileSync('src/lib/company.json', 'utf8'));
 
 const TOKENS = {
-  '{{COMPANY_NAME}}': company.nameKa,
+  '{{COMPANY_NAME}}': `${company.nameKa} (სავაჭრო სახელწოდება „${company.tradeNameKa}")`,
+  '{{COMPANY_SHORT}}': company.nameKa,
   '{{COMPANY_ID}}': company.legalId,
   '{{COMPANY_ADDRESS}}': company.addressKa,
   '{{SUPPORT_EMAIL}}': company.supportEmail,

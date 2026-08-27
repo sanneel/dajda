@@ -10,15 +10,13 @@ import data from './company.json';
  * registration data; they are deliberately visible rather than invented.
  */
 export const COMPANY: {
+  /** The registered entity, as it appears in the documents. */
   nameKa: string;
+  /** The trading name the platform operates under. */
+  tradeNameKa: string;
   legalId: string;
   addressKa: string;
   supportEmail: string;
   phone: string;
   domain: string;
 } = data;
-
-/** True while any requisite is still a bracketed placeholder. */
-export const COMPANY_INCOMPLETE = Object.values(data).some((value) =>
-  value.startsWith('['),
-);
