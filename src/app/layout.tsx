@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Google_Sans } from 'next/font/google';
 import './globals.css';
+import { ThemeApplier } from '@/components/theme-applier';
 import { ThemeScript } from '@/components/theme-script';
 import { DemoBanner } from '@/components/demo-banner';
 
@@ -51,12 +52,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Both grounds are declared so the browser chrome follows the chosen theme.
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f4f6f9' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a1017' },
-  ],
-  colorScheme: 'light dark',
+  // Dark is the product's default whatever the operating system prefers, so
+  // the browser chrome ships dark too. The toggle rewrites this meta tag when
+  // somebody chooses light, keeping the chrome and the page in one theme.
+  themeColor: '#0a1017',
+  colorScheme: 'dark light',
   width: 'device-width',
   // Lets the page extend under the iPhone home indicator, which is what makes
   // env(safe-area-inset-bottom) non-zero for the bottom tab bar.
@@ -75,6 +75,7 @@ export default function RootLayout({
         <ThemeScript />
       </head>
       <body className="min-h-dvh antialiased">
+        <ThemeApplier />
         <a
           href="#main"
           className="skip-link rounded-control bg-ink px-4 py-2 font-medium text-on-ink"

@@ -133,12 +133,12 @@
 }
 
 /*
- * Dark theme.
+ * Dark theme - the default.
  *
- * Three states, and all three are handled: an explicit choice stamps
- * data-theme on <html>, and the unstamped default follows the operating
- * system. The media query is guarded with :not([data-theme='light']) so that
- * choosing light on a dark OS actually wins.
+ * Two states. An explicit choice stamps data-theme on <html>; anything else,
+ * including no attribute at all (no JS, or the instant before the boot
+ * script runs), resolves to dark. Light applies only when the reader chose
+ * it, whatever their operating system prefers.
  *
  * This is not the light palette inverted arithmetically. Pure inversion makes
  * a #FFFFFF surface into #000000, which reads as a hole; surfaces here step
@@ -184,8 +184,7 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+:root:not([data-theme='light']) {
     --color-canvas: #0a1017;
     --color-surface: #121a24;
     --color-elevated: #1a242f;
@@ -213,20 +212,14 @@
     --color-pending: #8ba0b1;
 
     --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.04);
-  }
 }
 
 @layer base {
   :root {
-    color-scheme: light;
-  }
-  :root[data-theme='dark'] {
     color-scheme: dark;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme='light']) {
-      color-scheme: dark;
-    }
+  :root[data-theme='light'] {
+    color-scheme: light;
   }
 
   html {

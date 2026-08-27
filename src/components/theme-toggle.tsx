@@ -1,15 +1,14 @@
 'use client';
 
 import { useCallback, useSyncExternalStore } from 'react';
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { THEME_STORAGE_KEY } from './theme-script';
 
-type Theme = 'light' | 'dark' | 'system';
+type Theme = 'light' | 'dark';
 
 const OPTIONS: { value: Theme; label: string; Icon: typeof Sun }[] = [
   { value: 'light', label: 'ღია თემა', Icon: Sun },
   { value: 'dark', label: 'მუქი თემა', Icon: Moon },
-  { value: 'system', label: 'სისტემის მიხედვით', Icon: Monitor },
 ];
 
 /*
@@ -40,10 +39,12 @@ function subscribe(onChange: () => void) {
 
 function getSnapshot(): Theme {
   try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    return stored === 'dark' || stored === 'light' ? stored : 'system';
+    // Anything that is not an explicit "light" is the default: dark.
+    return localStorage.getItem(THEME_STORAGE_KEY) === 'light'
+      ? 'light'
+      : 'dark';
   } catch {
-    return 'system';
+    return 'dark';
   }
 }
 
@@ -52,14 +53,15 @@ function getServerSnapshot(): Theme | null {
 }
 
 /**
- * Light / dark / system.
+ * Light / dark.
  *
- * Three states rather than two. A plain two-way switch has to pick a starting
- * side, which silently overrides whatever the reader already told their
- * operating system; "system" is the default and stays reachable.
+ * Two states, with dark as the product's default - the server stamps
+ * data-theme="dark" on <html> and the boot script only ever corrects it to
+ * light. There is deliberately no "system" state: the product committed to a
+ * dark look, and a reader who wants light says so here.
  *
  * Rendered as a segmented control with real radio semantics, so it is operable
- * from the keyboard and announced as one choice rather than as three buttons
+ * from the keyboard and announced as one choice rather than as two buttons
  * that happen to sit together.
  */
 export function ThemeToggle() {
@@ -71,18 +73,22 @@ export function ThemeToggle() {
 
   const choose = useCallback((next: Theme) => {
     const root = document.documentElement;
-    if (next === 'system') {
-      root.removeAttribute('data-theme');
-    } else {
-      root.setAttribute('data-theme', next);
+    root.setAttribute('data-theme', next);
+
+    // Keep the browser chrome on the same ground as the page. Read from the
+    // live token rather than a copied hex, so a palette change cannot leave
+    // the chrome behind.
+    const canvas = getComputedStyle(root)
+      .getPropertyValue('--color-canvas')
+      .trim();
+    if (canvas) {
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', canvas);
     }
 
     try {
-      if (next === 'system') {
-        localStorage.removeItem(THEME_STORAGE_KEY);
-      } else {
-        localStorage.setItem(THEME_STORAGE_KEY, next);
-      }
+      localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch {
       // Private browsing can refuse storage. The attribute above still applies
       // for this page view, which is the part the reader actually asked for.

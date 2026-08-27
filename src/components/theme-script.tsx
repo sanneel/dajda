@@ -6,14 +6,16 @@
  * hydration would let the page paint in the wrong theme first and then snap.
  * A dozen bytes of render-blocking script is the accepted price for that.
  *
- * No stored choice means no attribute, which leaves the CSS media query in
- * charge: the site follows the operating system until the reader says
- * otherwise, and "follow the system" stays a real third state rather than
- * being silently collapsed into light.
+ * Dark is the product's default, not a guess about the reader's operating
+ * system: anything other than an explicitly chosen "light" stamps dark. The
+ * attribute is deliberately NOT rendered from JSX - React would re-apply the
+ * server value on hydration and overwrite what this script or the toggle
+ * wrote. The stylesheet's own no-attribute fallback is also dark, so even a
+ * no-JS visitor gets the intended look.
  */
 export const THEME_STORAGE_KEY = 'dajda-theme';
 
-const SCRIPT = `(function(){try{var t=localStorage.getItem('${THEME_STORAGE_KEY}');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();`;
+const SCRIPT = `(function(){var t='dark';try{if(localStorage.getItem('${THEME_STORAGE_KEY}')==='light'){t='light';}}catch(e){}document.documentElement.setAttribute('data-theme',t);})();`;
 
 export function ThemeScript() {
   return <script dangerouslySetInnerHTML={{ __html: SCRIPT }} />;
