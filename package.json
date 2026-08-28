@@ -22,7 +22,8 @@
     "dev:db": "node scripts/dev-db.mjs --dir ./.pgdata",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
     "dev:next": "next dev",
-    "telegram:setup": "node scripts/telegram-setup.mjs"
+    "telegram:setup": "node scripts/telegram-setup.mjs",
+    "email:test": "tsx scripts/send-test-email.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
