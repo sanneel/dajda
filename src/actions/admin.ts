@@ -5,6 +5,9 @@ import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth/authorization';
 import { revokeAllSessionsForUser } from '@/lib/auth/session';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
+import { enqueueForAnalystAudience } from '@/lib/notifications/outbox';
+import { formatUnitsSigned } from '@/lib/format';
+import { PREDICTION_STATUS_KA } from '@/lib/labels';
 import {
   AppError,
   ERROR_CODES,
@@ -261,7 +264,40 @@ export async function settlePredictionAction(
       );
     }
 
-    await settlePrediction(parsed.data, { userId: admin.userId, role: 'ADMIN' });
+    const settled = await settlePrediction(parsed.data, {
+      userId: admin.userId,
+      role: 'ADMIN',
+    });
+
+    /*
+     * Tell the author's audience how it ended - losses included, because the
+     * platform's whole claim is that the record is honest. After the commit,
+     * and failure only logs: a settled bet must stay settled even when the
+     * outbox misbehaves, and the cron sweep retries what got queued.
+     */
+    try {
+      // Community free tickets have no analyst author and no audience.
+      const author = settled.authorId
+        ? await prisma.analystProfile.findUnique({
+            where: { id: settled.authorId },
+            select: { id: true, displayName: true, slug: true },
+          })
+        : null;
+      if (author) {
+        const result = await prisma.predictionResult.findUnique({
+          where: { predictionId: settled.id },
+          select: { profitUnitsCenti: true },
+        });
+        await enqueueForAnalystAudience(author.id, 'SETTLEMENT', {
+          subjectKa: `შედეგი: ${PREDICTION_STATUS_KA[settled.status] ?? settled.status} · ${author.displayName}`,
+          bodyKa: `${settled.titleKa}\nერთეულები: ${formatUnitsSigned(result?.profitUnitsCenti ?? 0)}`,
+          linkPath: `/analysts/${author.slug}`,
+          predictionId: settled.id,
+        });
+      }
+    } catch (error) {
+      console.error('[dajda] settlement notification enqueue failed', error);
+    }
 
     revalidatePath('/admin/predictions');
     revalidatePath('/free');

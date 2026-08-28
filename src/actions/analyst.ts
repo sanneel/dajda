@@ -16,6 +16,8 @@ import {
 } from '@/lib/errors';
 import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
 import { storeIdentityDocument, storeScreenshot } from '@/lib/uploads';
+import { enqueueForAnalystAudience } from '@/lib/notifications/outbox';
+import { formatOdds } from '@/lib/format';
 import {
   analystApplicationSchema,
   createPredictionSchema,
@@ -49,6 +51,36 @@ function fieldErrorsFrom(error: {
  * stored first, because a bet row without its evidence is not worth writing.
  * If the upload is rejected, nothing is created.
  */
+/**
+ * Tell the author's audience a bet went live.
+ *
+ * Called from the actions, after the transaction that published the bet has
+ * committed - the outbox writes with its own connection, and a notification
+ * about a row that might yet roll back would be a lie. Failure is swallowed
+ * on purpose: a bet must not fail to publish because the outbox hiccuped,
+ * and the cron sweep's whole reason to exist is delivering late.
+ */
+async function notifyNewBet(
+  analystProfileId: string,
+  prediction: { id: string; titleKa: string; oddsMilli: number },
+): Promise<void> {
+  try {
+    const profile = await prisma.analystProfile.findUnique({
+      where: { id: analystProfileId },
+      select: { displayName: true, slug: true },
+    });
+    if (!profile) return;
+    await enqueueForAnalystAudience(analystProfileId, 'NEW_BET', {
+      subjectKa: `ახალი პროგნოზი: ${profile.displayName}`,
+      bodyKa: `${prediction.titleKa}\nკოეფიციენტი: ${formatOdds(prediction.oddsMilli)}`,
+      linkPath: `/analysts/${profile.slug}`,
+      predictionId: prediction.id,
+    });
+  } catch (error) {
+    console.error('[dajda] new-bet notification enqueue failed', error);
+  }
+}
+
 export async function postBetAction(
   _previous: ActionResult<{ predictionId: string }> | null,
   formData: FormData,
@@ -104,6 +136,10 @@ export async function postBetAction(
       { userId: analyst.userId, role: analyst.role },
     );
 
+    if (prediction.publishedAt) {
+      await notifyNewBet(analyst.analystProfileId, prediction);
+    }
+
     revalidatePath('/analyst');
     revalidatePath('/free');
     revalidatePath('/analysts');
@@ -124,10 +160,12 @@ export async function publishBetAction(
     const predictionId = String(formData.get('predictionId') ?? '');
     if (!predictionId) return fail(ERROR_CODES.VALIDATION_ERROR);
 
-    await publishPrediction(predictionId, {
+    const published = await publishPrediction(predictionId, {
       userId: analyst.userId,
       role: analyst.role,
     });
+
+    await notifyNewBet(analyst.analystProfileId, published);
 
     revalidatePath('/analyst');
     revalidatePath('/free');
