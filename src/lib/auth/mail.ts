@@ -1,4 +1,5 @@
 import { getEmailProvider } from '@/lib/notifications/email';
+import { renderEmailHtml } from '@/lib/notifications/email/template';
 import { getEnv } from '@/lib/env';
 
 /**
@@ -17,41 +18,63 @@ import { getEnv } from '@/lib/env';
 export type AuthMailContent = {
   subject: string;
   text: string;
+  /** Styled twin of `text`, from the shared template. Same words, same link. */
+  html: string;
 };
 
 const SIGNATURE = 'DAJDA · dajda.ge';
 
 export function verificationEmail(link: string): AuthMailContent {
+  const opening =
+    'ამ მისამართით DAJDA-ზე ანგარიშის რეგისტრაცია მოხდა. დასადასტურებლად დააჭირეთ ღილაკს:';
+  const expiry =
+    'ბმული მოქმედებს 24 საათი. თუ ეს თქვენ არ ყოფილხართ, უბრალოდ არ მიაქციოთ წერილს ყურადღება.';
   return {
     subject: 'DAJDA: დაადასტურეთ ელფოსტა',
     text: [
       'გამარჯობა,',
       '',
-      'ამ მისამართით DAJDA-ზე ანგარიშის რეგისტრაცია მოხდა. დასადასტურებლად გადადით ბმულზე:',
+      opening,
       '',
       link,
       '',
-      'ბმული მოქმედებს 24 საათი. თუ ეს თქვენ არ ყოფილხართ, უბრალოდ არ მიაქციოთ წერილს ყურადღება.',
+      expiry,
       '',
       SIGNATURE,
     ].join('\n'),
+    html: renderEmailHtml({
+      heading: 'ელფოსტის დადასტურება',
+      paragraphs: [opening],
+      cta: { label: 'ელფოსტის დადასტურება', url: link },
+      footerLines: [expiry],
+    }),
   };
 }
 
 export function passwordResetEmail(link: string): AuthMailContent {
+  const opening =
+    'მოთხოვნილია პაროლის აღდგენა. ახალი პაროლის დასაყენებლად დააჭირეთ ღილაკს:';
+  const expiry =
+    'ბმული მოქმედებს 1 საათი. თუ პაროლის აღდგენა თქვენ არ მოგითხოვიათ, წერილი უგულებელყავით, პაროლი უცვლელი რჩება.';
   return {
     subject: 'DAJDA: პაროლის აღდგენა',
     text: [
       'გამარჯობა,',
       '',
-      'მოთხოვნილია პაროლის აღდგენა. ახალი პაროლის დასაყენებლად გადადით ბმულზე:',
+      opening,
       '',
       link,
       '',
-      'ბმული მოქმედებს 1 საათი. თუ პაროლის აღდგენა თქვენ არ მოგითხოვიათ, წერილი უგულებელყავით, პაროლი უცვლელი რჩება.',
+      expiry,
       '',
       SIGNATURE,
     ].join('\n'),
+    html: renderEmailHtml({
+      heading: 'პაროლის აღდგენა',
+      paragraphs: [opening],
+      cta: { label: 'ახალი პაროლის დაყენება', url: link },
+      footerLines: [expiry],
+    }),
   };
 }
 
@@ -72,6 +95,7 @@ export async function sendVerificationEmail(
     to: email,
     subject: content.subject,
     text: content.text,
+    html: content.html,
   });
   if (!outcome.ok) {
     console.error(
@@ -113,6 +137,7 @@ export async function sendPasswordResetEmail(
     to: email,
     subject: content.subject,
     text: content.text,
+    html: content.html,
   });
   if (!outcome.ok) {
     console.error(`[dajda] password reset email failed: ${outcome.reason}`);

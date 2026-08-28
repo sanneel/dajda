@@ -76,3 +76,41 @@ describe('auth mail templates', () => {
     expect(content.text).toContain('პაროლი უცვლელი რჩება');
   });
 });
+
+describe('email HTML template', () => {
+  it('escapes user-controlled text', async () => {
+    const { renderEmailHtml } = await import(
+      '@/lib/notifications/email/template'
+    );
+    const html = renderEmailHtml({
+      heading: 'x',
+      paragraphs: ['<script>alert(1)</script>'],
+    });
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
+  it('repeats the CTA link as copyable text, not only as a button', async () => {
+    const { renderEmailHtml } = await import(
+      '@/lib/notifications/email/template'
+    );
+    const url = 'https://dajda.ge/verify-email?token=abc';
+    const html = renderEmailHtml({
+      heading: 'x',
+      paragraphs: ['y'],
+      cta: { label: 'ღილაკი', url },
+    });
+    // Twice: once as the button's href, once as visible copyable text.
+    expect(html.split(url).length - 1).toBeGreaterThanOrEqual(2);
+  });
+
+  it('auth mails carry the same link in text and html', async () => {
+    const { verificationEmail } = await import('@/lib/auth/mail');
+    const link = 'https://dajda.ge/verify-email?token=abc123';
+    const content = verificationEmail(link);
+    expect(content.text).toContain(link);
+    expect(content.html).toContain(link);
+    // The html part never replaces the text part.
+    expect(content.text.length).toBeGreaterThan(0);
+  });
+});

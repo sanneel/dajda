@@ -1,5 +1,6 @@
 import { getEnv } from '@/lib/env';
 import { getEmailProvider } from './email';
+import { renderEmailHtml } from './email/template';
 import { drainOutbox, type OutboxMessage } from './drain';
 
 /**
@@ -33,6 +34,25 @@ function renderBody(message: OutboxMessage): string {
     .join('\n');
 }
 
+/**
+ * The styled twin of renderBody: the same words, the same link, the same
+ * opt-out, through the shared template. The subject doubles as the heading
+ * because an outbox row has no separate title to offer.
+ */
+function renderHtml(message: OutboxMessage): string {
+  const appUrl = getEnv().APP_URL;
+  return renderEmailHtml({
+    heading: message.subjectKa,
+    paragraphs: message.bodyKa.split(/\n+/).filter((line) => line.trim()),
+    ...(message.linkPath
+      ? { cta: { label: 'გახსნა DAJDA-ზე', url: `${appUrl}${message.linkPath}` } }
+      : {}),
+    footerLines: [
+      `შეტყობინებების გამორთვა: ${appUrl}/dashboard/settings`,
+    ],
+  });
+}
+
 export async function flushEmailOutbox(options?: {
   limit?: number;
   broadcastId?: string;
@@ -48,6 +68,7 @@ export async function flushEmailOutbox(options?: {
         to: message.destination,
         subject: message.subjectKa,
         text: renderBody(message),
+        html: renderHtml(message),
       }),
   });
 }

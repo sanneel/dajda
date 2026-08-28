@@ -2,6 +2,7 @@ import 'dotenv/config';
 import process from 'node:process';
 import { getEnv } from '../src/lib/env';
 import { getEmailProvider } from '../src/lib/notifications/email';
+import { renderEmailHtml } from '../src/lib/notifications/email/template';
 
 /**
  * Sends one real message through the configured provider.
@@ -58,6 +59,16 @@ async function main() {
       '',
       'DAJDA · dajda.ge',
     ].join('\n'),
+    // The same template every real mail uses, so what lands in the inbox is
+    // what a registration mail will actually look like.
+    html: renderEmailHtml({
+      heading: 'სატესტო წერილი',
+      paragraphs: [
+        'ეს არის სატესტო წერილი DAJDA-დან.',
+        'თუ ეს მოგივიდათ, ელფოსტის ინტეგრაცია მუშაობს და რეგისტრაციის დადასტურების ბმულიც მიაღწევს ადრესატამდე.',
+      ],
+      cta: { label: 'DAJDA-ს გახსნა', url: 'https://dajda.ge' },
+    }),
   });
 
   if (result.ok) {

@@ -43,6 +43,7 @@ export class BrevoEmailProvider implements EmailProvider {
           to: [{ email: message.to }],
           subject: message.subject,
           textContent: message.text,
+          ...(message.html ? { htmlContent: message.html } : {}),
         }),
       });
     } catch (error) {

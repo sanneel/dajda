@@ -19,8 +19,12 @@ export class LogEmailProvider implements EmailProvider {
   readonly code = LOG_PROVIDER_CODE;
 
   async send(message: EmailMessage): Promise<EmailSendResult> {
+    // The text part is the readable one; markup would only bury the link.
+    const htmlNote = message.html
+      ? `\n  (+ HTML part, ${message.html.length} chars)`
+      : '';
     console.info(
-      `[dajda:email] → ${message.to}\n  ${message.subject}\n  ${message.text.replace(/\n/g, '\n  ')}`,
+      `[dajda:email] → ${message.to}\n  ${message.subject}\n  ${message.text.replace(/\n/g, '\n  ')}${htmlNote}`,
     );
     return { ok: true };
   }

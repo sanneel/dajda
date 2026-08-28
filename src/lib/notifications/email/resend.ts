@@ -37,6 +37,7 @@ export class ResendEmailProvider implements EmailProvider {
           to: [message.to],
           subject: message.subject,
           text: message.text,
+          ...(message.html ? { html: message.html } : {}),
         }),
       });
     } catch (error) {

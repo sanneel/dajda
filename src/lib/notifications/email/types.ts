@@ -6,16 +6,20 @@
  * long-lived socket to an app that otherwise makes short request-scoped calls.
  * The adapters below are each about thirty lines of `fetch`.
  *
- * Messages are plain text. A bet notice is four lines of Georgian prose and a
- * link; wrapping it in HTML would add a template to maintain, a second copy of
- * every string, and the spam-filter penalty that image-and-table mail carries,
- * in exchange for nothing the reader wants.
+ * Messages are multipart: the plain text part is mandatory and canonical -
+ * it is what tests assert on, what text-only clients read, and what keeps
+ * spam scoring on side (HTML-only mail is a classic spam marker) - and the
+ * HTML part is presentation layered on top by the shared template in
+ * ./template.ts. A provider that gets no html simply sends text, so nothing
+ * downstream is forced to produce markup.
  */
 
 export type EmailMessage = {
   to: string;
   subject: string;
   text: string;
+  /** Optional styled body. NEVER a replacement for `text`, always alongside. */
+  html?: string;
 };
 
 export type EmailSendResult =
