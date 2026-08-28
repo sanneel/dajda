@@ -27,6 +27,21 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  /*
+   * Dev only (ignored by `next build`): lets a phone on the same Wi-Fi open
+   * the dev server via the machine's LAN address. Next 16 refuses dev-asset
+   * requests from any origin it was not started on, so without this the page
+   * loads from http://<lan-ip>:3000 but every chunk 403s. Private ranges
+   * only - this never widens anything in production.
+   */
+  allowedDevOrigins: [
+    '127.0.0.1',
+    'localhost',
+    '192.168.*.*',
+    '10.*.*.*',
+    '172.16.*.*',
+  ],
+
   // The generated Prisma client must not be bundled into the browser build.
   serverExternalPackages: ['@prisma/client'],
 
