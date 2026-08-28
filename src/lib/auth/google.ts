@@ -22,7 +22,20 @@ export const GOOGLE_PROFILE_COOKIE = 'dajda_google_profile';
 
 export function googleConfigured(): boolean {
   const env = getEnv();
-  return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) return false;
+
+  /*
+   * Google refuses plain-http redirect URIs except on localhost, so a dev
+   * server opened over the LAN (APP_URL=http://192.168.x.x:3000 for phone
+   * testing) can only ever reach Google's "Access blocked: private IP"
+   * screen. Not rendering the button in that configuration is kinder than
+   * rendering one that dead-ends three clicks later.
+   */
+  if (env.APP_URL.startsWith('http://')) {
+    const host = new URL(env.APP_URL).hostname;
+    return host === 'localhost' || host === '127.0.0.1';
+  }
+  return true;
 }
 
 export function googleRedirectUri(): string {

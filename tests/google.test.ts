@@ -106,3 +106,17 @@ describe('sealed profile', () => {
     expect(openGoogleProfile(sealed)).toBeNull();
   });
 });
+
+describe('private-IP guard', () => {
+  it('hides the button when APP_URL is a LAN address Google will refuse', () => {
+    setEnv({ ...BASE, APP_URL: 'http://192.168.2.2:3000' });
+    expect(googleConfigured()).toBe(false);
+  });
+
+  it('allows localhost over http and any https origin', () => {
+    setEnv({ ...BASE, APP_URL: 'http://localhost:3000' });
+    expect(googleConfigured()).toBe(true);
+    setEnv({ ...BASE, APP_URL: 'https://dajda.ge' });
+    expect(googleConfigured()).toBe(true);
+  });
+});
