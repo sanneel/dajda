@@ -7,7 +7,11 @@ import { Checkbox, Field, Input } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 
-export function RegisterForm() {
+export function RegisterForm({
+  telegramConfigured,
+}: {
+  telegramConfigured: boolean;
+}) {
   const [state, action, pending] = useActionState(registerAction, null);
 
   const fieldErrors = state && !state.ok ? state.error.fieldErrors : undefined;
@@ -67,7 +71,17 @@ export function RegisterForm() {
       <Field
         label="Telegram (არასავალდებულო)"
         htmlFor="telegramUsername"
-        hint="მომავალში გამოგვადგება შეტყობინებებისთვის. ბოტი ჯერ არ არის აქტიური."
+        /*
+         * The hint has to follow the deployment. It said the bot was not
+         * active yet, which was true when it was written and became a lie the
+         * moment one was registered - and the form is where somebody decides
+         * whether the field is worth filling in.
+         */
+        hint={
+          telegramConfigured
+            ? 'შეტყობინებებს ბოტიდან მიიღებთ. დაკავშირება პროფილის პარამეტრებში ხდება.'
+            : 'მომავალში გამოგვადგება შეტყობინებებისთვის. ბოტი ჯერ არ არის აქტიური.'
+        }
         error={errorFor('telegramUsername')}
       >
         <Input

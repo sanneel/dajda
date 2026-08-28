@@ -21,7 +21,8 @@
     "verify:payments": "tsx scripts/verify-payment-flow.ts",
     "dev:db": "node scripts/dev-db.mjs --dir ./.pgdata",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
-    "dev:next": "next dev"
+    "dev:next": "next dev",
+    "telegram:setup": "node scripts/telegram-setup.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

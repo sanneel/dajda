@@ -21,7 +21,13 @@ type Mode = 'login' | 'register';
  * JavaScript all land on, and the same two form components render in both
  * places, so there is one implementation rather than two that drift.
  */
-export function AuthButtons() {
+export function AuthButtons({
+  // Read on the server by SiteHeader and passed down: this is a client
+  // component, and env is not readable from the browser.
+  telegramConfigured,
+}: {
+  telegramConfigured: boolean;
+}) {
   const [mode, setMode] = useState<Mode | null>(null);
 
   return (
@@ -64,7 +70,7 @@ export function AuthButtons() {
         onClose={() => setMode(null)}
         title="რეგისტრაცია"
       >
-        <RegisterForm />
+        <RegisterForm telegramConfigured={telegramConfigured} />
         <p className="mt-5 border-t border-line pt-4 text-sm text-ink-muted">
           უკვე გაქვთ ანგარიში?{' '}
           <button

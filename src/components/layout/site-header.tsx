@@ -4,6 +4,7 @@ import { Logo } from '@/components/brand/logo';
 import { Avatar } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { AuthButtons } from '@/components/auth/auth-buttons';
+import { telegramBotConfigured } from '@/lib/auth/telegram';
 import { BottomNav } from './bottom-nav';
 import { MobileNav } from './mobile-nav';
 import { NavLinks } from './nav-links';
@@ -67,7 +68,7 @@ export async function SiteHeader() {
               <span className="max-w-32 truncate">{actor.name}</span>
             </Link>
           ) : (
-            <AuthButtons />
+            <AuthButtons telegramConfigured={telegramBotConfigured()} />
           )}
         </div>
 
