@@ -252,7 +252,21 @@ export async function resendVerificationAction(
       }),
     ]);
 
-    await sendVerificationEmail(actor.email, token, code);
+    const delivery = await sendVerificationEmail(actor.email, token, code);
+
+    /*
+     * A refused send is a FAILURE here, not a footnote. This button's only
+     * job is this one send; claiming success while the provider said no
+     * strands the person on an inbox that will stay empty. The provider's
+     * own words are the diagnosis (a sandbox sender that only delivers to
+     * the account owner, an unverified domain), so they are shown, trimmed.
+     */
+    if (!delivery.ok) {
+      return fail(
+        ERROR_CODES.INTERNAL,
+        `წერილი ვერ გაიგზავნა. პროვაიდერის პასუხი: ${delivery.reason.slice(0, 180)}`,
+      );
+    }
 
     /*
      * `link` is null on any deployment that actually sends mail. It is

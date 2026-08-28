@@ -85,12 +85,18 @@ export function passwordResetEmail(link: string): AuthMailContent {
  * Deliver the verification link. Failure is logged, never thrown: an account
  * must not fail to exist because a mail provider hiccuped - the dashboard
  * offers a resend for exactly that case.
+ *
+ * The outcome is RETURNED so the resend button can tell the person the truth.
+ * Registration ignores it on purpose; the resend flow must not, because its
+ * only job is this one send, and "sent" on a refused send strands somebody
+ * on an inbox that will stay empty. The classic case: Resend's sandbox
+ * sender only delivers to the account's own address and refuses the rest.
  */
 export async function sendVerificationEmail(
   email: string,
   rawToken: string,
   code: string,
-): Promise<void> {
+): Promise<{ ok: true } | { ok: false; reason: string }> {
   const env = getEnv();
   const content = verificationEmail(
     `${env.APP_URL}/verify-email?token=${rawToken}`,
@@ -106,7 +112,9 @@ export async function sendVerificationEmail(
     console.error(
       `[dajda] verification email to ${email} failed: ${outcome.reason}`,
     );
+    return { ok: false, reason: outcome.reason };
   }
+  return { ok: true };
 }
 
 /**
