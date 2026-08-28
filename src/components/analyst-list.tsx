@@ -184,7 +184,7 @@ export function AnalystList({ analysts }: { analysts: AnalystListItem[] }) {
         ))}
       </ul>
       <p className="mt-2.5 text-xs text-ink-faint">
-        ROI, სიზუსტე და ერთეულები ასახავს წარსულ შედეგებს და არ არის მომავლის
+        სიზუსტე და ერთეულები ასახავს წარსულ შედეგებს და არ არის მომავლის
         გარანტია.
       </p>
     </div>

@@ -48,7 +48,7 @@ export function formatPercentBps(bps: number, fractionDigits = 1): string {
   return `${(bps / 100).toFixed(fractionDigits)}%`;
 }
 
-/** Signed percentage, used for ROI: -430 -> "-4.3%" */
+/** Signed percentage: -430 -> "-4.3%" */
 export function formatPercentBpsSigned(bps: number, fractionDigits = 1): string {
   const sign = bps > 0 ? '+' : '';
   return `${sign}${(bps / 100).toFixed(fractionDigits)}%`;

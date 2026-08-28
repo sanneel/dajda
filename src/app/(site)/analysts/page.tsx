@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'ანალიტიკოსები',
-  description: 'ყველა ავტორი ერთ სიაში, შემოწმებადი შედეგებით: ROI, სიზუსტე და სრული ისტორია, წაგებული პროგნოზების ჩათვლით.',
+  description: 'ყველა ავტორი ერთ სიაში, შემოწმებადი შედეგებით: სიზუსტე, ჩანაწერი და სრული ისტორია, წაგებული პროგნოზების ჩათვლით.',
 };
 
 const SORTS: { value: AnalystSort; label: string }[] = [

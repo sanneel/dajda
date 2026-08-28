@@ -37,7 +37,7 @@ describe('summarizePerformance', () => {
     const summary = summarizePerformance([]);
     expect(summary.total).toBe(0);
     expect(summary.hitRateBps).toBe(0);
-    expect(summary.roiBps).toBe(0);
+    expect(summary.profitUnitsCenti).toBe(0);
     expect(summary.currentStreak).toEqual({ kind: 'NONE', count: 0 });
   });
 
@@ -82,7 +82,7 @@ describe('summarizePerformance', () => {
     expect(withReturns.decided).toBe(2);
   });
 
-  it('excludes VOID and PUSH from staked units, so ROI is unaffected', () => {
+  it('excludes VOID and PUSH from staked units', () => {
     const base = summarizePerformance([
       record({ status: 'WON', oddsMilli: 2000 }),
       record({ status: 'LOST' }),
@@ -93,7 +93,9 @@ describe('summarizePerformance', () => {
       record({ status: 'VOID' }),
     ]);
 
-    expect(withVoid.roiBps).toBe(base.roiBps);
+    // A VOID returns the stake: it changes neither profit nor what was
+    // risked, which is the whole reason it is not counted as a loss.
+    expect(withVoid.profitUnitsCenti).toBe(base.profitUnitsCenti);
     expect(withVoid.stakedUnitsCenti).toBe(200);
   });
 
@@ -106,32 +108,31 @@ describe('summarizePerformance', () => {
     expect(summary.profitUnitsCenti).toBe(100);
   });
 
-  it('computes ROI as profit over staked', () => {
+  it('accumulates profit against what was staked', () => {
     // One 2.00 win (+1.00) and one loss (-1.00) on 1 unit each: 0 profit.
-    expect(
-      summarizePerformance([
-        record({ status: 'WON', oddsMilli: 2000 }),
-        record({ status: 'LOST' }),
-      ]).roiBps,
-    ).toBe(0);
+    const breakEven = summarizePerformance([
+      record({ status: 'WON', oddsMilli: 2000 }),
+      record({ status: 'LOST' }),
+    ]);
+    expect(breakEven.profitUnitsCenti).toBe(0);
+    expect(breakEven.stakedUnitsCenti).toBe(200);
 
-    // Two 2.00 wins on 1 unit each: +2.00 on 2.00 staked = +100%.
-    expect(
-      summarizePerformance([
-        record({ status: 'WON', oddsMilli: 2000 }),
-        record({ status: 'WON', oddsMilli: 2000 }),
-      ]).roiBps,
-    ).toBe(10_000);
+    // Two 2.00 wins on 1 unit each: +2.00 on 2.00 staked.
+    const doubled = summarizePerformance([
+      record({ status: 'WON', oddsMilli: 2000 }),
+      record({ status: 'WON', oddsMilli: 2000 }),
+    ]);
+    expect(doubled.profitUnitsCenti).toBe(200);
+    expect(doubled.stakedUnitsCenti).toBe(200);
   });
 
-  it('reports a negative ROI honestly', () => {
+  it('reports a losing record honestly', () => {
     const summary = summarizePerformance([
       record({ status: 'LOST' }),
       record({ status: 'LOST' }),
       record({ status: 'WON', oddsMilli: 1500 }),
     ]);
     expect(summary.profitUnitsCenti).toBe(-150);
-    expect(summary.roiBps).toBeLessThan(0);
   });
 
   it('averages odds over decided predictions', () => {
@@ -257,9 +258,12 @@ describe('ranking', () => {
     const small = summarizePerformance(many(2, 'WON'));
     const large = summarizePerformance(many(200, 'WON'));
     // Same 100% hit rate and same per-bet edge, but the larger sample earns
-    // a score much closer to the raw ROI.
+    // a score much closer to the unshrunk profit-over-stake ratio.
     expect(rankingScore(large)).toBeGreaterThan(rankingScore(small));
-    expect(rankingScore(small)).toBeLessThan(small.roiBps);
+    const unshrunk = Math.round(
+      (small.profitUnitsCenti * 10_000) / small.stakedUnitsCenti,
+    );
+    expect(rankingScore(small)).toBeLessThan(unshrunk);
   });
 
   it('scores a losing record below zero', () => {

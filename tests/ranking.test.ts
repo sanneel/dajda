@@ -60,16 +60,16 @@ function analyst(
 
 describe('analyst ordering', () => {
   it('places an adequately-sampled analyst above a hot short record', () => {
-    // The exact case seen in the seeded data: 7-2 at long odds has a much
-    // higher ROI than 26-13, but far less evidence behind it.
+    // The exact case seen in the seeded data: 7-2 at long odds turns a much
+    // better profit per unit staked than 26-13, on far less evidence.
     const hotStreak = analyst('short record', 7, 2, 3000);
     const established = analyst('long record', 26, 13, 2000);
 
     expect(hotStreak.lowSample).toBe(true);
     expect(established.lowSample).toBe(false);
-    expect(hotStreak.allTime.roiBps).toBeGreaterThan(
-      established.allTime.roiBps,
-    );
+    const perUnit = (a: typeof hotStreak) =>
+      a.allTime.profitUnitsCenti / a.allTime.stakedUnitsCenti;
+    expect(perUnit(hotStreak)).toBeGreaterThan(perUnit(established));
 
     const sorted = sortAnalysts([hotStreak, established], 'score');
     expect(sorted[0]?.displayName).toBe('long record');

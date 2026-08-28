@@ -12,7 +12,7 @@ import { Alert } from '@/components/ui/feedback';
  *
  * The screenshot is the first field and the only required one beyond a title,
  * because it is what the bet actually is. Everything else exists so the public
- * record can compute ROI, which an image cannot supply.
+ * record can compute profit in units, which an image cannot supply.
  *
  * The preview is read locally with an object URL: no upload happens until the
  * form is submitted, so an author can change their mind without leaving a file

@@ -127,7 +127,7 @@ describe('odds and stake conversion', () => {
   });
 
   it('rejects odds of 1.00 or below', () => {
-    // Odds of 1 or less imply no return; they would corrupt every ROI figure.
+    // Odds of 1 or less imply no return; they would corrupt every profit figure.
     expect(oddsSchema.safeParse('1').success).toBe(false);
     expect(oddsSchema.safeParse('0.5').success).toBe(false);
     expect(oddsSchema.safeParse('-2').success).toBe(false);

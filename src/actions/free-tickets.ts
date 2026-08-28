@@ -22,7 +22,7 @@ import { freeTicketSchema } from '@/lib/validation/schemas';
  * thing the product actually sells:
  *
  *   1. `authorId` stays null, so the ticket belongs to no analyst's record and
- *      is excluded from every accuracy and ROI figure.
+ *      is excluded from every accuracy and units figure.
  *   2. Visibility is forced PUBLIC here rather than read from the form. A
  *      community post is a free ticket by definition; letting the form choose
  *      would let anyone publish behind someone else's paywall.

@@ -39,8 +39,6 @@ export type PerformanceSummary = {
   hitRateBps: number;
   stakedUnitsCenti: number;
   profitUnitsCenti: number;
-  /** Return on investment in basis points; can be negative. */
-  roiBps: number;
   avgOddsMilli: number;
   currentStreak: Streak;
   bestWinStreak: number;
@@ -61,7 +59,6 @@ const EMPTY_SUMMARY: PerformanceSummary = {
   hitRateBps: 0,
   stakedUnitsCenti: 0,
   profitUnitsCenti: 0,
-  roiBps: 0,
   avgOddsMilli: 0,
   currentStreak: { kind: 'NONE', count: 0 },
   bestWinStreak: 0,
@@ -135,10 +132,6 @@ export function summarizePerformance(
     hitRateBps: decided === 0 ? 0 : Math.round((won * 10_000) / decided),
     stakedUnitsCenti,
     profitUnitsCenti,
-    roiBps:
-      stakedUnitsCenti === 0
-        ? 0
-        : Math.round((profitUnitsCenti * 10_000) / stakedUnitsCenti),
     avgOddsMilli: oddsCount === 0 ? 0 : Math.round(oddsSum / oddsCount),
     currentStreak,
     bestWinStreak,
@@ -250,10 +243,11 @@ export function monthlyPerformance(
  * Ranking score, in basis points.
  *
  * Not win rate: a 3-for-3 analyst must not outrank a 180-for-300 one. The
- * score is ROI shrunk toward zero by a prior of `MIN_SAMPLE_FOR_RANKING`
- * units of stake, so a small sample is pulled to the middle of the table
- * until it earns its position. Sample size is still displayed alongside, so
- * the reader can judge for themselves.
+ * score is profit over stake, shrunk toward zero by a prior of
+ * `MIN_SAMPLE_FOR_RANKING` units, so a small sample is pulled to the middle
+ * of the table until it earns its position. It is never displayed: it exists
+ * to order the list, and the figures a reader judges by (record, accuracy,
+ * units) are shown alongside.
  */
 export function rankingScore(summary: PerformanceSummary): number {
   const priorCenti = MIN_SAMPLE_FOR_RANKING * 100;

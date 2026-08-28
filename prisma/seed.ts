@@ -16,14 +16,14 @@ import { computeProfitUnitsCenti } from '../src/lib/predictions/settlement';
  * DEMO CONTENT (only with --demo): invented analysts, predictions and results.
  * Off by default, and that default is the point. This platform's entire claim
  * is that its published record is verifiable; a deployment showing a fabricated
- * +51.7% ROI next to a person's name undercuts the claim and misleads anyone
+ * +51.7 units next to a person's name undercuts the claim and misleads anyone
  * reviewing the site, whether a visitor or a payment provider.
  *
  * EVERY row in the demo half is flagged `isDemo: true` and is labelled "დემო"
  * in the UI. None of it describes a real person or a real result.
  *
  * The data is generated from a fixed seed so that repeated runs produce the
- * same record. A demo whose ROI changes on every reset is useless for
+ * same record. A demo whose numbers change on every reset is useless for
  * screenshots and for reasoning about the statistics code.
  *
  * Bet slips are GENERATED here as real images, because `screenshotPath` is
@@ -597,7 +597,7 @@ async function main() {
       featuresKa: [
         'ყველა უფასო პროგნოზი',
         'ანალიტიკოსების სრული ისტორია',
-        'ROI, სიზუსტე და სერიები',
+        'სიზუსტე, ერთეულები და სერიები',
       ],
       priceMinor: 0,
       currency: 'GEL',

@@ -17,7 +17,7 @@ import { formatDateTimeKa } from '@/lib/format';
  *                notifying on every update would train people to mute the
  *                channel, which would cost the notices too.
  *
- * A post never touches the record. Accuracy, ROI and units are computed from
+ * A post never touches the record. Accuracy and units are computed from
  * Prediction rows only, so nothing an analyst writes can move their numbers.
  */
 

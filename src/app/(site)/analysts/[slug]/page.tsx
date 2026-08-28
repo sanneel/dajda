@@ -186,8 +186,8 @@ export default async function AnalystProfilePage({
       {allTime.decided < MIN_SAMPLE_FOR_RANKING ? (
         <div className="mt-5">
           <Alert tone="warning" title="მცირე შერჩევა">
-            ამ ავტორს ჯერ {allTime.decided} დათვლილი ფსონი აქვს. ასეთ
-            რაოდენობაზე დაყრდნობით სიზუსტისა და ROI-ის შეფასება არასაიმედოა.
+            ამ ავტორს ჯერ {allTime.decided} დათვლილი პროგნოზი აქვს. ასეთ
+            რაოდენობაზე დაყრდნობით სიზუსტის შეფასება არასაიმედოა.
           </Alert>
         </div>
       ) : null}

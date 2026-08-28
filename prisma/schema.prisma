@@ -453,7 +453,7 @@ model Sport {
 /// does not re-derive what was bet, it shows what the analyst posted and then
 /// records whether it landed.
 ///
-/// Odds and stake are still typed in, because ROI, profit and average odds are
+/// Odds and stake are still typed in, because profit and average odds are
 /// the whole point of the public record and cannot be read out of an image.
 ///
 /// Lifecycle:

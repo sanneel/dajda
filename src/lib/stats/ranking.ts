@@ -36,10 +36,10 @@ export type AnalystSort = 'score' | 'profit' | 'volume' | 'recent';
  *
  * The default ordering applies two rules in sequence:
  *   1. analysts with an adequate sample come first, always
- *   2. within each group, sample-shrunk ROI decides
+ *   2. within each group, the sample-shrunk score decides
  *
  * Rule 1 exists because shrinkage alone is not sufficient. An analyst who is
- * 7-2 at long odds can out-score a 26-13 record on shrunk ROI, and putting
+ * 7-2 at long odds can out-score a 26-13 record on the shrunk score, and putting
  * them at the top of the table would imply an evidential standing they have
  * not earned. Low-sample analysts stay visible and clearly badged - just not
  * above people with a real track record.

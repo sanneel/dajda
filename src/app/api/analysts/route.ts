@@ -38,10 +38,6 @@ export async function GET(request: Request) {
           analyst.allTime.decided === 0
             ? null
             : formatPercentBps(analyst.allTime.hitRateBps),
-        roi:
-          analyst.allTime.decided === 0
-            ? null
-            : formatPercentBps(analyst.allTime.roiBps),
         units: formatUnits(analyst.allTime.profitUnitsCenti),
         currentStreak: analyst.allTime.currentStreak,
         // Consumers must be able to see that a rate is thin before quoting it.

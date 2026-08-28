@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { formatPercentBpsSigned, formatUnitsSigned } from "@/lib/format";
+import { formatPercentBps, formatUnitsSigned } from "@/lib/format";
 import type { AnalystListItem } from "@/lib/queries/analysts";
 import { Avatar } from "@/components/ui/avatar";
 
@@ -8,7 +8,7 @@ import { Avatar } from "@/components/ui/avatar";
  * Home hero: a copy column beside a live panel.
  *
  * The panel is the argument. Rather than describing the record in prose, it
- * shows three real analysts with their real ROI, so the first thing on the
+ * shows three real analysts with their real record, so the first thing on the
  * page is the thing being sold. The reference comp put a line chart under
  * this list; it is deliberately not here, because a sparkline of a rolling
  * average is the one figure on this page nobody can audit.
@@ -108,10 +108,10 @@ export function Hero({ analysts }: { analysts: AnalystListItem[] }) {
                     </div>
 
                     <div className="shrink-0">
-                      <p className="text-xs text-ink-faint">ROI</p>
+                      <p className="text-xs text-ink-faint">სიზუსტე</p>
                       <p className="tabular font-bold text-ink">
                         {settled
-                          ? formatPercentBpsSigned(analyst.allTime.roiBps)
+                          ? formatPercentBps(analyst.allTime.hitRateBps)
                           : "·"}
                       </p>
                     </div>

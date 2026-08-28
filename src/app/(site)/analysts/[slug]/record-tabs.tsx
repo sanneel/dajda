@@ -5,7 +5,6 @@ import Link from 'next/link';
 import type { PerformanceSummary } from '@/lib/stats/performance';
 import {
   formatPercentBps,
-  formatPercentBpsSigned,
   formatUnitsSigned,
 } from '@/lib/format';
 import { Card, CardBody } from '@/components/ui/card';
@@ -128,7 +127,7 @@ function TabButton({
 /**
  * One slice of the record.
  *
- * Profit, hit rate and ROI are shown together on purpose - any one alone can
+ * Profit and hit rate are shown together on purpose - any one alone can
  * flatter (a high hit rate at 1.10, a big profit on three bets) - and the
  * RecordBar keeps the sample size attached to every rate derived from it.
  */
@@ -162,11 +161,7 @@ function RecordStats({ summary }: { summary: PerformanceSummary }) {
                 ? 'negative'
                 : 'default'
           }
-          hint={
-            settled
-              ? `ერთეული · ROI ${formatPercentBpsSigned(summary.roiBps)}`
-              : undefined
-          }
+          hint={settled ? 'ერთეული' : undefined}
           size="lg"
         />
       </div>
