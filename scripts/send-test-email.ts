@@ -70,12 +70,39 @@ async function main() {
   }
 
   console.error(`\nRefused: ${result.reason}`);
-  console.error(
-    result.permanent
-      ? 'This will not succeed on a retry. Usual causes: a wrong API key, or an\n' +
-          'EMAIL_FROM on a domain the provider has not verified yet.\n'
-      : 'Transient - the provider is rate limiting or having trouble. Try again.\n',
+
+  /*
+   * Tell a blocked network apart from a rejected key.
+   *
+   * A proxy that refuses the CONNECT answers with the provider's own status
+   * codes, so the adapter cannot see the difference and reports a plain 403 -
+   * which reads exactly like a bad API key and sends the reader off checking
+   * credentials that were never the problem. The request in that case never
+   * reached the provider at all.
+   */
+  const blocked = /not in allowlist|egress|proxy|tunnel|ENOTFOUND|ECONNREFUSED|EAI_AGAIN/i.test(
+    result.reason,
   );
+
+  if (blocked) {
+    console.error(
+      'That refusal came from a network policy, not from the provider: the\n' +
+        'request never left this machine, so the API key is still untested.\n' +
+        'Allow api.resend.com (or api.brevo.com) through the proxy, or run this\n' +
+        'command somewhere with open outbound HTTPS.\n',
+    );
+  } else if (result.permanent) {
+    console.error(
+      'This will not succeed on a retry. Usual causes: a wrong API key, or an\n' +
+        'EMAIL_FROM on a domain the provider has not verified yet. With\n' +
+        'onboarding@resend.dev the recipient must be your own Resend account\n' +
+        'address - Resend refuses anything else.\n',
+    );
+  } else {
+    console.error(
+      'Transient - the provider is rate limiting or having trouble. Try again.\n',
+    );
+  }
   process.exit(1);
 
 }
