@@ -41,10 +41,21 @@ export const metadata: Metadata = {
   description:
     'სპორტული ანალიტიკის პლატფორმა: ვერიფიცირებული ავტორები, მოვლენამდე გამოქვეყნებული პროგნოზები და უცვლელი, შემოწმებადი სტატისტიკა.',
   applicationName: 'DAJDA',
+  /*
+   * The card image itself is src/app/opengraph-image.png, which Next turns
+   * into absolute og:image and twitter:image tags against metadataBase above.
+   * Only the card TYPE has to be stated: without it a shared link renders as
+   * a thumbnail beside the text rather than the full-width image.
+   */
   openGraph: {
     type: 'website',
     locale: 'ka_GE',
     siteName: 'DAJDA',
+    title: 'DAJDA · სპორტული ანალიტიკა შემოწმებადი ჩანაწერით',
+    description: 'სპორტული ანალიტიკა შემოწმებადი ჩანაწერით.',
+  },
+  twitter: {
+    card: 'summary_large_image',
     title: 'DAJDA · სპორტული ანალიტიკა შემოწმებადი ჩანაწერით',
     description: 'სპორტული ანალიტიკა შემოწმებადი ჩანაწერით.',
   },

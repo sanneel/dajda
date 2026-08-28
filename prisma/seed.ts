@@ -11,7 +11,9 @@ import { computeProfitUnitsCenti } from '../src/lib/predictions/settlement';
  *
  * STRUCTURE (always): the sports the product needs to function, and one
  * administrator account so somebody can review the first analyst application.
- * This half is safe to run against a real deployment.
+ * Written entirely as upserts, so it is safe to run against a real deployment
+ * and safe to run twice. It deletes nothing, and it will not overwrite an
+ * administrator who already exists.
  *
  * DEMO CONTENT (only with --demo): invented analysts, predictions and results.
  * Off by default, and that default is the point. This platform's entire claim
@@ -41,6 +43,22 @@ if (!connectionString) {
 /** Invented analysts and results are opt-in: `npm run db:seed -- --demo`. */
 const WITH_DEMO_CONTENT =
   process.argv.includes('--demo') || process.env.SEED_DEMO === 'true';
+
+/*
+ * The demo half starts by emptying the database. That is correct for a local
+ * machine and catastrophic anywhere else, so production has to say so twice.
+ */
+if (
+  WITH_DEMO_CONTENT &&
+  process.env.NODE_ENV === 'production' &&
+  process.env.SEED_ALLOW_DEMO_IN_PRODUCTION !== '1'
+) {
+  throw new Error(
+    'Refusing to seed demo content with NODE_ENV=production: it deletes every ' +
+      'user, payment and prediction first. Set SEED_ALLOW_DEMO_IN_PRODUCTION=1 ' +
+      'if this really is a throwaway database.',
+  );
+}
 
 /**
  * The administrator's credentials.
@@ -135,68 +153,130 @@ async function main() {
       : 'Seeding structure only (pass --demo for invented analysts)…',
   );
 
-  // -------------------------------------------------------------------------
-  // Clean slate. Order matters: children before parents.
-  // -------------------------------------------------------------------------
-  await prisma.$transaction([
-    prisma.auditLog.deleteMany(),
-    prisma.paymentStatusTransition.deleteMany(),
-    prisma.webhookEvent.deleteMany(),
-    prisma.payment.deleteMany(),
-    prisma.userSubscription.deleteMany(),
-    prisma.subscriptionPlan.deleteMany(),
-    prisma.report.deleteMany(),
-    prisma.predictionView.deleteMany(),
-    prisma.predictionEdit.deleteMany(),
-    prisma.predictionResult.deleteMany(),
-    prisma.prediction.deleteMany(),
-    /*
-     * Screenshots have no parent row to cascade from - `screenshotPath` is a
-     * plain string, not a foreign key - so re-seeding would otherwise leave
-     * every previous run's images behind in the table forever.
-     */
-    prisma.screenshot.deleteMany(),
-    prisma.analystSport.deleteMany(),
-    prisma.analystProfile.deleteMany(),
-    prisma.notificationPreference.deleteMany(),
-    prisma.savedAnalyst.deleteMany(),
-    prisma.authToken.deleteMany(),
-    prisma.session.deleteMany(),
-    prisma.user.deleteMany(),
-    prisma.sport.deleteMany(),
-  ]);
+  /*
+   * The clean slate belongs to the demo half and ONLY to the demo half.
+   *
+   * It used to run unconditionally, which meant `npm run db:seed` - the
+   * command somebody reaches for to add a sport or re-create the
+   * administrator - deleted every user, payment, webhook event and audit
+   * entry in the database first. On a platform that takes card payments that
+   * is not a bad default, it is data loss.
+   *
+   * Order matters: children before parents.
+   */
+  if (WITH_DEMO_CONTENT) {
+    await prisma.$transaction([
+      prisma.auditLog.deleteMany(),
+      prisma.paymentStatusTransition.deleteMany(),
+      prisma.webhookEvent.deleteMany(),
+      prisma.payment.deleteMany(),
+      prisma.userSubscription.deleteMany(),
+      prisma.subscriptionPlan.deleteMany(),
+      prisma.report.deleteMany(),
+      prisma.predictionView.deleteMany(),
+      prisma.predictionEdit.deleteMany(),
+      prisma.predictionResult.deleteMany(),
+      prisma.prediction.deleteMany(),
+      /*
+       * Screenshots have no parent row to cascade from - `screenshotPath` is a
+       * plain string, not a foreign key - so re-seeding would otherwise leave
+       * every previous run's images behind in the table forever.
+       */
+      prisma.screenshot.deleteMany(),
+      prisma.analystSport.deleteMany(),
+      prisma.analystProfile.deleteMany(),
+      prisma.notificationPreference.deleteMany(),
+      prisma.savedAnalyst.deleteMany(),
+      prisma.authToken.deleteMany(),
+      prisma.session.deleteMany(),
+      prisma.user.deleteMany(),
+      prisma.sport.deleteMany(),
+    ]);
+  }
 
-  const football = await prisma.sport.create({
-    data: { code: 'FOOTBALL', slug: 'football', nameKa: 'ფეხბურთი' },
-  });
-  const basketball = await prisma.sport.create({
-    data: { code: 'BASKETBALL', slug: 'basketball', nameKa: 'კალათბურთი' },
-  });
+  /*
+   * The sports a Georgian audience actually follows and bets on.
+   *
+   * Upserted on `code`, never re-created: a Sport id is referenced by every
+   * prediction and every analyst, so recreating the row would orphan them.
+   * Adding an entry here is how a new sport ships; removing one is not, the
+   * administrator sets `isActive: false` instead so existing predictions keep
+   * resolving.
+   */
+  const SPORTS = [
+    { code: 'FOOTBALL', slug: 'football', nameKa: 'ფეხბურთი' },
+    { code: 'BASKETBALL', slug: 'basketball', nameKa: 'კალათბურთი' },
+    { code: 'TENNIS', slug: 'tennis', nameKa: 'ჩოგბურთი' },
+    { code: 'RUGBY', slug: 'rugby', nameKa: 'რაგბი' },
+    { code: 'VOLLEYBALL', slug: 'volleyball', nameKa: 'ფრენბურთი' },
+    { code: 'HANDBALL', slug: 'handball', nameKa: 'ხელბურთი' },
+    { code: 'ICE_HOCKEY', slug: 'ice-hockey', nameKa: 'ჰოკეი' },
+    { code: 'MMA', slug: 'mma', nameKa: 'ბრძოლის ხელოვნება' },
+    { code: 'BOXING', slug: 'boxing', nameKa: 'კრივი' },
+    { code: 'ESPORTS', slug: 'esports', nameKa: 'კიბერსპორტი' },
+  ];
+
+  const sports = new Map<string, { id: string }>();
+  for (const sport of SPORTS) {
+    const row = await prisma.sport.upsert({
+      where: { code: sport.code },
+      // Names and slugs may be corrected; `isActive` is the administrator's to
+      // set, so it is written only when the row is created.
+      update: { slug: sport.slug, nameKa: sport.nameKa },
+      create: sport,
+      select: { id: true },
+    });
+    sports.set(sport.code, row);
+  }
+
+  const football = sports.get('FOOTBALL')!;
+  const basketball = sports.get('BASKETBALL')!;
 
   // -------------------------------------------------------------------------
   // People
   // -------------------------------------------------------------------------
-  const admin = await prisma.user.create({
-    data: {
-      email: ADMIN_EMAIL,
-      name: 'ადმინისტრატორი',
-      password: await hashPassword(ADMIN_PASSWORD),
-      role: 'ADMIN',
-      emailVerifiedAt: new Date(),
-      ageConfirmedAt: new Date(),
-      // Not demo data: a real deployment needs this account to review the
-      // first analyst application.
-      isDemo: false,
-      notificationPrefs: { create: {} },
-    },
+  /*
+   * The administrator, created once and then left alone.
+   *
+   * `update: {}` is the important half: re-running the seed to pick up a new
+   * sport must not silently rotate the password of an account somebody is
+   * already signing in with, and must not un-suspend or re-verify it either.
+   */
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: ADMIN_EMAIL },
+    select: { id: true },
   });
 
+  const admin =
+    existingAdmin ??
+    (await prisma.user.create({
+      data: {
+        email: ADMIN_EMAIL,
+        name: 'ადმინისტრატორი',
+        password: await hashPassword(ADMIN_PASSWORD),
+        role: 'ADMIN',
+        emailVerifiedAt: new Date(),
+        ageConfirmedAt: new Date(),
+        // Not demo data: a real deployment needs this account to review the
+        // first analyst application.
+        isDemo: false,
+        notificationPrefs: { create: {} },
+      },
+      select: { id: true },
+    }));
+
   if (!WITH_DEMO_CONTENT) {
-    console.info('Seed complete: sports and one administrator.');
+    console.info(
+      `Seed complete: ${SPORTS.length} sports and one administrator.`,
+    );
     console.info(`  ${ADMIN_EMAIL}`);
-    if (ADMIN_PASSWORD_IS_GENERATED) {
+    if (existingAdmin) {
+      console.info('  (already existed - password left unchanged)');
+    } else if (ADMIN_PASSWORD_IS_GENERATED) {
       console.info(`  password: ${ADMIN_PASSWORD}`);
-      console.info('  (generated once - save it now, it is not stored anywhere)');
+      console.info(
+        '  (generated once - save it now, it is not stored anywhere)',
+      );
     }
     return;
   }

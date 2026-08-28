@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    The tab icon.
+
+    The full mark is a ticket with a perforated stub and a settled check. At
+    16px the perforation and the stub edge turn to mush, so this keeps only
+    what survives: the ground, and the check that says the prediction landed.
+    Colours are literal rather than tokens, because a favicon is rendered
+    outside the page and never sees the stylesheet.
+
+    The ground is the deep navy the light theme uses for ink, which holds up
+    against a white tab strip and a dark one alike.
+  -->
+  <rect width="32" height="32" rx="7" fill="#0a2842"/>
+  <path d="m8.5 16.6 5 5.1 10-11.4"
+        fill="none" stroke="#7db3ec" stroke-width="4.2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
