@@ -12,7 +12,7 @@
  *
  * Deliberately dependency-free - a dev runner is not worth a package.
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { connect } from 'node:net';
 import process from 'node:process';
 
@@ -88,5 +88,33 @@ if (alreadyUp) {
   }
   console.info('[dev] database ready');
 }
+
+/*
+ * Bring the schema and the generated client up to date BEFORE Next boots.
+ *
+ * Neither happens by itself in dev: `next build` runs prisma generate but
+ * `next dev` does not, and migrations only ever run when somebody remembers
+ * to. Forgetting either produces the same experience - the app starts
+ * healthy and then a request explodes with "Invalid value for argument" or
+ * a missing-column error at the first write that touches the new shape.
+ * A few seconds on every `npm run dev` buys never debugging that again.
+ *
+ * `migrate deploy` only applies migrations that are pending; on an
+ * up-to-date database it is a no-op that costs one query.
+ */
+function step(label, command, args) {
+  console.info(`[dev] ${label}…`);
+  const result = spawnSync(command, args, {
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
+  if (result.status !== 0) {
+    console.error(`\n[dev] ${label} failed - fix the output above and rerun.\n`);
+    shutdown(result.status ?? 1);
+  }
+}
+
+step('prisma generate', 'npx', ['prisma', 'generate']);
+step('prisma migrate deploy', 'npx', ['prisma', 'migrate', 'deploy']);
 
 run('npx', ['next', 'dev'], 'next');
