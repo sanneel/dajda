@@ -15,6 +15,7 @@ import { Alert, EmptyState } from "@/components/ui/feedback";
 import { ButtonLink } from "@/components/ui/button";
 import { CancelSubscriptionButton } from "./cancel-button";
 import { ResendVerificationButton } from "./resend-verification-button";
+import { VerifyCodeForm } from "./verify-code-form";
 import { TopUpForm } from "./top-up-form";
 
 export const dynamic = "force-dynamic";
@@ -116,10 +117,15 @@ export default async function DashboardPage() {
 
       {!actor.emailVerifiedAt ? (
         <Alert tone="info" title="ელფოსტა არ არის დადასტურებული">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p>
-              დადასტურების ბმული გამოგზავნილია რეგისტრაციისას მითითებულ
-              მისამართზე. თუ ვერ იპოვეთ, გამოითხოვეთ ახალი:
+              წერილი გამოგზავნილია რეგისტრაციისას მითითებულ მისამართზე.
+              დააჭირეთ წერილის ღილაკს, ან ჩაწერეთ წერილში მოცემული 6 ციფრიანი
+              კოდი:
+            </p>
+            <VerifyCodeForm />
+            <p className="text-sm">
+              წერილი ვერ იპოვეთ? შეამოწმეთ სპამი, ან გამოითხოვეთ ახალი:
             </p>
             <ResendVerificationButton />
           </div>

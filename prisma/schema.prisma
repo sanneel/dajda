@@ -45,6 +45,12 @@ enum UserStatus {
 
 enum AuthTokenPurpose {
   EMAIL_VERIFICATION
+  /// The 6 digit code printed in the same mail as the verification link, for
+  /// typing into the dashboard when tapping a link is awkward (mail open on
+  /// the phone, site open on the laptop). Same table, same hashing; the hash
+  /// is salted with the user id so two users drawing the same code cannot
+  /// collide on the unique tokenHash.
+  EMAIL_VERIFICATION_CODE
   PASSWORD_RESET
   /// Handed to Telegram as the `?start=` payload of a deep link. The bot sends
   /// it back when the person presses Start, which is what proves the chat on

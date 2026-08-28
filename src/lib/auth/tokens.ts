@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 /**
  * Opaque bearer tokens for sessions, email verification and password resets.
@@ -25,6 +25,25 @@ export function tokensMatch(hashA: string, hashB: string): boolean {
   const b = Buffer.from(hashB);
   if (a.length !== b.length) return false;
   return timingSafeEqual(a, b);
+}
+
+/**
+ * The 6 digit code printed in the verification mail beside the link.
+ *
+ * A million combinations is nothing against an offline attack, so the code is
+ * only ever checked ONLINE, behind requireUser (the attacker must already
+ * hold the account's session) and a hard rate limit on attempts. Its hash is
+ * salted with the user id via hashCodeForUser, both to scope it to one
+ * account and so that two users drawing the same code cannot collide on the
+ * unique tokenHash column.
+ */
+export function generateVerificationCode(): string {
+  // randomInt is crypto-backed and unbiased; padStart keeps leading zeros.
+  return String(randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+export function hashCodeForUser(userId: string, code: string): string {
+  return hashToken(`${userId}:${code}`);
 }
 
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days

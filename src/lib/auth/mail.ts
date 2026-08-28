@@ -24,17 +24,19 @@ export type AuthMailContent = {
 
 const SIGNATURE = 'DAJDA · dajda.ge';
 
-export function verificationEmail(link: string): AuthMailContent {
+export function verificationEmail(link: string, code: string): AuthMailContent {
   const opening =
-    'ამ მისამართით DAJDA-ზე ანგარიშის რეგისტრაცია მოხდა. დასადასტურებლად დააჭირეთ ღილაკს:';
+    'ამ მისამართით DAJDA-ზე ანგარიშის რეგისტრაცია მოხდა. დასადასტურებლად დააჭირეთ ღილაკს, ან ჩაწერეთ ეს კოდი პროფილის გვერდზე:';
   const expiry =
-    'ბმული მოქმედებს 24 საათი. თუ ეს თქვენ არ ყოფილხართ, უბრალოდ არ მიაქციოთ წერილს ყურადღება.';
+    'ბმული და კოდი მოქმედებს 24 საათი. თუ ეს თქვენ არ ყოფილხართ, უბრალოდ არ მიაქციოთ წერილს ყურადღება.';
   return {
     subject: 'DAJDA: დაადასტურეთ ელფოსტა',
     text: [
       'გამარჯობა,',
       '',
       opening,
+      '',
+      `კოდი: ${code}`,
       '',
       link,
       '',
@@ -45,6 +47,7 @@ export function verificationEmail(link: string): AuthMailContent {
     html: renderEmailHtml({
       heading: 'ელფოსტის დადასტურება',
       paragraphs: [opening],
+      code,
       cta: { label: 'ელფოსტის დადასტურება', url: link },
       footerLines: [expiry],
     }),
@@ -86,10 +89,12 @@ export function passwordResetEmail(link: string): AuthMailContent {
 export async function sendVerificationEmail(
   email: string,
   rawToken: string,
+  code: string,
 ): Promise<void> {
   const env = getEnv();
   const content = verificationEmail(
     `${env.APP_URL}/verify-email?token=${rawToken}`,
+    code,
   );
   const outcome = await getEmailProvider().send({
     to: email,

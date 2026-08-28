@@ -9,10 +9,10 @@
  * Email HTML is written to the medium's rules, which are not the web's:
  * tables for layout and every style inline, because major clients strip
  * <style> blocks and ignore most of CSS; no remote images, because clients
- * block them by default and the wordmark works as styled text; light
- * palette only, taken from the site's own light tokens, because client
- * "dark modes" recolour mail unpredictably and a light base degrades the
- * least badly.
+ * block them by default and the wordmark works as styled text. The palette
+ * is the site's own DARK tokens, because dark is the product's default and
+ * the mail should look like the site it links to; explicitly dark mail also
+ * survives client "dark modes" better than light mail, which they invert.
  *
  * The HTML part is presentation ONLY. Every message still carries the full
  * plain-text part: multipart mail scores better with spam filters, text-only
@@ -21,13 +21,14 @@
 
 /** The site's light palette, inlined - mail cannot read the stylesheet. */
 const C = {
-  canvas: '#e9eef4',
-  surface: '#f7fafc',
-  ink: '#0a2842',
-  inkMuted: '#4d5f70',
-  line: '#adbccd',
-  accent: '#25507d',
-  onAccent: '#ffffff',
+  canvas: '#0a1017',
+  surface: '#121a24',
+  elevated: '#1a242f',
+  ink: '#eaf0f6',
+  inkMuted: '#a7b7c6',
+  line: '#3a4a59',
+  accent: '#7db3ec',
+  onAccent: '#0a1017',
 } as const;
 
 const FONT =
@@ -48,6 +49,11 @@ export type EmailHtmlOptions = {
   heading: string;
   /** Body paragraphs, plain text - escaped here. */
   paragraphs: string[];
+  /**
+   * Short code shown large enough to read from another screen - the person
+   * typing it usually has the mail open on a phone and the site on a laptop.
+   */
+  code?: string;
   /** Optional single action button, with the raw URL repeated beneath it. */
   cta?: { label: string; url: string };
   /** Small print under the card, e.g. how to turn notifications off. */
@@ -63,6 +69,14 @@ export function renderEmailHtml(options: EmailHtmlOptions): string {
         `<p style="margin:0 0 14px;font-family:${FONT};font-size:15px;line-height:1.6;color:${C.ink};">${escapeHtml(text)}</p>`,
     )
     .join('\n');
+
+  const code = options.code
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 4px;width:100%;">
+        <tr><td align="center" style="background:${C.elevated};border:1px solid ${C.line};border-radius:8px;padding:16px;">
+          <span style="font-family:${FONT};font-size:30px;font-weight:700;letter-spacing:0.35em;color:${C.ink};">${escapeHtml(options.code)}</span>
+        </td></tr>
+      </table>`
+    : '';
 
   /*
    * The raw URL is repeated under the button on purpose: corporate filters
@@ -107,6 +121,7 @@ export function renderEmailHtml(options: EmailHtmlOptions): string {
     <tr><td style="background:${C.surface};border:1px solid ${C.line};border-radius:12px;padding:28px;">
       <h1 style="margin:0 0 16px;font-family:${FONT};font-size:19px;line-height:1.35;color:${C.ink};">${escapeHtml(options.heading)}</h1>
       ${paragraphs}
+      ${code}
       ${cta}
     </td></tr>
     <tr><td style="padding:16px 4px 0;">

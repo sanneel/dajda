@@ -60,7 +60,7 @@ describe('auth mail templates', () => {
   it('puts the verification link in the body verbatim', async () => {
     const { verificationEmail } = await import('@/lib/auth/mail');
     const link = 'https://dajda.ge/verify-email?token=abc123';
-    const content = verificationEmail(link);
+    const content = verificationEmail(link, '123456');
 
     expect(content.text).toContain(link);
     expect(content.subject).toContain('დაადასტურეთ');
@@ -107,10 +107,34 @@ describe('email HTML template', () => {
   it('auth mails carry the same link in text and html', async () => {
     const { verificationEmail } = await import('@/lib/auth/mail');
     const link = 'https://dajda.ge/verify-email?token=abc123';
-    const content = verificationEmail(link);
+    const content = verificationEmail(link, '123456');
     expect(content.text).toContain(link);
     expect(content.html).toContain(link);
     // The html part never replaces the text part.
     expect(content.text.length).toBeGreaterThan(0);
+  });
+});
+
+describe('verification code', () => {
+  it('shows the code in both parts of the mail', async () => {
+    const { verificationEmail } = await import('@/lib/auth/mail');
+    const content = verificationEmail('https://dajda.ge/verify-email?token=x', '042317');
+    expect(content.text).toContain('042317');
+    expect(content.html).toContain('042317');
+  });
+
+  it('keeps leading zeros', async () => {
+    const { generateVerificationCode } = await import('@/lib/auth/tokens');
+    for (let i = 0; i < 200; i += 1) {
+      expect(generateVerificationCode()).toMatch(/^\d{6}$/);
+    }
+  });
+
+  it('salts the code hash with the user id', async () => {
+    const { hashCodeForUser } = await import('@/lib/auth/tokens');
+    // Same code, two users: different hashes, or the unique column collides.
+    expect(hashCodeForUser('user-a', '123456')).not.toBe(
+      hashCodeForUser('user-b', '123456'),
+    );
   });
 });

@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
@@ -18,6 +19,8 @@ import {
   PASSWORD_RESET_TTL_MS,
   expiryFrom,
   generateToken,
+  generateVerificationCode,
+  hashCodeForUser,
   hashToken,
 } from '@/lib/auth/tokens';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
@@ -114,8 +117,10 @@ export async function registerAction(
     const password = await hashPassword(input.password);
 
     // The raw token exists only in this request and in the email; the
-    // database keeps its hash.
+    // database keeps its hash. The code is the same promise in six typable
+    // digits - see generateVerificationCode for why that is safe.
     const verificationToken = generateToken();
+    const verificationCode = generateVerificationCode();
 
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -145,6 +150,15 @@ export async function registerAction(
         },
       });
 
+      await tx.authToken.create({
+        data: {
+          userId: created.id,
+          purpose: 'EMAIL_VERIFICATION_CODE',
+          tokenHash: hashCodeForUser(created.id, verificationCode),
+          expiresAt: expiryFrom(new Date(), EMAIL_VERIFICATION_TTL_MS),
+        },
+      });
+
       await writeAuditLog(
         {
           action: AUDIT_ACTIONS.USER_REGISTERED,
@@ -164,7 +178,7 @@ export async function registerAction(
 
     // Outside the transaction: network I/O must not hold a database lock,
     // and a failed delivery must not roll the account back.
-    await sendVerificationEmail(input.email, verificationToken);
+    await sendVerificationEmail(input.email, verificationToken, verificationCode);
 
     const session = await createSession(user.id, context);
     await setSessionCookie(session.token, session.expiresAt);
@@ -205,16 +219,40 @@ export async function resendVerificationAction(
     if (!limit.allowed) return fail(ERROR_CODES.RATE_LIMITED);
 
     const token = generateToken();
-    await prisma.authToken.create({
-      data: {
-        userId: actor.userId,
-        purpose: 'EMAIL_VERIFICATION',
-        tokenHash: hashToken(token),
-        expiresAt: expiryFrom(new Date(), EMAIL_VERIFICATION_TTL_MS),
-      },
-    });
+    const code = generateVerificationCode();
+    await prisma.$transaction([
+      prisma.authToken.create({
+        data: {
+          userId: actor.userId,
+          purpose: 'EMAIL_VERIFICATION',
+          tokenHash: hashToken(token),
+          expiresAt: expiryFrom(new Date(), EMAIL_VERIFICATION_TTL_MS),
+        },
+      }),
+      /*
+       * Unlike links, of which several may live side by side, only the NEWEST
+       * code is valid: the banner says "type the code from the mail", and two
+       * mails with two different codes make that sentence ambiguous. Replacing
+       * also keeps exactly one active row, so the per-user hash cannot collide.
+       */
+      prisma.authToken.deleteMany({
+        where: {
+          userId: actor.userId,
+          purpose: 'EMAIL_VERIFICATION_CODE',
+          consumedAt: null,
+        },
+      }),
+      prisma.authToken.create({
+        data: {
+          userId: actor.userId,
+          purpose: 'EMAIL_VERIFICATION_CODE',
+          tokenHash: hashCodeForUser(actor.userId, code),
+          expiresAt: expiryFrom(new Date(), EMAIL_VERIFICATION_TTL_MS),
+        },
+      }),
+    ]);
 
-    await sendVerificationEmail(actor.email, token);
+    await sendVerificationEmail(actor.email, token, code);
 
     /*
      * `link` is null on any deployment that actually sends mail. It is
@@ -424,6 +462,72 @@ export async function verifyEmailAction(
       });
     });
 
+    return ok({ verified: true });
+  } catch (error) {
+    return toActionFailure(error);
+  }
+}
+
+/**
+ * Verify the signed-in user's email by the 6 digit code from the mail.
+ *
+ * The whole security of a six digit code is HERE, not in the code: the actor
+ * comes from the session (a stranger cannot aim the attempt at somebody
+ * else's account), the rate limit makes guessing slower than the code's
+ * lifetime, and the lookup goes through the per-user salted hash, so a code
+ * issued to one account means nothing typed into another.
+ */
+export async function verifyEmailCodeAction(
+  _previous: ActionResult<{ verified: true }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ verified: true }>> {
+  try {
+    const actor = await requireUser();
+    if (actor.emailVerifiedAt) {
+      return fail(ERROR_CODES.CONFLICT, 'ელფოსტა უკვე დადასტურებულია.');
+    }
+
+    // Digits only, so "123 456" or a stray space is not a wrong answer.
+    const code = String(formData.get('code') ?? '').replace(/\D/g, '');
+    if (code.length !== 6) {
+      return fail(ERROR_CODES.VALIDATION_ERROR, 'კოდი 6 ციფრისგან შედგება.');
+    }
+
+    const limit = rateLimiter.check(
+      `verify-code:${actor.userId}`,
+      RATE_LIMITS.verifyEmailCode,
+    );
+    if (!limit.allowed) return fail(ERROR_CODES.RATE_LIMITED);
+
+    const record = await prisma.authToken.findUnique({
+      where: { tokenHash: hashCodeForUser(actor.userId, code) },
+      select: { id: true, userId: true, expiresAt: true, consumedAt: true },
+    });
+
+    if (
+      !record ||
+      record.userId !== actor.userId ||
+      record.consumedAt ||
+      record.expiresAt.getTime() <= Date.now()
+    ) {
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        'კოდი არასწორია ან ვადაგასულია. შეამოწმეთ ბოლო წერილი.',
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: actor.userId },
+        data: { emailVerifiedAt: new Date() },
+      });
+      await tx.authToken.update({
+        where: { id: record.id },
+        data: { consumedAt: new Date() },
+      });
+    });
+
+    revalidatePath('/dashboard');
     return ok({ verified: true });
   } catch (error) {
     return toActionFailure(error);

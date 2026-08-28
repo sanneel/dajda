@@ -82,6 +82,12 @@ export const RATE_LIMITS = {
   passwordReset: { limit: 5, windowMs: 60 * 60 * 1000 },
   /** Each resend is an outbound email on the platform's reputation. */
   resendVerification: { limit: 3, windowMs: 15 * 60 * 1000 },
+  /**
+   * Guessing attempts against the 6 digit mail code. The strictness is the
+   * security: a million-combination code is only safe while trying them is
+   * this slow.
+   */
+  verifyEmailCode: { limit: 5, windowMs: 15 * 60 * 1000 },
   /** An application decodes an image and is reviewed by a person. */
   analystApplication: { limit: 3, windowMs: 60 * 60 * 1000 },
   /** A withdrawal moves money and is reviewed by a person. */
