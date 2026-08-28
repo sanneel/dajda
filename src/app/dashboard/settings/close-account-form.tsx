@@ -20,8 +20,10 @@ export function CloseAccountForm() {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink-muted">
-          დახურვა გააუქმებს აქტიურ გამოწერებს და დახურავს წვდომას. გამოქვეყნებული
-          ჩანაწერი და გადახდების ისტორია კანონის მოთხოვნით ინახება.
+          დახურვა გააუქმებს აქტიურ გამოწერებს და დახურავს წვდომას. ელფოსტა
+          გათავისუფლდება და მისით ახალი ანგარიშის შექმნა შესაძლებელი იქნება.
+          გამოქვეყნებული ჩანაწერი და გადახდების ისტორია კანონის მოთხოვნით
+          ინახება.
         </p>
         <Button type="button" variant="danger" size="sm" onClick={() => setArmed(true)}>
           ანგარიშის დახურვა

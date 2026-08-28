@@ -134,6 +134,13 @@ export async function updateNotificationPreferencesAction(
  * are legal bookkeeping, and a published prediction is part of other
  * people's verifiable history - the terms say the record does not unhappen.
  * Erasure requests beyond that go through support, per the privacy policy.
+ *
+ * WHAT IT RELEASES: the email address and the Google binding. Both columns
+ * are unique, so leaving them on a closed row would hold the mailbox and
+ * the Google identity hostage forever - the person who closed an account
+ * must be free to come back and open a new one. The audit row keeps the
+ * original address, because "who closed this" is bookkeeping; the tombstone
+ * uses the reserved .invalid TLD so it can never collide or receive mail.
  */
 export async function closeAccountAction(
   _previous: ActionResult<{ closed: true }> | null,
@@ -168,6 +175,9 @@ export async function closeAccountAction(
         where: { id: actor.userId },
         data: {
           status: 'DELETED',
+          email: `closed-${actor.userId}@closed.invalid`,
+          emailVerifiedAt: null,
+          googleId: null,
           telegramId: null,
           telegramChatId: null,
           telegramUsername: null,
