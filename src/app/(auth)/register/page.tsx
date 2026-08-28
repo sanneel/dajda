@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { RegisterForm } from '@/components/auth/register-form';
 import { TelegramLoginButton } from '@/components/auth/telegram-button';
+import { GoogleLoginButton } from '@/components/auth/google-button';
 import { telegramBotConfigured } from '@/lib/auth/telegram';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,7 @@ export default async function RegisterPage() {
       <div className="mt-6">
         <RegisterForm telegramConfigured={telegramBotConfigured()} />
         <TelegramLoginButton />
+        <GoogleLoginButton />
       </div>
 
       <p className="mt-6 border-t border-line pt-5 text-sm text-ink-muted">

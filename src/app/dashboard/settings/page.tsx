@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { ProfileForm } from './profile-form';
 import { NotificationForm } from './notification-form';
 import { TelegramConnect } from './telegram-connect';
+import { CloseAccountForm } from './close-account-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,7 +83,7 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader
             title="შეტყობინებები"
-            description="რაზე მოგივიდეთ შეტყობინება. ელფოსტის გაგზავნა ჯერ არ არის აქტიური."
+            description="რაზე მოგივიდეთ შეტყობინება."
           />
           <CardBody>
             <NotificationForm
@@ -98,6 +99,23 @@ export default async function SettingsPage() {
                 telegramConnected: user.telegramChatId !== null,
               }}
             />
+          </CardBody>
+        </Card>
+      </div>
+
+      {/*
+       * Last on the page and visually separate: the exit. Kept out of the
+       * cards above so that a person scanning for notification toggles never
+       * has a destructive button inside their reach by accident.
+       */}
+      <div className="mt-5">
+        <Card className="border-loss/40">
+          <CardHeader
+            title="ანგარიშის დახურვა"
+            description="შეუქცევადი მოქმედება. რეგისტრაციისას აღებული პირობა: დახურვა ნებისმიერ დროს შეგიძლიათ."
+          />
+          <CardBody>
+            <CloseAccountForm />
           </CardBody>
         </Card>
       </div>

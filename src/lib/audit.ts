@@ -18,6 +18,8 @@ export const AUDIT_ACTIONS = {
   USER_SUSPENDED: 'user.suspended',
   USER_REINSTATED: 'user.reinstated',
   USER_ROLE_CHANGED: 'user.role_changed',
+  /** The owner closed their own account; distinct from an admin suspension. */
+  USER_CLOSED_ACCOUNT: 'user.closed_account',
 
   ANALYST_APPLIED: 'analyst.applied',
   ANALYST_APPROVED: 'analyst.approved',

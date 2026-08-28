@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { LoginForm } from '@/components/auth/login-form';
 import { TelegramLoginButton } from '@/components/auth/telegram-button';
+import { GoogleLoginButton } from '@/components/auth/google-button';
+import { Alert } from '@/components/ui/feedback';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,13 +14,28 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   // Already signed in - no reason to show the form again.
   if (await getCurrentUser()) redirect('/dashboard');
+
+  // The Google callback funnels every failure here with one flag; the
+  // distinctions live in the server log, where they are actionable.
+  const googleFailed = (await searchParams).error === 'google';
 
   return (
     <div className="rounded-md border border-line bg-surface p-6 sm:p-8">
       <h1 className="text-2xl font-bold tracking-tight text-ink">შესვლა</h1>
+      {googleFailed ? (
+        <div className="mt-4">
+          <Alert tone="error">
+            Google-ით შესვლა ვერ შედგა. სცადეთ თავიდან, ან შედით ელფოსტით.
+          </Alert>
+        </div>
+      ) : null}
       <p className="mt-1.5 text-sm text-ink-muted">
         შედით ანგარიშში, რომ ნახოთ გამოწერილი ანალიზი.
       </p>
@@ -26,6 +43,7 @@ export default async function LoginPage() {
       <div className="mt-6">
         <LoginForm />
         <TelegramLoginButton />
+        <GoogleLoginButton />
       </div>
 
       <p className="mt-6 border-t border-line pt-5 text-sm text-ink-muted">

@@ -150,6 +150,16 @@ const envSchema = z
      * demand.
      */
     CRON_SECRET: z.string().min(16).optional(),
+
+    /**
+     * "Sign in with Google". Both from a Google Cloud OAuth client (web
+     * application type) whose authorized redirect URI is
+     * `${APP_URL}/api/auth/google/callback`. Unset, the Google button simply
+     * does not render - like Telegram, a deployment loses nothing by not
+     * configuring it.
+     */
+    GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+    GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
   })
   .superRefine((value, ctx) => {
     /*
@@ -159,6 +169,18 @@ const envSchema = z
      * naming a bot we have no token for - the deep link would open a chat that
      * can never answer.
      */
+    // Half a Google client is a button that dead-ends at the first redirect.
+    if (
+      Boolean(value.GOOGLE_CLIENT_ID) !== Boolean(value.GOOGLE_CLIENT_SECRET)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['GOOGLE_CLIENT_SECRET'],
+        message:
+          'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together or not at all.',
+      });
+    }
+
     if (value.TELEGRAM_BOT_USERNAME && !value.TELEGRAM_BOT_TOKEN) {
       ctx.addIssue({
         code: 'custom',

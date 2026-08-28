@@ -257,6 +257,9 @@ model User {
   /// Clearing it is therefore a complete opt-out, whatever the preference says.
   telegramChatId   String?   @unique
   telegramLinkedAt DateTime?
+  /// Google's stable subject id, set when the account signs in with Google.
+  /// The lookup key for that flow: a Google email can change, `sub` cannot.
+  googleId         String?   @unique
 
   /// Cached spendable balance in minor units. The BalanceTransaction ledger
   /// is the source of truth; this column is only ever written in the same

@@ -60,11 +60,13 @@ export function RecordTabs({
 
   return (
     <Card as="section">
+      {/*
+       * The switch leads and the title follows. The switch is the control
+       * the reader actually uses, and in an RTL-of-attention layout like a
+       * stats panel the left edge is where the hand goes first; the title
+       * only names what the switch already selected.
+       */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
-        <h2 id="plans-heading" className="font-display text-base text-ink">
-          {tab === 'PLANS' ? 'გამოწერა' : 'პროგნოზების ჩანაწერი'}
-        </h2>
-
         <div
           className="flex items-center gap-1"
           role="tablist"
@@ -85,11 +87,26 @@ export function RecordTabs({
             </TabButton>
           ) : null}
         </div>
+
+        <h2 id="plans-heading" className="font-display text-base text-ink">
+          {tab === 'PLANS' ? 'გამოწერა' : 'პროგნოზების ჩანაწერი'}
+        </h2>
       </div>
 
       <CardBody>
         {tab === 'PLANS' ? (
-          <Plans plans={sellable} isAuthenticated={isAuthenticated} />
+          <div className="space-y-6">
+            {/*
+             * The paid record sits above the price, because it IS the
+             * product: a subscription buys access to these bets, so the
+             * numbers a buyer is paying for belong on the page where they
+             * decide to pay.
+             */}
+            <RecordStats summary={paid} />
+            <div className="border-t border-line pt-6">
+              <Plans plans={sellable} isAuthenticated={isAuthenticated} />
+            </div>
+          </div>
         ) : (
           <RecordStats summary={tab === 'FREE' ? free : paid} />
         )}

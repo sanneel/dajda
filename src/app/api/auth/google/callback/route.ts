@@ -1,0 +1,118 @@
+import { cookies, headers } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { prisma } from '@/lib/db';
+import {
+  exchangeGoogleCode,
+  googleConfigured,
+  sealGoogleProfile,
+  GOOGLE_PROFILE_COOKIE,
+  GOOGLE_STATE_COOKIE,
+} from '@/lib/auth/google';
+import { createSession, setSessionCookie } from '@/lib/auth/session';
+import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
+import { getEnv } from '@/lib/env';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Google sends the browser back here with a one-time code.
+ *
+ * Every failure lands on /login?error=google rather than an error page: from
+ * the person's side all of them mean the same thing - "that did not work,
+ * try again" - and the distinctions live in the server log where they are
+ * actionable.
+ *
+ * An EXISTING account signs straight in. A NEW one is not created here:
+ * the verified profile is sealed into a short-lived signed cookie and the
+ * person goes to the confirmation page to give the same two certifications
+ * the register form collects. Account creation without an explicit 18+
+ * confirmation would break the platform's own terms.
+ */
+export async function GET(request: Request) {
+  if (!googleConfigured()) {
+    return new Response('Not Found', { status: 404 });
+  }
+
+  const jar = await cookies();
+  const url = new URL(request.url);
+
+  const expectedState = jar.get(GOOGLE_STATE_COOKIE)?.value;
+  jar.delete(GOOGLE_STATE_COOKIE);
+
+  const state = url.searchParams.get('state');
+  const code = url.searchParams.get('code');
+
+  if (!code || !state || !expectedState || state !== expectedState) {
+    console.error('[dajda] google callback: state mismatch or missing code');
+    redirect('/login?error=google');
+  }
+
+  const outcome = await exchangeGoogleCode(code);
+  if (!outcome.ok) {
+    console.error(`[dajda] google sign-in failed: ${outcome.reason}`);
+    redirect('/login?error=google');
+  }
+  const profile = outcome.profile;
+
+  // First key: the stable subject id. Second: a verified matching mailbox on
+  // an existing account, which links the two ways of signing in.
+  let user = await prisma.user.findUnique({
+    where: { googleId: profile.sub },
+    select: { id: true, role: true, status: true },
+  });
+
+  if (!user) {
+    const byEmail = await prisma.user.findUnique({
+      where: { email: profile.email },
+      select: { id: true, role: true, status: true, googleId: true },
+    });
+    if (byEmail && !byEmail.googleId) {
+      await prisma.user.update({
+        where: { id: byEmail.id },
+        data: {
+          googleId: profile.sub,
+          // Google vouched for the mailbox; a pending verification mail
+          // becomes moot.
+          emailVerifiedAt: new Date(),
+        },
+      });
+      user = byEmail;
+    }
+  }
+
+  if (user) {
+    // Same single message as password login: a suspended or closed account
+    // is indistinguishable from a failed attempt.
+    if (user.status !== 'ACTIVE') redirect('/login?error=google');
+
+    const requestHeaders = await headers();
+    const context = {
+      ipAddress: requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim(),
+      userAgent: requestHeaders.get('user-agent') ?? undefined,
+    };
+    const session = await createSession(user.id, context);
+    await setSessionCookie(session.token, session.expiresAt);
+
+    await writeAuditLog({
+      action: AUDIT_ACTIONS.USER_LOGGED_IN,
+      entityType: 'User',
+      entityId: user.id,
+      summary: 'შესვლა Google-ით',
+      actorId: user.id,
+      actorRole: user.role,
+      ...context,
+    });
+
+    redirect('/dashboard');
+  }
+
+  // New person: hand the verified profile to the confirmation step.
+  jar.set(GOOGLE_PROFILE_COOKIE, sealGoogleProfile(profile), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: getEnv().APP_URL.startsWith('https://'),
+    maxAge: 600,
+    path: '/',
+  });
+  redirect('/auth/google');
+}
