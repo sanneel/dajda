@@ -80,6 +80,26 @@ export async function sendVerificationEmail(
   }
 }
 
+/**
+ * The verification link, but only when nothing is actually sending mail.
+ *
+ * With EMAIL_PROVIDER=log the message goes to the server console, which a
+ * person testing a deployment cannot read. Rather than leave registration
+ * untestable until a mail provider and its DNS records exist, the link is
+ * handed back to the signed-in owner of the address so they can finish the
+ * flow themselves.
+ *
+ * Safe by construction on two counts: the caller has already resolved the
+ * actor from the session, so this only ever reaches the account the token
+ * belongs to; and `log` is refused outright with NODE_ENV=production unless
+ * the deployment is a labelled demo, so it cannot appear on a live site.
+ */
+export function verificationLinkWhenUnsent(rawToken: string): string | null {
+  const env = getEnv();
+  if (env.EMAIL_PROVIDER !== 'log') return null;
+  return `${env.APP_URL}/verify-email?token=${rawToken}`;
+}
+
 /** Deliver the reset link, with the same never-throw contract. */
 export async function sendPasswordResetEmail(
   email: string,

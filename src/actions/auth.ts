@@ -24,6 +24,7 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import {
   sendPasswordResetEmail,
   sendVerificationEmail,
+  verificationLinkWhenUnsent,
 } from '@/lib/auth/mail';
 import {
   ERROR_CODES,
@@ -177,13 +178,19 @@ export async function registerAction(
 }
 
 /**
+ * `link` is set only where nothing sends mail, so the person testing the
+ * deployment can follow it instead of reading the server console.
+ */
+export type ResendVerificationResult = { sent: true; link: string | null };
+
+/**
  * Issue a fresh verification link to the signed-in, still-unverified user.
  * Replaces nothing: older links simply expire on their own schedule.
  */
 export async function resendVerificationAction(
-  _previous: ActionResult<{ sent: true }> | null,
+  _previous: ActionResult<ResendVerificationResult> | null,
   _formData: FormData,
-): Promise<ActionResult<{ sent: true }>> {
+): Promise<ActionResult<ResendVerificationResult>> {
   try {
     const actor = await requireUser();
 
@@ -209,7 +216,13 @@ export async function resendVerificationAction(
 
     await sendVerificationEmail(actor.email, token);
 
-    return ok({ sent: true });
+    /*
+     * `link` is null on any deployment that actually sends mail. It is
+     * populated only when EMAIL_PROVIDER=log, where the message went to the
+     * server console and the person in front of the screen has no way to read
+     * it - see verificationLinkWhenUnsent.
+     */
+    return ok({ sent: true, link: verificationLinkWhenUnsent(token) });
   } catch (error) {
     return toActionFailure(error);
   }
