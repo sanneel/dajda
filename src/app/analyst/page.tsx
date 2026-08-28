@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { prisma } from '@/lib/db';
 import { requireApprovedAnalyst } from '@/lib/auth/authorization';
-import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
+import { formatDateTimeKa, formatMoney, formatOdds, formatUnitsSigned } from '@/lib/format';
 import { summarizePerformance } from '@/lib/stats/performance';
 import { formatPercentBps } from '@/lib/format';
 import {
@@ -14,7 +14,8 @@ import { audienceFor } from '@/lib/notifications/outbox';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Stat } from '@/components/ui/stat';
-import { EmptyState } from '@/components/ui/feedback';
+import { PlanPriceForm } from './plan-price-form';
+import { Alert, EmptyState } from '@/components/ui/feedback';
 import { ShowMoreList } from '@/components/ui/show-more';
 import { analystFeed } from '@/lib/queries/feed';
 import { Feed } from '@/components/feed';
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
 export default async function AnalystPage() {
   const analyst = await requireApprovedAnalyst();
 
-  const [sports, bets, feed, runningLive, audience, allowance] =
+  const [sports, bets, feed, runningLive, audience, allowance, plan] =
     await Promise.all([
       prisma.sport.findMany({
         where: { isActive: true },
@@ -81,7 +82,11 @@ export default async function AnalystPage() {
       }),
       audienceFor(analyst.analystProfileId),
       broadcastAllowance(analyst.analystProfileId),
-    ]);
+          prisma.subscriptionPlan.findFirst({
+        where: { analystProfileId: analyst.analystProfileId, tier: 'PREMIUM' },
+        select: { priceMinor: true, isActive: true },
+      }),
+]);
 
   const live = bets.filter(
     (bet) =>
@@ -136,6 +141,38 @@ export default async function AnalystPage() {
           ანაზღაურება
         </Link>
       </header>
+
+      {/*
+       * Pricing before everything else while it is missing: an analyst with
+       * no active plan cannot be subscribed to, so every bet they post earns
+       * nothing until this is set. Once set, it collapses to a quiet card.
+       */}
+      {!plan || !plan.isActive ? (
+        <Alert tone="warning" title="გამოწერა ჯერ არ არის გააქტიურებული">
+          <div className="space-y-3">
+            <p>
+              აირჩიეთ თვიური ფასი. სანამ ფასი არ არის არჩეული, თქვენს გვერდს
+              გამოწერა არ აქვს და ფასიან პროგნოზებზე წვდომას ვერავინ იყიდის.
+            </p>
+            <PlanPriceForm currentPriceMinor={null} />
+          </div>
+        </Alert>
+      ) : (
+        <Card as="section">
+          <CardHeader
+            title="ჩემი გამოწერა"
+            level={2}
+            action={
+              <span className="tabular text-sm text-ink-muted">
+                {formatMoney(plan.priceMinor, 'GEL')} / თვე
+              </span>
+            }
+          />
+          <CardBody>
+            <PlanPriceForm currentPriceMinor={plan.priceMinor} />
+          </CardBody>
+        </Card>
+      )}
 
       {/* --------------------------------------------------------------- */}
       {/* A running session outranks everything: during one it is the only  */}

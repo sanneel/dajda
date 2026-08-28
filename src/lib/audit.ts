@@ -24,6 +24,10 @@ export const AUDIT_ACTIONS = {
   ANALYST_REJECTED: 'analyst.rejected',
   ANALYST_SUSPENDED: 'analyst.suspended',
 
+  /** The analyst set their subscription price - money-facing, so audited. */
+  PLAN_CREATED: 'plan.created',
+  PLAN_REPRICED: 'plan.repriced',
+
   PREDICTION_CREATED: 'prediction.created',
   PREDICTION_PUBLISHED: 'prediction.published',
   PREDICTION_EDIT_REJECTED: 'prediction.edit_rejected',

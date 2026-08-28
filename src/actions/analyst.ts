@@ -335,3 +335,97 @@ async function uniqueSlug(
   }
   return `${base || 'analyst'}-${randomBytes(3).toString('hex')}`;
 }
+
+// ---------------------------------------------------------------------------
+// The analyst's own subscription plan
+// ---------------------------------------------------------------------------
+
+/**
+ * The three prices clause 9.1 of the terms allows, in tetri. Not an env
+ * knob: the signed document names the numbers, so the code does too.
+ */
+const PLAN_PRICES_MINOR = [3000, 4000, 5000] as const;
+
+/**
+ * Create or reprice the analyst's monthly plan.
+ *
+ * This is the missing half of approval: an approved analyst with no plan
+ * cannot be subscribed to, and nothing else in the product creates one -
+ * approval cannot, because the price is the author's choice, not the
+ * administrator's. One PREMIUM plan per analyst, monthly, at one of the
+ * three prices the signed terms allow.
+ *
+ * Repricing NEVER touches an existing subscriber: a UserSubscription owns
+ * its own record of what was bought, and the gateway renews on the schedule
+ * it was given at checkout. The new price applies to the next person who
+ * subscribes.
+ */
+export async function setPlanPriceAction(
+  _previous: ActionResult<{ priceMinor: number }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ priceMinor: number }>> {
+  try {
+    const actor = await requireApprovedAnalyst();
+
+    const priceMinor = Number(formData.get('priceMinor'));
+    if (!PLAN_PRICES_MINOR.includes(priceMinor as 3000 | 4000 | 5000)) {
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        'ფასი უნდა იყოს 30, 40 ან 50 ლარი თვეში.',
+      );
+    }
+
+    const profile = await prisma.analystProfile.findUniqueOrThrow({
+      where: { id: actor.analystProfileId },
+      select: { id: true, displayName: true },
+    });
+
+    const existing = await prisma.subscriptionPlan.findFirst({
+      where: { analystProfileId: profile.id, tier: 'PREMIUM' },
+      select: { id: true, priceMinor: true },
+    });
+
+    const plan = existing
+      ? await prisma.subscriptionPlan.update({
+          where: { id: existing.id },
+          data: { priceMinor, isActive: true },
+          select: { id: true },
+        })
+      : await prisma.subscriptionPlan.create({
+          data: {
+            analystProfileId: profile.id,
+            tier: 'PREMIUM',
+            nameKa: `${profile.displayName} · Premium`,
+            descriptionKa: 'ავტორის ყველა პროგნოზი და ანალიზი.',
+            featuresKa: [
+              'ავტორის ყველა პროგნოზი',
+              'სრული აღწერა და დასაბუთება',
+              'შეტყობინება ყოველ ახალ პროგნოზზე',
+            ],
+            priceMinor,
+            currency: 'GEL',
+            billingPeriod: 'MONTHLY',
+            isActive: true,
+            sortOrder: 1,
+          },
+          select: { id: true },
+        });
+
+    await writeAuditLog({
+      action: existing
+        ? AUDIT_ACTIONS.PLAN_REPRICED
+        : AUDIT_ACTIONS.PLAN_CREATED,
+      entityType: 'SubscriptionPlan',
+      entityId: plan.id,
+      summary: `${profile.displayName}: გამოწერა ${priceMinor / 100} ლარი/თვე${existing ? ` (იყო ${existing.priceMinor / 100})` : ''}`,
+      actorId: actor.userId,
+      actorRole: actor.role,
+    });
+
+    revalidatePath('/analyst');
+    revalidatePath('/analysts');
+    return ok({ priceMinor });
+  } catch (error) {
+    return toActionFailure(error);
+  }
+}
