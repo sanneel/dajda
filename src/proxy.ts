@@ -31,8 +31,18 @@ export function proxy(request: NextRequest) {
     `form-action 'self'`,
     `base-uri 'self'`,
     `object-src 'none'`,
-    `upgrade-insecure-requests`,
+    /*
+     * Not in development. The directive upgrades every subresource to https,
+     * and browsers exempt only "potentially trustworthy" hosts (localhost)
+     * from it - so a dev server opened from a phone over the LAN, e.g.
+     * http://192.168.x.x:3000, serves an HTML page whose every stylesheet
+     * and script is silently rewritten to an https URL nothing answers.
+     * The page renders naked and the server logs nothing, because the
+     * requests never arrive.
+     */
+    isDev ? '' : `upgrade-insecure-requests`,
   ]
+    .filter(Boolean)
     .join('; ')
     .replace(/\s{2,}/g, ' ')
     .trim();
