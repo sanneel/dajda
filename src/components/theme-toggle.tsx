@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 import { Moon, Sun } from 'lucide-react';
-import { THEME_STORAGE_KEY } from './theme-script';
+import { THEME_STORAGE_KEY } from '@/lib/theme';
 
 type Theme = 'light' | 'dark';
 

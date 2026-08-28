@@ -28,13 +28,13 @@ export const passwordSchema = z
     error: 'პაროლი უნდა შეიცავდეს ასოსა და ციფრს.',
   });
 
-/** Telegram's own rule: 5–32 chars, letters, digits and underscore. */
+/** Telegram's own rule: 5 to 32 chars, letters, digits and underscore. */
 export const telegramUsernameSchema = z
   .string()
   .trim()
   .regex(
     /^@?[A-Za-z0-9_]{5,32}$/,
-    'Telegram-ის მომხმარებელი უნდა შეიცავდეს 5–32 სიმბოლოს (ლათინური ასოები, ციფრები, _).',
+    'Telegram-ის მომხმარებელი უნდა შეიცავდეს 5-დან 32 სიმბოლომდე (ლათინური ასოები, ციფრები, _).',
   )
   .transform((value) => value.replace(/^@/, ''));
 

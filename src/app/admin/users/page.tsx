@@ -12,7 +12,7 @@ import { ActionButton } from '@/components/admin/action-button';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'მომხმარებლები',
+  title: 'მომხმარებლები · ადმინი',
   robots: { index: false, follow: false },
 };
 

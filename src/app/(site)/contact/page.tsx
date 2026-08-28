@@ -46,7 +46,7 @@ export default function ContactPage() {
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
       <header>
         <h1 className="font-display text-3xl text-ink sm:text-4xl">კონტაქტი</h1>
-        <p className="ph mt-3">
+        <p className="mt-3 text-ink-muted">
           კითხვა, პრობლემა გადახდასთან თუ სურვილი, გახდე ავტორი: მოგვწერე და
           გიპასუხებთ.
         </p>

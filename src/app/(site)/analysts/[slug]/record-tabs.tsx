@@ -200,13 +200,19 @@ function Plans({
 
       {/*
        * Billing terms sit at the point of purchase - there is no platform-wide
-       * subscriptions page any more. The two links are real because they are
-       * navigation, not copy; the sentences are not.
+       * subscriptions page any more. Each sentence restates a numbered clause
+       * of the terms (9.2, 9.3 with 11.1, then 9.4 and 9.5), because the three
+       * facts a reader needs before handing over a card are when access
+       * starts, that it renews until cancelled, and who handles the card.
        */}
       <div className="mt-5 border-t border-line pt-4">
-        <p className="ph text-xs leading-relaxed">
-          [3 პუნქტი გადახდამდე: (1) როდის აქტიურდება გეგმა, (2) ავტომატური
-          განახლება და გაუქმება, (3) ბარათის მონაცემები]
+        <p className="text-xs leading-relaxed text-ink-muted">
+          წვდომა აქტიურდება გადახდის დადასტურებისთანავე და მოქმედებს
+          კალენდარული თვის განმავლობაში. გამოწერა ავტომატურად განახლდება ყოველ
+          თვეს, სანამ არ გააუქმებთ; გაუქმების შემდეგ წვდომა რჩება გადახდილი
+          პერიოდის ბოლომდე. გადახდას ამუშავებს ლიცენზირებული გადახდის
+          პროვაიდერი და პლატფორმა ბარათის სრულ მონაცემებს არ ინახავს. ფასი
+          მოიცავს კანონმდებლობით გათვალისწინებულ გადასახადებს.
         </p>
         <p className="mt-2 text-xs text-ink-muted">
           <Link

@@ -35,7 +35,7 @@ export function Hero({ analysts }: { analysts: AnalystListItem[] }) {
             <span className="text-accent">მართლდება.</span>
           </h1>
 
-          <p className="ph mt-6 max-w-lg text-base leading-relaxed sm:text-lg">
+          <p className="mt-6 max-w-lg text-base leading-relaxed text-ink-muted sm:text-lg">
             DAJDA სპორტული ანალიტიკის პლატფორმაა. ავტორები პროგნოზებს მოვლენის
             დაწყებამდე აქვეყნებენ, შედეგი უცვლელად ფიქსირდება და სტატისტიკა
             შემოწმებადია, წაგებული პროგნოზების ჩათვლით.

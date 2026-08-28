@@ -1,7 +1,7 @@
 'use client';
 
 import { useLayoutEffect } from 'react';
-import { THEME_STORAGE_KEY } from './theme-script';
+import { THEME_STORAGE_KEY } from '@/lib/theme';
 
 /**
  * Re-applies the theme after hydration.

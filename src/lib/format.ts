@@ -5,6 +5,7 @@
  *
  * Client-safe: no Node built-ins, no env access.
  */
+import { tbilisiClock } from '@/lib/time';
 
 /** 1850 -> "1.85" */
 export function formatOdds(oddsMilli: number): string {
@@ -59,19 +60,27 @@ const KA_MONTHS = [
   'ივლ', 'აგვ', 'სექ', 'ოქტ', 'ნოე', 'დეკ',
 ];
 
-/** "12 აგვ 2026" */
+/**
+ * "12 აგვ 2026", on the Tbilisi wall clock.
+ *
+ * Not the server's clock and not UTC. Every reader of this site is reading a
+ * Georgian calendar: a match at 21:00 in Tbilisi has to say 21:00, and an
+ * instant stamped at Tbilisi midnight - the withdrawal window is exactly that
+ * - reads as the day before if it is formatted in UTC.
+ */
 export function formatDateKa(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = tbilisiClock(typeof date === 'string' ? new Date(date) : date);
   const month = KA_MONTHS[d.getUTCMonth()] ?? '';
   return `${d.getUTCDate()} ${month} ${d.getUTCFullYear()}`;
 }
 
-/** "12 აგვ 2026, 19:30" */
+/** "12 აგვ 2026, 19:30", on the Tbilisi wall clock. */
 export function formatDateTimeKa(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = tbilisiClock(typeof date === 'string' ? new Date(date) : date);
   const hh = String(d.getUTCHours()).padStart(2, '0');
   const mm = String(d.getUTCMinutes()).padStart(2, '0');
-  return `${formatDateKa(d)}, ${hh}:${mm}`;
+  const month = KA_MONTHS[d.getUTCMonth()] ?? '';
+  return `${d.getUTCDate()} ${month} ${d.getUTCFullYear()}, ${hh}:${mm}`;
 }
 
 /** "2026-08" -> "აგვ 2026" */

@@ -79,7 +79,7 @@ export default function HowItWorksPage() {
         <h1 className="font-display text-3xl text-ink sm:text-4xl">
           როგორ მუშაობს?
         </h1>
-        <p className="ph mt-3">
+        <p className="mt-3 text-ink-muted">
           პროგნოზი ქვეყნდება მოვლენამდე, შედეგი ფიქსირდება უცვლელად და
           სტატისტიკა შემოწმებადია. აი, როგორ.
         </p>

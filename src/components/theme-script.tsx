@@ -1,3 +1,6 @@
+import { headers } from 'next/headers';
+import { THEME_STORAGE_KEY } from '@/lib/theme';
+
 /**
  * Applies the saved theme before the first paint.
  *
@@ -12,11 +15,16 @@
  * server value on hydration and overwrite what this script or the toggle
  * wrote. The stylesheet's own no-attribute fallback is also dark, so even a
  * no-JS visitor gets the intended look.
+ *
+ * THE NONCE IS NOT OPTIONAL. src/proxy.ts sends a per-request CSP whose
+ * script-src carries a nonce, and a nonce in the list makes the browser
+ * ignore 'unsafe-inline' entirely - so without this attribute the browser
+ * refuses to run the script and the one job it exists to do, painting the
+ * right theme first, silently stops happening.
  */
-export const THEME_STORAGE_KEY = 'dajda-theme';
-
 const SCRIPT = `(function(){var t='dark';try{if(localStorage.getItem('${THEME_STORAGE_KEY}')==='light'){t='light';}}catch(e){}document.documentElement.setAttribute('data-theme',t);})();`;
 
-export function ThemeScript() {
-  return <script dangerouslySetInnerHTML={{ __html: SCRIPT }} />;
+export async function ThemeScript() {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+  return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: SCRIPT }} />;
 }

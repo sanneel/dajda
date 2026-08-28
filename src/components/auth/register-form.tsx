@@ -138,12 +138,14 @@ export function RegisterForm() {
         {pending ? 'იქმნება…' : 'ანგარიშის შექმნა'}
       </Button>
 
+      {/*
+        * Consent is the checkbox above and only the checkbox. This line used
+        * to also say that creating an account accepts the terms, which is a
+        * second and weaker claim about the same act, so it is gone; what is
+        * left is the one fact the form does not otherwise state.
+        */}
       <p className="text-xs leading-relaxed text-ink-faint">
-        ანგარიშის შექმნით ეთანხმებით{' '}
-        <Link href="/legal#terms" className="text-accent underline">
-          წესებსა და პირობებს
-        </Link>
-        . ანგარიშის დახურვა ნებისმიერ დროს შეგიძლიათ.
+        ანგარიშის დახურვა ნებისმიერ დროს შეგიძლიათ.
       </p>
     </form>
   );

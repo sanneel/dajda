@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/ui/feedback';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'აუდიტის ჟურნალი: ადმინი',
+  title: 'აუდიტის ჟურნალი · ადმინი',
   robots: { index: false, follow: false },
 };
 

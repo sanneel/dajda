@@ -25,7 +25,7 @@ function renderBody(message: OutboxMessage): string {
   return [
     message.bodyKa,
     link ? `\n${link}` : null,
-    '\n—',
+    '\n***',
     'DAJDA · სპორტული ანალიზი, გამჭვირვალე ჩანაწერით.',
     `შეტყობინებების გამორთვა: ${appUrl}/dashboard/settings`,
   ]

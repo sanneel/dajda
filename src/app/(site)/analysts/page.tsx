@@ -62,7 +62,7 @@ export default async function AnalystsPage({
         <h1 className="font-display text-3xl text-ink sm:text-4xl">
           ანალიტიკოსები
         </h1>
-        <p className="ph mt-2 max-w-2xl">
+        <p className="mt-2 max-w-2xl text-ink-muted">
           ყველა ავტორი და მათი შემოწმებადი შედეგები. სტატისტიკა ასახავს
           წარსულს და არ არის მომავლის გარანტია.
         </p>

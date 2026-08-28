@@ -13,7 +13,7 @@ export function ResendVerificationButton() {
   if (state?.ok) {
     return (
       <p className="text-sm">
-        ბმული გაიგზავნა — შეამოწმეთ ელფოსტა (სპამის საქაღალდეც).
+        ბმული გაიგზავნა. შეამოწმეთ ელფოსტა და სპამის საქაღალდეც.
       </p>
     );
   }

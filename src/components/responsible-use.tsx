@@ -22,7 +22,7 @@ export function ResponsibleUseNotice({
 }) {
   if (variant === 'compact') {
     return (
-      <p className="ph text-xs leading-relaxed">
+      <p className="text-xs leading-relaxed text-ink-muted">
         DAJDA არ არის ბუკმეკერი და ფსონს არ იღებს. პლატფორმა 18 წელს
         მიღწეულთათვისაა.
       </p>
@@ -36,7 +36,7 @@ export function ResponsibleUseNotice({
     >
       <div className="mx-auto grid max-w-page gap-4 px-4 py-8 sm:grid-cols-[4rem_minmax(0,1fr)] sm:gap-6 sm:px-8">
         <p
-          className="tabular self-start border border-line-strong px-2.5 py-1 text-center text-sm text-ink-muted"
+          className="tabular justify-self-start self-start border border-line-strong px-2.5 py-1 text-center text-sm text-ink-muted sm:justify-self-stretch"
           aria-hidden="true"
         >
           18+

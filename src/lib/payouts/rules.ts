@@ -4,34 +4,17 @@
  * Nothing here touches the database or the clock, so every rule below is
  * tested directly rather than inferred from a service that also writes rows.
  */
+import { TBILISI_UTC_OFFSET_MINUTES, tbilisiParts } from '@/lib/time';
 
-/**
- * Georgia has been on UTC+4 with no daylight saving since 2005, so a fixed
- * offset is correct rather than an approximation.
- *
- * It matters here specifically: the agreement promises withdrawal "on the last
- * day of the calendar month", and an analyst reads that in Tbilisi time. Using
- * UTC would open the window at 04:00 local on the last day and leave it open
- * until 04:00 on the 1st, which is a different promise from the one signed.
+/*
+ * The Tbilisi clock lives in @/lib/time because the whole product reads in it,
+ * not only payouts. It matters here specifically: the agreement promises
+ * withdrawal "on the last day of the calendar month", and an analyst reads
+ * that in Tbilisi time. Using UTC would open the window at 04:00 local on the
+ * last day and leave it open until 04:00 on the 1st, which is a different
+ * promise from the one signed. Re-exported so the rules read as one module.
  */
-export const TBILISI_UTC_OFFSET_MINUTES = 4 * 60;
-
-/** The wall-clock fields an instant has in Tbilisi. */
-export function tbilisiParts(instant: Date): {
-  year: number;
-  month: number;
-  day: number;
-} {
-  const shifted = new Date(
-    instant.getTime() + TBILISI_UTC_OFFSET_MINUTES * 60_000,
-  );
-  return {
-    year: shifted.getUTCFullYear(),
-    // Calendar month, 1 to 12, rather than the zero based one.
-    month: shifted.getUTCMonth() + 1,
-    day: shifted.getUTCDate(),
-  };
-}
+export { TBILISI_UTC_OFFSET_MINUTES, tbilisiParts } from '@/lib/time';
 
 /** The instant a Tbilisi wall-clock midnight corresponds to. */
 function tbilisiMidnight(year: number, month: number, day: number): Date {

@@ -14,7 +14,7 @@ import { ActionButton } from '@/components/admin/action-button';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'ანალიტიკოსები: ადმინი',
+  title: 'ანალიტიკოსები · ადმინი',
   robots: { index: false, follow: false },
 };
 

@@ -109,7 +109,7 @@ export default async function DashboardPage() {
         <h1 className="font-display text-2xl text-ink sm:text-3xl">
           გამარჯობა, {actor.name}
         </h1>
-        <p className="ph mt-1.5">
+        <p className="mt-1.5 text-ink-muted">
           თქვენი გამოწერები, ბალანსი და გადახდების ისტორია ერთ გვერდზე.
         </p>
       </header>
@@ -141,7 +141,7 @@ export default async function DashboardPage() {
         <CardHeader
           title="ბალანსი"
           level={2}
-          description="თუ ბალანსი გეგმის სრულ ფასს ფარავს, გამოწერა პირდაპირ ბალანსიდან გადაიხდება — ბარათის გარეშე."
+          description="თუ ბალანსი გეგმის სრულ ფასს ფარავს, გამოწერა პირდაპირ ბალანსიდან გადაიხდება, ბარათის გარეშე."
         />
         <CardBody>
           <div className="flex flex-wrap items-end justify-between gap-4">

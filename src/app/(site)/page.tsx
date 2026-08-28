@@ -61,7 +61,7 @@ export default async function HomePage() {
                 <h3 className="font-display text-base text-ink">
                   {feature.title}
                 </h3>
-                <p className="ph mt-1.5 text-sm leading-relaxed">
+                <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
                   {feature.body}
                 </p>
               </div>

@@ -19,11 +19,11 @@ export type AuthMailContent = {
   text: string;
 };
 
-const SIGNATURE = '— DAJDA · dajda.ge';
+const SIGNATURE = 'DAJDA · dajda.ge';
 
 export function verificationEmail(link: string): AuthMailContent {
   return {
-    subject: 'დაადასტურეთ ელფოსტა — DAJDA',
+    subject: 'DAJDA: დაადასტურეთ ელფოსტა',
     text: [
       'გამარჯობა,',
       '',
@@ -40,7 +40,7 @@ export function verificationEmail(link: string): AuthMailContent {
 
 export function passwordResetEmail(link: string): AuthMailContent {
   return {
-    subject: 'პაროლის აღდგენა — DAJDA',
+    subject: 'DAJDA: პაროლის აღდგენა',
     text: [
       'გამარჯობა,',
       '',
@@ -48,7 +48,7 @@ export function passwordResetEmail(link: string): AuthMailContent {
       '',
       link,
       '',
-      'ბმული მოქმედებს 1 საათი. თუ პაროლის აღდგენა თქვენ არ მოგითხოვიათ, წერილი უგულებელყავით — პაროლი უცვლელი რჩება.',
+      'ბმული მოქმედებს 1 საათი. თუ პაროლის აღდგენა თქვენ არ მოგითხოვიათ, წერილი უგულებელყავით, პაროლი უცვლელი რჩება.',
       '',
       SIGNATURE,
     ].join('\n'),

@@ -109,7 +109,12 @@ export default async function AnalystEarningsPage() {
             <p className="font-display text-3xl text-ink tabular">
               {formatMoney(user.earningsMinor, 'GEL')}
             </p>
-            <div className="text-right text-sm">
+            {/*
+              * Right-aligned only once it sits beside the balance. Wrapped
+              * underneath on a phone it becomes a left-hand column of its own,
+              * and right-aligned text there reads as a mistake.
+              */}
+            <div className="text-sm sm:text-right">
               <p className="text-ink-muted">
                 ამ თვის პუბლიკაციები:{' '}
                 <span className="tabular text-ink">{activity.total}</span>

@@ -662,10 +662,13 @@ async function main() {
   console.info(`Demo logins (password: ${DEMO_PASSWORD})`);
   console.info('  user@dajda.ge   - მომხმარებელი, აქტიური Premium გამოწერით');
   console.info('  giorgi@dajda.ge - ანალიტიკოსი, აქვეყნებს პროგნოზებს');
-  console.info(`  ${ADMIN_EMAIL}  - ადმინი, ამოწმებს სკრინშოტებს`);
-  if (ADMIN_PASSWORD_IS_GENERATED) {
-    console.info(`  (administrator password: ${ADMIN_PASSWORD})`);
-  }
+  // The administrator is created by the structure half and never shares the
+  // demo password, so it is listed on its own rather than under that heading.
+  console.info(
+    `Administrator: ${ADMIN_EMAIL} (password: ${
+      ADMIN_PASSWORD_IS_GENERATED ? ADMIN_PASSWORD : 'SEED_ADMIN_PASSWORD'
+    })`,
+  );
 }
 
 main()

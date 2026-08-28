@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
-import { requireUser } from '@/lib/auth/authorization';
+import { getCurrentUser } from '@/lib/auth/authorization';
 import { ANALYST_STATUS_KA } from '@/lib/labels';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Alert } from '@/components/ui/feedback';
@@ -22,7 +22,13 @@ export const metadata: Metadata = {
  * "we have it, it is being read" is the answer they came for.
  */
 export default async function AnalystApplyPage() {
-  const actor = await requireUser();
+  // Redirect rather than throw. requireUser() raises UNAUTHENTICATED, which a
+  // page render turns into a 500 error screen; every other signed-in area of
+  // the app sends a logged-out visitor to the login form, and this page is
+  // linked from the public site, so it is the one most likely to be opened
+  // by somebody who has not signed in yet.
+  const actor = await getCurrentUser();
+  if (!actor) redirect('/login');
 
   const [existing, sports] = await Promise.all([
     prisma.analystProfile.findUnique({

@@ -57,19 +57,25 @@ export default async function AdminLayout({
         className="mx-auto w-full max-w-page flex-1 px-4 py-8 sm:px-6"
       >
         <div className="grid gap-8 lg:grid-cols-[16rem_1fr]">
-          <nav aria-label="ადმინის ნავიგაცია">
-            <ul className="space-y-1 lg:sticky lg:top-24">
+          {/*
+            * A sidebar only where there is a column for it. Stacked, nine
+            * destinations plus a logout button filled a phone screen before
+            * any of the page they lead to, so below lg the same list is one
+            * scrollable row of chips.
+            */}
+          <nav aria-label="ადმინის ნავიგაცია" className="min-w-0">
+            <ul className="flex gap-1 overflow-x-auto pb-1 lg:sticky lg:top-24 lg:block lg:space-y-1 lg:overflow-x-visible lg:pb-0">
               {NAV.map((item) => (
-                <li key={item.href}>
+                <li key={item.href} className="shrink-0">
                   <Link
                     href={item.href}
-                    className="flex min-h-11 items-center rounded-md px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+                    className="flex min-h-11 items-center whitespace-nowrap rounded-md px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
                   >
                     {item.label}
                   </Link>
                 </li>
               ))}
-              <li className="pt-2">
+              <li className="shrink-0 lg:pt-2">
                 <LogoutButton />
               </li>
             </ul>
