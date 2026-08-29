@@ -8,8 +8,8 @@ import { getCurrentUser } from '@/lib/auth/authorization';
 import { isTicketLocked } from '@/lib/auth/entitlements';
 import { prisma } from '@/lib/db';
 import {
-  cumulativeUnits,
   monthlyPerformance,
+  oddsBucketPerformance,
   MIN_SAMPLE_FOR_RANKING,
 } from '@/lib/stats/performance';
 import {
@@ -17,14 +17,11 @@ import {
   formatOdds,
   formatUnitsSigned,
 } from '@/lib/format';
-import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge, DemoBadge, StatusBadge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Alert } from '@/components/ui/feedback';
 import { analystFeed } from '@/lib/queries/feed';
 import { Feed } from '@/components/feed';
-import { CumulativeUnitsChart } from '@/components/charts/cumulative-units';
-import { MonthlyBars } from '@/components/charts/monthly-bars';
 import { RecordTabs } from './record-tabs';
 import { ReportForm } from '@/components/report-form';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
@@ -83,8 +80,7 @@ export default async function AnalystProfilePage({
 
   if (!data) notFound();
 
-  const { profile, predictions, allTime, freeAllTime, paidAllTime, records } =
-    data;
+  const { profile, predictions, allTime, freeAllTime, paidAllTime } = data;
   const actor = await getCurrentUser();
 
   const [saved, subscriptions, feed, grants] = await Promise.all([
@@ -139,8 +135,30 @@ export default async function AnalystProfilePage({
       .map((prediction) => prediction.id),
   );
 
-  const cumulative = cumulativeUnits(records);
-  const monthly = monthlyPerformance(records);
+  /*
+   * Chart inputs per slice, from the same rows the summaries use. The free
+   * tab charts the free record and the paid tab the paid one - a reader
+   * switching the panel switches the whole story, not just five numbers.
+   */
+  const chartsFor = (
+    visibility: (value: (typeof predictions)[number]['visibility']) => boolean,
+  ) => {
+    const slice = predictions
+      .filter((prediction) => visibility(prediction.visibility))
+      .map((prediction) => ({
+        status: prediction.status,
+        oddsMilli: prediction.oddsMilli,
+        stakeUnitsCenti: prediction.stakeUnitsCenti,
+        profitUnitsCenti: prediction.result?.profitUnitsCenti ?? null,
+        publishedAt: prediction.publishedAt as Date,
+      }));
+    return {
+      monthly: monthlyPerformance(slice),
+      oddsBuckets: oddsBucketPerformance(slice),
+    };
+  };
+  const freeCharts = chartsFor((visibility) => visibility === 'PUBLIC');
+  const paidCharts = chartsFor((visibility) => visibility !== 'PUBLIC');
 
   // Newest pin first. The cap is enforced at pin time; the slice here is
   // only a belt against rows pinned before the cap existed.
@@ -209,6 +227,8 @@ export default async function AnalystProfilePage({
         <RecordTabs
           free={freeAllTime}
           paid={paidAllTime}
+          freeCharts={freeCharts}
+          paidCharts={paidCharts}
           plans={profile.plans.map((plan) => ({
             ...plan,
             currentStatus: statusByPlan.get(plan.id),
@@ -216,31 +236,6 @@ export default async function AnalystProfilePage({
           isAuthenticated={Boolean(actor)}
           initialTab={requestedTab}
         />
-      </section>
-
-      {/* ------------------------------------------------------------- */}
-      {/* Charts                                                          */}
-      {/* ------------------------------------------------------------- */}
-      <section className="mt-5 grid gap-5 lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="კუმულაციური ერთეულები"
-            description="დათვლილი ფსონების მიხედვით, ნულოვანი ხაზი: წამგებიანობის ზღვარი."
-          />
-          <CardBody>
-            <CumulativeUnitsChart points={cumulative} />
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="თვიური შედეგი"
-            description="მოგებიანი და წამგებიანი თვეები ერთნაირად ჩანს."
-          />
-          <CardBody>
-            <MonthlyBars buckets={monthly} />
-          </CardBody>
-        </Card>
       </section>
 
       {/* ------------------------------------------------------------- */}

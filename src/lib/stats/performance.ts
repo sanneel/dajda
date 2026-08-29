@@ -239,6 +239,64 @@ export function monthlyPerformance(
   return [...buckets.values()].sort((a, b) => a.month.localeCompare(b.month));
 }
 
+export type OddsBucket = {
+  /** "2–6" - the odds range, in whole odds. */
+  label: string;
+  won: number;
+  lost: number;
+  decided: number;
+  profitUnitsCenti: number;
+};
+
+/*
+ * The odds ranges the profile chart answers for: "what does this author do
+ * with favourites, and what with long shots". Milli-odds, upper bound
+ * exclusive; the last range is open-ended.
+ */
+const ODDS_BUCKETS: { label: string; minMilli: number; maxMilli: number | null }[] = [
+  { label: '1–2', minMilli: 0, maxMilli: 2000 },
+  { label: '2–6', minMilli: 2000, maxMilli: 6000 },
+  { label: '6–10', minMilli: 6000, maxMilli: 10_000 },
+  { label: '10+', minMilli: 10_000, maxMilli: null },
+];
+
+/** Profit per odds range. PENDING rows are excluded; VOID/PUSH add 0. */
+export function oddsBucketPerformance(
+  records: readonly PerformanceRecord[],
+): OddsBucket[] {
+  const buckets = ODDS_BUCKETS.map((range) => ({
+    label: range.label,
+    won: 0,
+    lost: 0,
+    decided: 0,
+    profitUnitsCenti: 0,
+  }));
+
+  for (const record of records) {
+    if (record.status === 'PENDING') continue;
+    const index = ODDS_BUCKETS.findIndex(
+      (range) =>
+        record.oddsMilli >= range.minMilli &&
+        (range.maxMilli === null || record.oddsMilli < range.maxMilli),
+    );
+    if (index === -1) continue;
+
+    const bucket = buckets[index];
+    if (!bucket) continue;
+    if (record.status === 'WON') {
+      bucket.won += 1;
+      bucket.decided += 1;
+    }
+    if (record.status === 'LOST') {
+      bucket.lost += 1;
+      bucket.decided += 1;
+    }
+    bucket.profitUnitsCenti += record.profitUnitsCenti ?? 0;
+  }
+
+  return buckets;
+}
+
 /**
  * Ranking score, in basis points.
  *

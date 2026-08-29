@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import type { PerformanceSummary } from '@/lib/stats/performance';
+import type {
+  MonthlyBucket,
+  OddsBucket,
+  PerformanceSummary,
+} from '@/lib/stats/performance';
 import {
   formatPercentBps,
   formatUnitsSigned,
@@ -10,12 +14,20 @@ import {
 import { Card, CardBody } from '@/components/ui/card';
 import { Stat, RecordBar } from '@/components/ui/stat';
 import { PlanCard, type PlanView } from '@/components/plan-card';
+import { MonthlyBars } from '@/components/charts/monthly-bars';
+import { OddsBucketsChart } from '@/components/charts/odds-buckets';
 
 type Tab = 'FREE' | 'PAID' | 'PLANS';
 
 export type PanelPlan = PlanView & {
   /** Set when the viewer already holds this plan. */
   currentStatus?: 'ACTIVE' | 'PENDING';
+};
+
+/** The charts for one slice of the record, computed server-side. */
+export type TabCharts = {
+  monthly: MonthlyBucket[];
+  oddsBuckets: OddsBucket[];
 };
 
 /**
@@ -34,12 +46,16 @@ export type PanelPlan = PlanView & {
 export function RecordTabs({
   free,
   paid,
+  freeCharts,
+  paidCharts,
   plans,
   isAuthenticated,
   initialTab = 'FREE',
 }: {
   free: PerformanceSummary;
   paid: PerformanceSummary;
+  freeCharts: TabCharts;
+  paidCharts: TabCharts;
   plans: PanelPlan[];
   isAuthenticated: boolean;
   /** Chosen by the page from ?tab=, so a deep link opens the right panel. */
@@ -108,7 +124,36 @@ export function RecordTabs({
             </div>
           </div>
         ) : (
-          <RecordStats summary={tab === 'FREE' ? free : paid} />
+          <div>
+            <RecordStats summary={tab === 'FREE' ? free : paid} />
+            {/*
+             * The charts belong to the slice the switch selected: the free
+             * tab charts the free record, the paid tab the paid one, so a
+             * number and its picture can never disagree.
+             */}
+            <div className="mt-6 grid gap-6 border-t border-line pt-5 lg:grid-cols-2 lg:gap-8">
+              <div>
+                <h3 className="mb-3 text-sm font-medium text-ink">
+                  თვიური შედეგი
+                </h3>
+                <MonthlyBars
+                  key={tab}
+                  buckets={(tab === 'FREE' ? freeCharts : paidCharts).monthly}
+                />
+              </div>
+              <div>
+                <h3 className="mb-3 text-sm font-medium text-ink">
+                  შედეგი კოეფიციენტის მიხედვით
+                </h3>
+                <OddsBucketsChart
+                  key={tab}
+                  buckets={
+                    (tab === 'FREE' ? freeCharts : paidCharts).oddsBuckets
+                  }
+                />
+              </div>
+            </div>
+          </div>
         )}
       </CardBody>
     </Card>

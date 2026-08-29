@@ -1,60 +1,56 @@
 'use client';
 
 import { useState } from 'react';
-import type { MonthlyBucket } from '@/lib/stats/performance';
-import { formatMonthKa, formatUnitsSigned } from '@/lib/format';
+import type { OddsBucket } from '@/lib/stats/performance';
+import { formatUnitsSigned } from '@/lib/format';
 
 /**
- * Month-by-month profit in units, drawn from a zero baseline so losing months
- * are as visible as winning ones. Showing only the good months would defeat
- * the point of the page.
- *
- * Interactive in the plainest way that works with a thumb: each column is a
- * real button, and the selected month's full figures print in a caption line
- * under the chart. Hover alone would leave phones with nothing.
+ * Profit per odds range: what the author does with favourites versus long
+ * shots. The same construction as MonthlyBars - columns from a zero baseline,
+ * a range scale underneath, and a tap-to-read caption - so the two charts
+ * read as one instrument.
  */
-export function MonthlyBars({ buckets }: { buckets: MonthlyBucket[] }) {
-  const recent = buckets.slice(-12);
-  const [active, setActive] = useState<number | null>(
-    recent.length > 0 ? recent.length - 1 : null,
+export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
+  // An empty range stays visible at zero: "never bets 10+" is information.
+  const played = buckets.filter(
+    (bucket) => bucket.decided > 0 || bucket.profitUnitsCenti !== 0,
   );
+  const [active, setActive] = useState<number | null>(null);
 
-  if (buckets.length === 0) {
+  if (played.length === 0) {
     return (
       <div className="flex h-[160px] items-center justify-center rounded-md border border-dashed border-line text-sm text-ink-muted">
-        თვიური სტატისტიკა ჯერ არ არის.
+        დათვლილი ფსონი ჯერ არ არის.
       </div>
     );
   }
 
   const magnitude = Math.max(
-    ...recent.map((bucket) => Math.abs(bucket.profitUnitsCenti)),
+    ...buckets.map((bucket) => Math.abs(bucket.profitUnitsCenti)),
     100,
   );
-  const selected = active !== null ? recent[active] : undefined;
+  const selected = active !== null ? buckets[active] : undefined;
 
   return (
     <div>
-      <div className="flex h-[160px] items-stretch gap-1.5">
-        {recent.map((bucket, index) => {
+      <div className="flex h-[160px] items-stretch gap-3">
+        {buckets.map((bucket, index) => {
           const positive = bucket.profitUnitsCenti >= 0;
           const share = Math.abs(bucket.profitUnitsCenti) / magnitude;
-          // Always show a sliver so a zero month is still a visible column.
           const heightPct = Math.max(share * 50, 1.5);
           const isActive = index === active;
 
           return (
             <button
-              key={bucket.month}
+              key={bucket.label}
               type="button"
               onClick={() => setActive(index)}
               aria-pressed={isActive}
-              title={`${formatMonthKa(bucket.month)}: ${formatUnitsSigned(bucket.profitUnitsCenti)} ერთეული (${bucket.won}-${bucket.lost})`}
+              title={`კოეფ. ${bucket.label}: ${formatUnitsSigned(bucket.profitUnitsCenti)} ერთეული (${bucket.won}-${bucket.lost})`}
               className={`flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-center rounded-sm transition-colors ${
                 isActive ? 'bg-elevated' : 'hover:bg-elevated/60'
               }`}
             >
-              {/* Upper half: winning months grow up from the midline. */}
               <span className="flex w-full flex-1 items-end justify-center">
                 {positive ? (
                   <span
@@ -77,27 +73,24 @@ export function MonthlyBars({ buckets }: { buckets: MonthlyBucket[] }) {
         })}
       </div>
 
-      {/* The month scale, under the columns it labels. */}
-      <div className="mt-2 flex gap-1.5">
-        {recent.map((bucket, index) => (
+      {/* The odds scale, under the columns it labels. */}
+      <div className="mt-2 flex gap-3">
+        {buckets.map((bucket, index) => (
           <div
-            key={bucket.month}
-            className={`min-w-0 flex-1 truncate text-center text-xs ${
+            key={bucket.label}
+            className={`tabular min-w-0 flex-1 truncate text-center text-xs ${
               index === active ? 'font-medium text-ink' : 'text-ink-faint'
             }`}
           >
-            {formatMonthKa(bucket.month).split(' ')[0]}
+            {bucket.label}
           </div>
         ))}
       </div>
 
-      {/* The selected month, in full words - the chart's readout. */}
       <p className="mt-3 border-t border-line pt-2.5 text-sm text-ink-muted" aria-live="polite">
         {selected ? (
           <>
-            <span className="font-medium text-ink">
-              {formatMonthKa(selected.month)}
-            </span>
+            <span className="font-medium text-ink">კოეფ. {selected.label}</span>
             {' · '}
             <span
               className={`tabular font-medium ${
@@ -113,25 +106,24 @@ export function MonthlyBars({ buckets }: { buckets: MonthlyBucket[] }) {
             {` · ${selected.won} მოგებული, ${selected.lost} წაგებული`}
           </>
         ) : (
-          'აირჩიეთ თვე დეტალებისთვის.'
+          'აირჩიეთ სვეტი დეტალებისთვის.'
         )}
       </p>
 
-      {/* The same data as text, for assistive technology and for verification. */}
       <table className="sr-only">
-        <caption>თვიური შედეგები</caption>
+        <caption>შედეგი კოეფიციენტის მიხედვით</caption>
         <thead>
           <tr>
-            <th scope="col">თვე</th>
+            <th scope="col">კოეფიციენტი</th>
             <th scope="col">მოგებული</th>
             <th scope="col">წაგებული</th>
             <th scope="col">ერთეული</th>
           </tr>
         </thead>
         <tbody>
-          {recent.map((bucket) => (
-            <tr key={bucket.month}>
-              <th scope="row">{formatMonthKa(bucket.month)}</th>
+          {buckets.map((bucket) => (
+            <tr key={bucket.label}>
+              <th scope="row">{bucket.label}</th>
               <td>{bucket.won}</td>
               <td>{bucket.lost}</td>
               <td>{formatUnitsSigned(bucket.profitUnitsCenti)}</td>
