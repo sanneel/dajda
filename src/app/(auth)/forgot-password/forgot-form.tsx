@@ -39,10 +39,8 @@ export function ForgotPasswordForm() {
         {pending ? 'იგზავნება…' : 'ბმულის გამოგზავნა'}
       </Button>
 
-      {/* Honest about the current state of the integration. */}
       <p className="text-xs leading-relaxed text-ink-faint">
-        შენიშვნა: ელფოსტის გაგზავნის სერვისი ჯერ არ არის დაკავშირებული.
-        დეველოპმენტში ბმული იბეჭდება სერვერის კონსოლში.
+        ბმული მოქმედებს 1 საათი. თუ წერილი არ ჩანს, შეამოწმეთ სპამიც.
       </p>
     </form>
   );

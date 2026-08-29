@@ -22,7 +22,8 @@ import { NotificationBell } from './notification-bell';
 export async function SiteHeader() {
   const actor = await getCurrentUser();
   const isAdmin = actor?.role === 'ADMIN';
-  const isAnalyst = Boolean(actor?.analystProfileId);
+  // APPROVED, not merely applied: a pending applicant is not an analyst yet.
+  const isAnalyst = actor?.analystStatus === 'APPROVED';
 
   return (
     <>

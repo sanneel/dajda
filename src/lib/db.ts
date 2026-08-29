@@ -18,6 +18,11 @@ function createPrismaClient(): PrismaClient {
 
   const adapter = new PrismaPg({
     connectionString: env.DATABASE_URL,
+    // TCP keepalive on every pooled socket. Both the PGlite dev server and
+    // pooled cloud Postgres silently drop idle connections; without probes
+    // the first query on a dead socket surfaces as "Connection terminated
+    // unexpectedly" instead of a clean reconnect.
+    keepAlive: true,
     ...(env.DATABASE_POOL_MAX
       ? {
           max: env.DATABASE_POOL_MAX,
