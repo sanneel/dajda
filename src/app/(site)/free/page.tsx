@@ -121,7 +121,11 @@ export default async function FreeTicketsPage({
       >
         <SortTicks
           basePath="/free"
-          state={{ odds: filter.odds, acc: filter.acc, soon: filter.soon === '1' }}
+          state={{
+            odds: filter.odds === '1',
+            acc: filter.acc === '1',
+            soon: filter.soon === '1',
+          }}
         />
         <span className="ml-auto tabular text-xs text-ink-faint">
           {total} პროგნოზი

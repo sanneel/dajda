@@ -1,48 +1,43 @@
 import Link from 'next/link';
 import { Check } from 'lucide-react';
-import type { TickDirection } from '@/lib/queries/tickets';
 
 /**
- * The feed's sort bar: three tick chips instead of a menu.
+ * The feed's sort bar: plain tick chips instead of a menu.
  *
  * Every chip is a link, so the bar is plain navigation - it works without
- * JavaScript and every combination has a URL that can be shared. Ticks
- * combine rather than replace each other; the two directional chips cycle
- * მაღალი → დაბალი → off on successive clicks, and with nothing ticked the
- * feed falls back to "მალე იწყება".
+ * JavaScript and every combination has a URL that can be shared. Each tick
+ * has exactly one direction, the end nobody asked to invert: highest odds,
+ * highest accuracy, cheapest price. Ticks combine, stacking in display
+ * order; with nothing ticked the feed falls back to "მალე იწყება".
  */
 
 export type TickState = {
-  odds?: TickDirection;
-  acc?: TickDirection;
+  odds?: boolean;
+  acc?: boolean;
   /** Paid feed only. */
-  price?: TickDirection;
+  price?: boolean;
   soon?: boolean;
 };
 
 function buildHref(basePath: string, state: TickState): string {
   const query = new URLSearchParams();
-  if (state.odds) query.set('odds', state.odds);
-  if (state.acc) query.set('acc', state.acc);
-  if (state.price) query.set('price', state.price);
+  if (state.odds) query.set('odds', '1');
+  if (state.acc) query.set('acc', '1');
+  if (state.price) query.set('price', '1');
   if (state.soon) query.set('soon', '1');
   const suffix = query.toString();
   return suffix ? `${basePath}?${suffix}` : basePath;
 }
 
-function nextDirection(current: TickDirection | undefined): TickDirection | undefined {
-  if (current === undefined) return 'high';
-  if (current === 'high') return 'low';
-  return undefined;
-}
-
 function Tick({
   href,
   on,
+  title,
   children,
 }: {
   href: string;
   on: boolean;
+  title?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -52,6 +47,7 @@ function Tick({
       // scroll-to-top on every click is what made the bar feel broken.
       scroll={false}
       aria-pressed={on}
+      title={title}
       className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm transition-colors ${
         on
           ? 'border-accent text-accent'
@@ -71,11 +67,6 @@ function Tick({
   );
 }
 
-const DIRECTION_KA: Record<TickDirection, string> = {
-  high: 'მაღალი',
-  low: 'დაბალი',
-};
-
 export function SortTicks({
   basePath,
   state,
@@ -89,40 +80,28 @@ export function SortTicks({
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="დალაგება">
       <Tick
-        href={buildHref(basePath, { ...state, odds: nextDirection(state.odds) })}
-        on={state.odds !== undefined}
+        href={buildHref(basePath, { ...state, odds: !state.odds })}
+        on={state.odds === true}
+        title="მაღალი კოეფიციენტი ჯერ"
       >
         კოეფიციენტი
-        {state.odds ? (
-          <span className="text-xs opacity-80">
-            {DIRECTION_KA[state.odds]} {state.odds === 'high' ? '↓' : '↑'}
-          </span>
-        ) : null}
       </Tick>
 
       <Tick
-        href={buildHref(basePath, { ...state, acc: nextDirection(state.acc) })}
-        on={state.acc !== undefined}
+        href={buildHref(basePath, { ...state, acc: !state.acc })}
+        on={state.acc === true}
+        title="მაღალი სიზუსტე ჯერ"
       >
         სიზუსტე
-        {state.acc ? (
-          <span className="text-xs opacity-80">
-            {DIRECTION_KA[state.acc]} {state.acc === 'high' ? '↓' : '↑'}
-          </span>
-        ) : null}
       </Tick>
 
       {showPrice ? (
         <Tick
-          href={buildHref(basePath, { ...state, price: nextDirection(state.price) })}
-          on={state.price !== undefined}
+          href={buildHref(basePath, { ...state, price: !state.price })}
+          on={state.price === true}
+          title="იაფი ჯერ"
         >
           ფასი
-          {state.price ? (
-            <span className="text-xs opacity-80">
-              {DIRECTION_KA[state.price]} {state.price === 'high' ? '↓' : '↑'}
-            </span>
-          ) : null}
         </Tick>
       ) : null}
 

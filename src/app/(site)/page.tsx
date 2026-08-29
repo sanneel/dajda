@@ -15,8 +15,7 @@ const SORTS: { value: AnalystSort; label: string }[] = [
   { value: 'score', label: 'DAJDA რეიტინგი' },
   { value: 'accuracy', label: 'სიზუსტე' },
   { value: 'profit', label: 'პროფიტი' },
-  { value: 'odds-high', label: 'საშ. კუში · მაღალი' },
-  { value: 'odds-low', label: 'საშ. კუში · დაბალი' },
+  { value: 'odds-high', label: 'საშუალო კუში' },
   { value: 'recent', label: 'ბოლო 30 დღე' },
   { value: 'volume', label: 'ფსონების რაოდენობა' },
 ];
