@@ -8,11 +8,9 @@ import { Alert } from '@/components/ui/feedback';
 
 export function ProfileForm({
   defaultName,
-  defaultTelegram,
   email,
 }: {
   defaultName: string;
-  defaultTelegram: string;
   email: string;
 }) {
   const [state, action, pending] = useActionState(updateProfileAction, null);
@@ -42,20 +40,6 @@ export function ProfileForm({
         hint="ელფოსტის შეცვლა ამჟამად შესაძლებელია მხოლოდ მხარდაჭერის მეშვეობით."
       >
         <Input id="email-readonly" defaultValue={email} disabled readOnly />
-      </Field>
-
-      <Field
-        label="Telegram"
-        htmlFor="telegramUsername"
-        error={fieldErrors?.telegramUsername?.[0]}
-      >
-        <Input
-          id="telegramUsername"
-          name="telegramUsername"
-          defaultValue={defaultTelegram}
-          placeholder="@username"
-          error={Boolean(fieldErrors?.telegramUsername?.[0])}
-        />
       </Field>
 
       <Button type="submit" disabled={pending}>

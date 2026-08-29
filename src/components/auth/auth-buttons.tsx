@@ -22,16 +22,12 @@ type Mode = 'login' | 'register';
  * places, so there is one implementation rather than two that drift.
  */
 export function AuthButtons({
-  // Read on the server by SiteHeader and passed down: this is a client
-  // component, and env is not readable from the browser.
-  telegramConfigured,
   // The Telegram and Google buttons are SERVER components (they read env to
   // decide whether to exist), so the header renders them and hands them in
   // as a slot - a client component cannot import them, but it can place
   // them.
   socialButtons,
 }: {
-  telegramConfigured: boolean;
   socialButtons?: ReactNode;
 }) {
   const [mode, setMode] = useState<Mode | null>(null);
@@ -77,7 +73,7 @@ export function AuthButtons({
         onClose={() => setMode(null)}
         title="რეგისტრაცია"
       >
-        <RegisterForm telegramConfigured={telegramConfigured} />
+        <RegisterForm />
         {socialButtons}
         <p className="mt-5 border-t border-line pt-4 text-sm text-ink-muted">
           უკვე გაქვთ ანგარიში?{' '}

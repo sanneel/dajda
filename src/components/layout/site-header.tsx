@@ -4,7 +4,6 @@ import { Logo } from '@/components/brand/logo';
 import { Avatar } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { AuthButtons } from '@/components/auth/auth-buttons';
-import { telegramBotConfigured } from '@/lib/auth/telegram';
 import { TelegramLoginButton } from '@/components/auth/telegram-button';
 import { GoogleLoginButton } from '@/components/auth/google-button';
 import { BottomNav } from './bottom-nav';
@@ -72,7 +71,6 @@ export async function SiteHeader() {
             </Link>
           ) : (
             <AuthButtons
-              telegramConfigured={telegramBotConfigured()}
               socialButtons={
                 <>
                   <TelegramLoginButton />

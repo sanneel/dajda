@@ -89,7 +89,6 @@ export async function registerAction(
       name: formData.get('name'),
       email: formData.get('email'),
       password: formData.get('password'),
-      telegramUsername: formData.get('telegramUsername') || undefined,
       ageConfirmed: formData.get('ageConfirmed') === 'on',
       acceptTerms: formData.get('acceptTerms') === 'on',
     });
@@ -128,17 +127,13 @@ export async function registerAction(
           name: input.name,
           email: input.email,
           password,
-          telegramUsername: input.telegramUsername || null,
           ageConfirmedAt: new Date(),
         },
         select: { id: true, role: true },
       });
 
       await tx.notificationPreference.create({
-        data: {
-          userId: created.id,
-          telegramUsername: input.telegramUsername || null,
-        },
+        data: { userId: created.id },
       });
 
       await tx.authToken.create({

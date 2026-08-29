@@ -46,7 +46,6 @@ export const registerSchema = z.object({
     .max(80, 'სახელი ძალიან გრძელია.'),
   email: emailSchema,
   password: passwordSchema,
-  telegramUsername: telegramUsernameSchema.optional().or(z.literal('')),
   ageConfirmed: z.literal(true, {
     error: 'რეგისტრაციისთვის საჭიროა 18 წლის ასაკის დადასტურება.',
   }),
@@ -292,7 +291,6 @@ export const notificationPreferencesSchema = z.object({
 
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2).max(80),
-  telegramUsername: telegramUsernameSchema.optional().or(z.literal('')),
 });
 
 export const analystApplicationSchema = z.object({

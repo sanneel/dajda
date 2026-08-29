@@ -88,7 +88,7 @@ export default async function DashboardPage() {
     }),
     prisma.user.findUniqueOrThrow({
       where: { id: actor.userId },
-      select: { balanceMinor: true },
+      select: { balanceMinor: true, telegramChatId: true },
     }),
     prisma.balanceTransaction.findMany({
       where: { userId: actor.userId },
@@ -148,76 +148,14 @@ export default async function DashboardPage() {
         </Alert>
       ) : null}
 
-      {/* ---------------------------------------------------------------- */}
-      {/* Balance                                                           */}
-      {/* ---------------------------------------------------------------- */}
-      <Card as="section">
-        <CardBody>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm text-ink-muted">ბალანსი</h2>
-              <p className="font-display text-3xl text-ink tabular">
-                {formatMoney(balance.balanceMinor, "GEL")}
-              </p>
-            </div>
-            {/*
-             * The top-up form starts folded. Most visits to this page are a
-             * glance at a number or a cancellation, and an always-open input
-             * with its explanation made the first card the tallest thing on a
-             * phone. Native details, so it costs no JavaScript.
-             */}
-            <details className="group">
-              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors marker:content-none hover:border-ink-faint">
-                <span className="group-open:hidden">შევსება</span>
-                <span className="hidden group-open:inline">დახურვა</span>
-              </summary>
-              <div className="mt-3 space-y-2">
-                <TopUpForm />
-                <p className="max-w-72 text-xs leading-relaxed text-ink-faint">
-                  თუ ბალანსი გეგმის სრულ ფასს ფარავს, გამოწერა პირდაპირ
-                  ბალანსიდან გადაიხდება, ბარათის გარეშე.
-                </p>
-              </div>
-            </details>
-          </div>
-
-          {balanceEntries.length > 0 ? (
-            <details className="mt-4 border-t border-line pt-3">
-              <summary className="cursor-pointer list-none text-sm text-ink-muted marker:content-none hover:text-ink">
-                ბოლო მოძრაობები ({balanceEntries.length})
-              </summary>
-              <ul className="mt-2 divide-y divide-line text-sm">
-              {balanceEntries.map((entry) => (
-                <li
-                  key={entry.id}
-                  className="flex items-center justify-between gap-3 py-2"
-                >
-                  <span className="min-w-0 text-ink-muted">
-                    {BALANCE_KIND_KA[entry.kind]}
-                    {entry.note ? ` · ${entry.note}` : ""}
-                  </span>
-                  <span className="flex shrink-0 items-center gap-3">
-                    <span className="tabular text-ink-faint">
-                      {formatDateKa(entry.createdAt)}
-                    </span>
-                    <span
-                      className={
-                        entry.amountMinor > 0
-                          ? "tabular text-ink"
-                          : "tabular text-ink-muted"
-                      }
-                    >
-                      {entry.amountMinor > 0 ? "+" : "−"}
-                      {formatMoney(Math.abs(entry.amountMinor), entry.currency)}
-                    </span>
-                  </span>
-                </li>
-              ))}
-              </ul>
-            </details>
-          ) : null}
-        </CardBody>
-      </Card>
+      {balance.telegramChatId === null ? (
+        <Alert tone="info" title="დააკავშირეთ Telegram">
+          შეტყობინებები ბოტიდან ელფოსტაზე სწრაფად მოდის.{" "}
+          <Link href="/dashboard/settings" className="font-medium underline">
+            დაკავშირება პარამეტრებში →
+          </Link>
+        </Alert>
+      ) : null}
 
       {/* ---------------------------------------------------------------- */}
       {/* Subscriptions                                                     */}
@@ -338,6 +276,86 @@ export default async function DashboardPage() {
           ) : null}
         </div>
       </details>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Balance                                                           */}
+      {/* ---------------------------------------------------------------- */}
+      {/*
+       * Hidden for the ordinary account it would only clutter: the card
+       * appears when there is money on it, movement behind it, or the owner
+       * is an analyst whose earnings land here.
+       */}
+      {actor.analystProfileId ||
+      balance.balanceMinor !== 0 ||
+      balanceEntries.length > 0 ? (
+      <Card as="section">
+        <CardBody>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm text-ink-muted">ბალანსი</h2>
+              <p className="font-display text-3xl text-ink tabular">
+                {formatMoney(balance.balanceMinor, "GEL")}
+              </p>
+            </div>
+            {/*
+             * The top-up form starts folded. Most visits to this page are a
+             * glance at a number or a cancellation, and an always-open input
+             * with its explanation made the first card the tallest thing on a
+             * phone. Native details, so it costs no JavaScript.
+             */}
+            <details className="group">
+              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors marker:content-none hover:border-ink-faint">
+                <span className="group-open:hidden">შევსება</span>
+                <span className="hidden group-open:inline">დახურვა</span>
+              </summary>
+              <div className="mt-3 space-y-2">
+                <TopUpForm />
+                <p className="max-w-72 text-xs leading-relaxed text-ink-faint">
+                  თუ ბალანსი გეგმის სრულ ფასს ფარავს, გამოწერა პირდაპირ
+                  ბალანსიდან გადაიხდება, ბარათის გარეშე.
+                </p>
+              </div>
+            </details>
+          </div>
+
+          {balanceEntries.length > 0 ? (
+            <details className="mt-4 border-t border-line pt-3">
+              <summary className="cursor-pointer list-none text-sm text-ink-muted marker:content-none hover:text-ink">
+                ბოლო მოძრაობები ({balanceEntries.length})
+              </summary>
+              <ul className="mt-2 divide-y divide-line text-sm">
+              {balanceEntries.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="flex items-center justify-between gap-3 py-2"
+                >
+                  <span className="min-w-0 text-ink-muted">
+                    {BALANCE_KIND_KA[entry.kind]}
+                    {entry.note ? ` · ${entry.note}` : ""}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <span className="tabular text-ink-faint">
+                      {formatDateKa(entry.createdAt)}
+                    </span>
+                    <span
+                      className={
+                        entry.amountMinor > 0
+                          ? "tabular text-ink"
+                          : "tabular text-ink-muted"
+                      }
+                    >
+                      {entry.amountMinor > 0 ? "+" : "−"}
+                      {formatMoney(Math.abs(entry.amountMinor), entry.currency)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+              </ul>
+            </details>
+          ) : null}
+        </CardBody>
+      </Card>
+      ) : null}
 
       {/* ---------------------------------------------------------------- */}
       {/* Payments                                                          */}

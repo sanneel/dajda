@@ -32,7 +32,6 @@ export async function updateProfileAction(
 
     const parsed = updateProfileSchema.safeParse({
       name: formData.get('name'),
-      telegramUsername: formData.get('telegramUsername') || undefined,
     });
 
     if (!parsed.success) {
@@ -45,10 +44,8 @@ export async function updateProfileAction(
 
     await prisma.user.update({
       where: { id: actor.userId },
-      data: {
-        name: parsed.data.name,
-        telegramUsername: parsed.data.telegramUsername || null,
-      },
+      // Telegram identity is set by the bot link, not typed here.
+      data: { name: parsed.data.name },
     });
 
     revalidatePath('/dashboard/settings');

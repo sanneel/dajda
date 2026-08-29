@@ -55,11 +55,7 @@ export default async function SettingsPage() {
       <Card>
         <CardHeader title="ანგარიში" />
         <CardBody>
-          <ProfileForm
-            defaultName={user.name}
-            defaultTelegram={user.telegramUsername ?? ''}
-            email={user.email}
-          />
+          <ProfileForm defaultName={user.name} email={user.email} />
         </CardBody>
       </Card>
 
