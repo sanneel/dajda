@@ -38,13 +38,19 @@ export function verificationEmail(link: string, code: string): AuthMailContent {
      * for exactly this "code keyword next to digits" shape. The keyword
      * sits adjacent to the digits to feed those heuristics.
      */
-    subject: `DAJDA · დადასტურების კოდი: ${code}`,
+    /*
+     * "Code:" in English, adjacent to the digits: the OS detectors are
+     * keyword dictionaries, English is the one dictionary every one of them
+     * ships, and Georgian is almost certainly in none of them. The Georgian
+     * label follows for the human reading the subject.
+     */
+    subject: `Code: ${code} · DAJDA დადასტურების კოდი`,
     text: [
       'გამარჯობა,',
       '',
       opening,
       '',
-      `კოდი: ${code}`,
+      `Code / კოდი: ${code}`,
       '',
       link,
       '',
