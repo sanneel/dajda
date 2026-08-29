@@ -34,6 +34,8 @@ type Recorded = {
   balanceReversals: { paymentId: string; amountMinor: number; reason: string }[];
   earningCredits: { paymentId: string; analystUserId: string; grossAmountMinor: number }[];
   earningReversals: { paymentId: string; analystUserId: string; reason: string }[];
+  ticketGrants: { paymentId: string; userId: string; predictionId: string; amountMinor: number }[];
+  ticketRevocations: { userId: string; predictionId: string; reason: string }[];
 };
 
 /** The order id the fake database knows about; anything else is a stranger. */
@@ -52,6 +54,8 @@ function makePort(payment: PaymentSnapshot | null) {
     balanceReversals: [],
     earningCredits: [],
     earningReversals: [],
+    ticketGrants: [],
+    ticketRevocations: [],
   };
 
   let counter = 0;
@@ -100,6 +104,19 @@ function makePort(payment: PaymentSnapshot | null) {
 
     async deactivateSubscription(input) {
       recorded.deactivations.push(input);
+    },
+
+    async grantTicketPurchase(input) {
+      recorded.ticketGrants.push({
+        paymentId: input.paymentId,
+        userId: input.userId,
+        predictionId: input.predictionId,
+        amountMinor: input.amountMinor,
+      });
+    },
+
+    async revokeTicketPurchase(input) {
+      recorded.ticketRevocations.push(input);
     },
 
     async saveCardToken(input) {
@@ -177,6 +194,23 @@ const PAYMENT: PaymentSnapshot = {
   amountMinor: 2900,
   currency: 'GEL',
   billingPeriod: 'MONTHLY',
+  predictionId: null,
+  analystProfileId: 'analyst-1',
+  analystUserId: 'analyst-user-1',
+};
+
+/** A single-ticket purchase: no plan, no subscription, one prediction. */
+const TICKET_PAYMENT: PaymentSnapshot = {
+  id: 'payment-ticket-1',
+  userId: 'user-1',
+  planId: null,
+  subscriptionId: null,
+  purpose: 'TICKET',
+  status: 'CREATED',
+  amountMinor: 1500,
+  currency: 'GEL',
+  billingPeriod: null,
+  predictionId: 'prediction-1',
   analystProfileId: 'analyst-1',
   analystUserId: 'analyst-user-1',
 };
@@ -192,6 +226,7 @@ const TOPUP_PAYMENT: PaymentSnapshot = {
   amountMinor: 5000,
   currency: 'GEL',
   billingPeriod: null,
+  predictionId: null,
   analystProfileId: null,
   analystUserId: null,
 };
@@ -825,5 +860,48 @@ describe('analyst earnings', () => {
     );
 
     expect(recorded.earningCredits).toHaveLength(0);
+  });
+});
+
+describe('single-ticket purchases', () => {
+  it('grants the ticket and credits the analyst on a verified payment', async () => {
+    const { port, recorded } = makePort({ ...TICKET_PAYMENT });
+    await processPaymentWebhook('mock', result({ amountMinor: 1500 }), port);
+
+    expect(recorded.ticketGrants).toEqual([
+      {
+        paymentId: 'payment-ticket-1',
+        userId: 'user-1',
+        predictionId: 'prediction-1',
+        amountMinor: 1500,
+      },
+    ]);
+    expect(recorded.earningCredits).toEqual([
+      {
+        paymentId: 'payment-ticket-1',
+        analystUserId: 'analyst-user-1',
+        grossAmountMinor: 1500,
+      },
+    ]);
+    // Nothing subscription-shaped moves.
+    expect(recorded.activations).toEqual([]);
+  });
+
+  it('revokes access and takes the earning back on a refund', async () => {
+    const { port, recorded } = makePort({ ...TICKET_PAYMENT, status: 'SUCCEEDED' });
+    await processPaymentWebhook(
+      'mock',
+      result({ status: 'REFUNDED', rawStatus: 'reversed', eventId: 'evt-refund', amountMinor: 1500 }),
+      port,
+    );
+
+    expect(recorded.ticketRevocations).toEqual([
+      {
+        userId: 'user-1',
+        predictionId: 'prediction-1',
+        reason: 'payment refunded',
+      },
+    ]);
+    expect(recorded.earningReversals).toHaveLength(1);
   });
 });

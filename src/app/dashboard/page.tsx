@@ -10,7 +10,7 @@ import {
   SUBSCRIPTION_STATUS_KA,
 } from "@/lib/labels";
 import { Card, CardBody } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Alert, EmptyState } from "@/components/ui/feedback";
 import { ButtonLink } from "@/components/ui/button";
 import { CancelSubscriptionButton } from "./cancel-button";
@@ -42,8 +42,14 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const actor = await requireUser();
 
-  const [subscriptions, payments, pendingPayments, balance, balanceEntries] =
-    await Promise.all([
+  const [
+    subscriptions,
+    purchases,
+    payments,
+    pendingPayments,
+    balance,
+    balanceEntries,
+  ] = await Promise.all([
     prisma.userSubscription.findMany({
       where: { userId: actor.userId },
       orderBy: { createdAt: "desc" },
@@ -60,6 +66,27 @@ export default async function DashboardPage() {
             currency: true,
             billingPeriod: true,
             analystProfile: { select: { displayName: true, slug: true } },
+          },
+        },
+      },
+    }),
+    prisma.predictionPurchase.findMany({
+      where: { userId: actor.userId, revokedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        amountMinor: true,
+        currency: true,
+        createdAt: true,
+        prediction: {
+          select: {
+            id: true,
+            titleKa: true,
+            status: true,
+            sport: { select: { nameKa: true } },
+            author: { select: { displayName: true, slug: true } },
+            result: { select: { profitUnitsCenti: true } },
           },
         },
       },
@@ -280,6 +307,62 @@ export default async function DashboardPage() {
       {/* ---------------------------------------------------------------- */}
       {/* Balance                                                           */}
       {/* ---------------------------------------------------------------- */}
+      {/* ---------------------------------------------------------------- */}
+      {/* Purchased tickets                                                 */}
+      {/* ---------------------------------------------------------------- */}
+      {purchases.length > 0 ? (
+        <details open className="rounded-card border border-line bg-surface">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 marker:content-none sm:px-5">
+            <span className="font-display text-base text-ink">
+              შეძენილი ბილეთები
+            </span>
+            <span className="tabular text-sm text-ink-faint">
+              {purchases.length}
+            </span>
+          </summary>
+          <div className="border-t border-line p-4 sm:p-5">
+            <ul className="-m-4 divide-y divide-line sm:-m-5">
+              {purchases.map((purchase) => (
+                <li
+                  key={purchase.id}
+                  className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href={`/free/${purchase.prediction.id}`}
+                      className="font-medium text-ink hover:text-accent"
+                    >
+                      {purchase.prediction.titleKa}
+                    </Link>
+                    <p className="mt-0.5 text-sm text-ink-muted">
+                      {purchase.prediction.author ? (
+                        <Link
+                          href={`/analysts/${purchase.prediction.author.slug}`}
+                          className="hover:text-ink"
+                        >
+                          {purchase.prediction.author.displayName}
+                        </Link>
+                      ) : (
+                        purchase.prediction.sport.nameKa
+                      )}
+                      {" · "}
+                      <span className="tabular">
+                        {formatMoney(purchase.amountMinor, purchase.currency)}
+                      </span>
+                      {" · "}
+                      <span className="tabular">
+                        {formatDateKa(purchase.createdAt)}
+                      </span>
+                    </p>
+                  </div>
+                  <StatusBadge status={purchase.prediction.status} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
+      ) : null}
+
       {/*
        * Hidden for the ordinary account it would only clutter: the card
        * appears when there is money on it, movement behind it, or the owner

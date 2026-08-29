@@ -51,6 +51,8 @@ export const AUDIT_ACTIONS = {
   SUBSCRIPTION_EXPIRED: 'subscription.expired',
 
   PAYMENT_CREATED: 'payment.created',
+  TICKET_PURCHASED: 'ticket.purchased',
+  TICKET_PURCHASE_REVOKED: 'ticket.purchase_revoked',
   PAYMENT_STATUS_CHANGED: 'payment.status_changed',
   PAYMENT_WEBHOOK_RECEIVED: 'payment.webhook_received',
   PAYMENT_WEBHOOK_REJECTED: 'payment.webhook_rejected',

@@ -68,6 +68,8 @@ export async function createPrediction(
       stakeUnitsCenti: input.stakeUnits,
       confidence: input.confidence,
       visibility: input.visibility,
+      // A free bet never carries a price, whatever the form sent.
+      priceMinor: input.visibility === 'PUBLIC' ? null : (input.price ?? null),
       eventAt: input.eventAt ?? null,
       publishedAt,
     },

@@ -32,6 +32,7 @@ const publicTicketSelect = {
   status: true,
   visibility: true,
   oddsMilli: true,
+  priceMinor: true,
   publishedAt: true,
   eventAt: true,
   finishedAt: true,
@@ -63,8 +64,12 @@ export type FeedTicket = PublicTicket & {
   authorHitRateBps: number | null;
   authorDecided: number;
   authorProfitUnitsCenti: number | null;
-  /** Only set on the paid feed, from the author's plan for this tier. */
-  priceMinor: number | null;
+  /**
+   * Only set on the paid feed: the ticket's own single-purchase price.
+   * Falls back to the author's tier plan price for paid bets posted before
+   * per-ticket pricing existed (shown per period in that case).
+   */
+  feedPriceMinor: number | null;
   priceCurrency: string | null;
   priceBillingPeriod: 'MONTHLY' | 'QUARTERLY' | null;
 };
@@ -175,9 +180,12 @@ async function listTicketFeed(kind: 'FREE' | 'PAID', filter: TicketFilter) {
           : null,
       authorDecided: record?.decided ?? 0,
       authorProfitUnitsCenti: record ? record.profitUnitsCenti : null,
-      priceMinor: plan?.priceMinor ?? null,
-      priceCurrency: plan?.currency ?? null,
-      priceBillingPeriod: plan?.billingPeriod ?? null,
+      feedPriceMinor:
+        kind === 'PAID' ? (row.priceMinor ?? plan?.priceMinor ?? null) : null,
+      priceCurrency: plan?.currency ?? 'GEL',
+      // A per-ticket price is one-off; only a plan-price fallback has a period.
+      priceBillingPeriod:
+        row.priceMinor !== null ? null : (plan?.billingPeriod ?? null),
     };
   });
 
@@ -345,4 +353,21 @@ export async function platformStats() {
     settled,
     hitRateBps: settled === 0 ? 0 : Math.round((won * 10_000) / settled),
   };
+}
+
+/**
+ * The ids of paid tickets this viewer has bought outright. Fetched once per
+ * page and subtracted from the locked set, mirroring the purchase check in
+ * `canViewPrediction` so a list and a detail page cannot disagree.
+ */
+export async function purchasedTicketIds(
+  userId: string | undefined,
+): Promise<Set<string>> {
+  if (!userId) return new Set();
+
+  const rows = await prisma.predictionPurchase.findMany({
+    where: { userId, revokedAt: null },
+    select: { predictionId: true },
+  });
+  return new Set(rows.map((row) => row.predictionId));
 }

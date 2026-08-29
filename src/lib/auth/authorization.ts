@@ -81,7 +81,11 @@ export { satisfiesVisibility, applicableTiers } from './entitlements';
  */
 export async function canViewPrediction(
   actor: SessionActor | null,
-  prediction: { visibility: PredictionVisibility; authorId: string | null },
+  prediction: {
+    id?: string;
+    visibility: PredictionVisibility;
+    authorId: string | null;
+  },
 ): Promise<boolean> {
   // A community free ticket has no author and is public by construction.
   if (prediction.visibility === 'PUBLIC' || prediction.authorId === null) {
@@ -92,6 +96,19 @@ export async function canViewPrediction(
   // Admins need to read everything to moderate it; the analyst owns their own.
   if (actor.role === 'ADMIN') return true;
   if (actor.analystProfileId === prediction.authorId) return true;
+
+  // A single-ticket purchase opens exactly this bet, subscription or not.
+  if (prediction.id) {
+    const purchase = await prisma.predictionPurchase.findFirst({
+      where: {
+        userId: actor.userId,
+        predictionId: prediction.id,
+        revokedAt: null,
+      },
+      select: { id: true },
+    });
+    if (purchase) return true;
+  }
 
   const subscriptions = await prisma.userSubscription.findMany({
     where: {

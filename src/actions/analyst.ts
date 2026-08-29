@@ -120,6 +120,7 @@ export async function postBetAction(
       visibility: formData.get('visibility') || 'PUBLIC',
       eventAt: formData.get('eventAt') || undefined,
       publishNow: formData.get('publishNow') !== 'off',
+      price: formData.get('price') || undefined,
     });
 
     if (!parsed.success) {

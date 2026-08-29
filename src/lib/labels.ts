@@ -77,6 +77,7 @@ export const BILLING_PERIOD_KA: Record<BillingPeriod, string> = {
 export const BALANCE_KIND_KA: Record<BalanceEntryKind, string> = {
   TOPUP: 'შევსება',
   SUBSCRIPTION_PAYMENT: 'გამოწერის გადახდა',
+  TICKET_PURCHASE: 'ბილეთის შეძენა',
   TOPUP_REVERSAL: 'შევსების დაბრუნება',
   ADJUSTMENT: 'კორექცია',
   ANALYST_EARNING: 'დარიცხვა გამომწერისგან',

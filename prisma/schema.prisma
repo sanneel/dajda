@@ -129,6 +129,8 @@ enum PaymentStatus {
 enum PaymentPurpose {
   SUBSCRIPTION
   BALANCE_TOPUP
+  /// A single paid prediction bought outright, apart from any subscription.
+  TICKET
 }
 
 enum BalanceEntryKind {
@@ -136,6 +138,8 @@ enum BalanceEntryKind {
   TOPUP
   /// A subscription was paid out of the balance.
   SUBSCRIPTION_PAYMENT
+  /// A single paid prediction was paid out of the balance.
+  TICKET_PURCHASE
   /// A refunded or disputed top-up took its credit back.
   TOPUP_REVERSAL
   /// A manual correction by an administrator.
@@ -302,6 +306,7 @@ model User {
   @@index([role])
   @@index([status])
   @@index([createdAt])
+  ticketPurchases PredictionPurchase[]
 }
 
 model Session {
@@ -505,6 +510,11 @@ model Prediction {
   /// PUBLIC is a free bet. PREMIUM and VIP require a matching subscription.
   visibility PredictionVisibility @default(PUBLIC)
 
+  /// The single-purchase price of a paid bet, in minor units. A paid bet is
+  /// its own product: a buyer can take just this one without subscribing.
+  /// Null on free bets and on paid bets posted before per-ticket pricing.
+  priceMinor Int?
+
   // --- lifecycle ------------------------------------------------------------
   publishedAt DateTime?
   /// When the first leg of this bet kicks off. Shown to a buyer BEFORE they
@@ -532,10 +542,12 @@ model Prediction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  result  PredictionResult?
-  edits   PredictionEdit[]
-  views   PredictionView[]
-  reports Report[]
+  result    PredictionResult?
+  edits     PredictionEdit[]
+  views     PredictionView[]
+  reports   Report[]
+  purchases PredictionPurchase[]
+  payments  Payment[]
 
   @@index([status])
   @@index([publishedAt])
@@ -717,6 +729,10 @@ model Payment {
   subscriptionId String?           @db.Uuid
   subscription   UserSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
+  /// Set on a TICKET payment: the single paid prediction being bought.
+  predictionId String?     @db.Uuid
+  prediction   Prediction? @relation(fields: [predictionId], references: [id], onDelete: SetNull)
+
   /// What the money was for. A BALANCE_TOPUP has no plan and no subscription.
   purpose PaymentPurpose @default(SUBSCRIPTION)
 
@@ -757,6 +773,34 @@ model Payment {
  * database transaction as each row. The ledger is what an admin reads when a
  * customer disputes a number; the cache is what every page renders.
  */
+
+/// One-off access to a single paid prediction - a product of its own, apart
+/// from any subscription. Access is granted immediately on a balance
+/// purchase, or by the webhook once a gateway payment settles.
+model PredictionPurchase {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  predictionId String     @db.Uuid
+  prediction   Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  /// The provider payment that bought it; null when paid from the balance.
+  paymentId String? @db.Uuid
+
+  amountMinor Int
+  currency    String @default("GEL")
+
+  /// Set when the underlying payment was refunded or disputed - access ends,
+  /// the row stays as the record of what happened.
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, predictionId])
+  @@index([predictionId])
+}
 model BalanceTransaction {
   id String @id @default(uuid()) @db.Uuid
 

@@ -13,6 +13,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { ButtonLink } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 import { ReportForm } from '@/components/report-form';
+import { BuyTicketButton } from './buy-button';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 
 export const dynamic = 'force-dynamic';
@@ -65,6 +66,7 @@ export default async function TicketPage({
 
   const actor = await getCurrentUser();
   const canView = await canViewPrediction(actor, {
+    id: ticket.id,
     visibility: ticket.visibility,
     authorId: ticket.authorId,
   });
@@ -171,9 +173,28 @@ export default async function TicketPage({
           </p>
 
           {isPaid && author ? (
-            <ButtonLink href={`/analysts/${author.slug}?tab=plans#plans-heading`}>
-              შეძენა გამოწერით
-            </ButtonLink>
+            <div className="flex flex-wrap items-center gap-3">
+              {/*
+               * Two ways in, dearest-first is deliberately NOT the order:
+               * the single ticket is the smaller commitment, so it leads.
+               */}
+              {actor && ticket.priceMinor !== null && ticket.priceMinor > 0 ? (
+                <BuyTicketButton
+                  predictionId={ticket.id}
+                  priceMinor={ticket.priceMinor}
+                />
+              ) : null}
+              <ButtonLink
+                href={`/analysts/${author.slug}?tab=plans#plans-heading`}
+                variant={
+                  actor && ticket.priceMinor !== null && ticket.priceMinor > 0
+                    ? 'secondary'
+                    : 'primary'
+                }
+              >
+                შეძენა გამოწერით
+              </ButtonLink>
+            </div>
           ) : !isPaid ? (
             <div className="flex flex-wrap gap-3">
               <ButtonLink href="/login">შესვლა</ButtonLink>

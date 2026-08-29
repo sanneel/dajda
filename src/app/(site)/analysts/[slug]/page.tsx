@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import { getAnalystBySlug } from '@/lib/queries/analysts';
-import { activePlanGrants } from '@/lib/queries/tickets';
+import { activePlanGrants, purchasedTicketIds } from '@/lib/queries/tickets';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { isTicketLocked } from '@/lib/auth/entitlements';
 import { prisma } from '@/lib/db';
@@ -83,7 +83,7 @@ export default async function AnalystProfilePage({
   const { profile, predictions, allTime, freeAllTime, paidAllTime } = data;
   const actor = await getCurrentUser();
 
-  const [saved, subscriptions, feed, grants] = await Promise.all([
+  const [saved, subscriptions, feed, grants, purchased] = await Promise.all([
     actor
       ? prisma.savedAnalyst.count({
           where: { userId: actor.userId, analystProfileId: profile.id },
@@ -101,6 +101,7 @@ export default async function AnalystProfilePage({
       : Promise.resolve([]),
     analystFeed(profile.id, 20),
     activePlanGrants(actor?.userId),
+    purchasedTicketIds(actor?.userId),
   ]);
 
   const statusByPlan = new Map(
@@ -121,16 +122,19 @@ export default async function AnalystProfilePage({
     : null;
   const lockedBetIds = new Set(
     predictions
-      .filter((prediction) =>
-        isTicketLocked(
-          {
-            visibility: prediction.visibility,
-            authorId: profile.id,
-            status: prediction.status,
-          },
-          viewer,
-          grants,
-        ),
+      .filter(
+        (prediction) =>
+          // A single purchase opens exactly that bet.
+          !purchased.has(prediction.id) &&
+          isTicketLocked(
+            {
+              visibility: prediction.visibility,
+              authorId: profile.id,
+              status: prediction.status,
+            },
+            viewer,
+            grants,
+          ),
       )
       .map((prediction) => prediction.id),
   );

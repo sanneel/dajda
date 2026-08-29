@@ -25,6 +25,7 @@ export function PostBetForm({
 }) {
   const [state, action, pending] = useActionState(postBetAction, null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState('PREMIUM');
   const formRef = useRef<HTMLFormElement>(null);
 
   const errorFor = (field: string) =>
@@ -152,12 +153,39 @@ export function PostBetForm({
           error={errorFor('visibility')}
           hint="უფასო ჩანს ყველასთვის. დანარჩენი მოითხოვს გამოწერას."
         >
-          <Select id="visibility" name="visibility" defaultValue="PREMIUM">
+          <Select
+            id="visibility"
+            name="visibility"
+            value={visibility}
+            onChange={(event) => setVisibility(event.target.value)}
+          >
             <option value="PUBLIC">უფასო</option>
             <option value="PREMIUM">Premium</option>
             <option value="VIP">VIP</option>
           </Select>
         </Field>
+
+        {visibility !== 'PUBLIC' ? (
+          <Field
+            label="ბილეთის ფასი (₾)"
+            htmlFor="price"
+            required
+            error={errorFor('price')}
+            hint="ცალკე პროდუქტი: მყიდველი ამ ერთ ბილეთს გამოწერის გარეშეც შეიძენს."
+          >
+            <Input
+              id="price"
+              name="price"
+              type="number"
+              min="1"
+              max="500"
+              step="0.5"
+              inputMode="decimal"
+              required
+              error={Boolean(errorFor('price'))}
+            />
+          </Field>
+        ) : null}
 
         <Field
           label="პირველი პოზიციის დაწყება"

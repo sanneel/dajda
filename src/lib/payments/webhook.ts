@@ -38,7 +38,9 @@ export type PaymentSnapshot = {
   amountMinor: number;
   currency: string;
   billingPeriod: BillingPeriod | null;
-  /** The analyst whose plan this paid for, when the plan belongs to one. */
+  /** Set on a TICKET payment: the single paid prediction being bought. */
+  predictionId: string | null;
+  /** The analyst whose plan (or ticket) this paid for, when there is one. */
   analystProfileId: string | null;
   /** That analyst's user account, which is where their share is credited. */
   analystUserId: string | null;
@@ -127,6 +129,22 @@ export interface WebhookPort {
     subscriptionId: string;
     userId: string;
     currentPeriodEnd: Date;
+  }): Promise<void>;
+
+  /** Grant one-off access to the ticket a TICKET payment bought. Idempotent. */
+  grantTicketPurchase(input: {
+    paymentId: string;
+    userId: string;
+    predictionId: string;
+    amountMinor: number;
+    currency: string;
+  }): Promise<void>;
+
+  /** A refund or chargeback on a TICKET payment ends that access. Idempotent. */
+  revokeTicketPurchase(input: {
+    userId: string;
+    predictionId: string;
+    reason: string;
   }): Promise<void>;
 
   /**
@@ -368,9 +386,33 @@ export async function processPaymentWebhook(
     });
   }
 
-  // The analyst earns from a subscriber's payment, not from a top-up. Both
-  // directions are idempotent per payment inside the port.
-  if (payment.purpose === 'SUBSCRIPTION' && payment.analystUserId) {
+  // A TICKET payment buys one paid prediction outright. Both directions are
+  // idempotent inside the port, so a redelivery cannot double-grant.
+  if (payment.purpose === 'TICKET' && payment.predictionId) {
+    if (result.status === 'SUCCEEDED') {
+      await port.grantTicketPurchase({
+        paymentId: payment.id,
+        userId: payment.userId,
+        predictionId: payment.predictionId,
+        amountMinor: payment.amountMinor,
+        currency: payment.currency,
+      });
+    }
+    if (result.status === 'REFUNDED' || result.status === 'DISPUTED') {
+      await port.revokeTicketPurchase({
+        userId: payment.userId,
+        predictionId: payment.predictionId,
+        reason: `payment ${result.status.toLowerCase()}`,
+      });
+    }
+  }
+
+  // The analyst earns from a subscriber's or a ticket buyer's payment, not
+  // from a top-up. Both directions are idempotent per payment inside the port.
+  if (
+    (payment.purpose === 'SUBSCRIPTION' || payment.purpose === 'TICKET') &&
+    payment.analystUserId
+  ) {
     if (result.status === 'SUCCEEDED') {
       await port.creditAnalystEarning({
         paymentId: payment.id,

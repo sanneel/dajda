@@ -4,6 +4,7 @@ import { Ticket } from 'lucide-react';
 import {
   activePlanGrants,
   listPaidTickets,
+  purchasedTicketIds,
 } from '@/lib/queries/tickets';
 import { ticketFilterSchema } from '@/lib/validation/schemas';
 import { getCurrentUser } from '@/lib/auth/authorization';
@@ -39,10 +40,12 @@ export default async function PaidTicketsPage({
 
   const actor = await getCurrentUser();
 
-  const [{ items, total, page, pageCount }, grants] = await Promise.all([
-    listPaidTickets(filter),
-    activePlanGrants(actor?.userId),
-  ]);
+  const [{ items, total, page, pageCount }, grants, purchased] =
+    await Promise.all([
+      listPaidTickets(filter),
+      activePlanGrants(actor?.userId),
+      purchasedTicketIds(actor?.userId),
+    ]);
 
   const viewer = actor
     ? { role: actor.role, analystProfileId: actor.analystProfileId }
@@ -101,16 +104,19 @@ export default async function PaidTicketsPage({
           lockedIds={
             new Set(
               items
-                .filter((ticket) =>
-                  isTicketLocked(
-                    {
-                      visibility: ticket.visibility,
-                      authorId: ticket.author?.id ?? null,
-                      status: ticket.status,
-                    },
-                    viewer,
-                    grants,
-                  ),
+                .filter(
+                  (ticket) =>
+                    // A single purchase opens exactly that row.
+                    !purchased.has(ticket.id) &&
+                    isTicketLocked(
+                      {
+                        visibility: ticket.visibility,
+                        authorId: ticket.author?.id ?? null,
+                        status: ticket.status,
+                      },
+                      viewer,
+                      grants,
+                    ),
                 )
                 .map((ticket) => ticket.id),
             )

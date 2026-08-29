@@ -28,6 +28,38 @@ import { Badge, StatusBadge } from './ui/badge';
  * author, price - and withholds the pick: no title, no slip. Must stay a
  * server component, so the withheld fields never reach the browser at all.
  */
+/**
+ * იაფი/ძვირი relative to the very list the reader is looking at: the median
+ * of the one-off prices on this page. A tag against an invisible benchmark
+ * would be an assertion; against the visible list it is a summary.
+ */
+function priceTag(
+  tickets: FeedTicket[],
+  ticket: FeedTicket,
+): 'cheap' | 'expensive' | null {
+  if (ticket.feedPriceMinor === null || ticket.priceBillingPeriod !== null) {
+    return null;
+  }
+  const prices = tickets
+    .filter(
+      (row) => row.feedPriceMinor !== null && row.priceBillingPeriod === null,
+    )
+    .map((row) => row.feedPriceMinor as number)
+    .sort((a, b) => a - b);
+  if (prices.length < 3) return null;
+
+  const median =
+    prices.length % 2 === 1
+      ? (prices[(prices.length - 1) / 2] as number)
+      : ((prices[prices.length / 2 - 1] as number) +
+          (prices[prices.length / 2] as number)) /
+        2;
+
+  if (ticket.feedPriceMinor < median) return 'cheap';
+  if (ticket.feedPriceMinor > median) return 'expensive';
+  return null;
+}
+
 export function TicketList({
   tickets,
   lockedIds,
@@ -167,28 +199,42 @@ export function TicketList({
 
                 {showPrice ? (
                   <td className="px-4 py-3">
-                    {ticket.priceMinor !== null ? (
+                    {ticket.feedPriceMinor !== null ? (
                       <>
-                        <span className="tabular font-medium text-ink">
-                          {formatMoney(
-                            ticket.priceMinor,
-                            ticket.priceCurrency ?? 'GEL',
-                          )}
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <span className="tabular font-medium text-ink">
+                            {formatMoney(
+                              ticket.feedPriceMinor,
+                              ticket.priceCurrency ?? 'GEL',
+                            )}
+                          </span>
+                          {priceTag(tickets, ticket) === 'cheap' ? (
+                            <Badge tone="accent">იაფი</Badge>
+                          ) : priceTag(tickets, ticket) === 'expensive' ? (
+                            <Badge tone="warn">ძვირი</Badge>
+                          ) : null}
                         </span>
                         <div className="text-xs text-ink-faint">
                           {ticket.priceBillingPeriod
-                            ? BILLING_PERIOD_KA[ticket.priceBillingPeriod]
-                            : ''}
+                            ? `გამოწერით / ${BILLING_PERIOD_KA[ticket.priceBillingPeriod]}`
+                            : 'ერთჯერადი'}
                         </div>
-                        {locked && ticket.author ? (
+                        {locked ? (
                           <Link
-                            href={`/analysts/${ticket.author.slug}?tab=plans#plans-heading`}
+                            href={`/free/${ticket.id}`}
                             className="text-xs font-medium text-accent hover:underline"
                           >
-                            შეძენა გამოწერით
+                            შეძენა
                           </Link>
                         ) : null}
                       </>
+                    ) : locked && ticket.author ? (
+                      <Link
+                        href={`/analysts/${ticket.author.slug}?tab=plans#plans-heading`}
+                        className="text-xs font-medium text-accent hover:underline"
+                      >
+                        შეძენა გამოწერით
+                      </Link>
                     ) : (
                       <span className="text-ink-faint">·</span>
                     )}

@@ -76,6 +76,10 @@ export const prismaWebhookPort: WebhookPort = {
             analystProfile: { select: { userId: true } },
           },
         },
+        predictionId: true,
+        prediction: {
+          select: { author: { select: { id: true, userId: true } } },
+        },
       },
     });
 
@@ -91,8 +95,17 @@ export const prismaWebhookPort: WebhookPort = {
       amountMinor: payment.amountMinor,
       currency: payment.currency,
       billingPeriod: payment.plan?.billingPeriod ?? null,
-      analystProfileId: payment.plan?.analystProfileId ?? null,
-      analystUserId: payment.plan?.analystProfile?.userId ?? null,
+      predictionId: payment.predictionId,
+      // A subscription payment names its analyst through the plan, a ticket
+      // payment through the prediction's author.
+      analystProfileId:
+        payment.plan?.analystProfileId ??
+        payment.prediction?.author?.id ??
+        null,
+      analystUserId:
+        payment.plan?.analystProfile?.userId ??
+        payment.prediction?.author?.userId ??
+        null,
     };
   },
 
@@ -262,6 +275,59 @@ export const prismaWebhookPort: WebhookPort = {
       // no payment id keeps the caller from crediting the analyst twice.
       return { paymentId: null };
     }
+  },
+
+  async grantTicketPurchase(input) {
+    await prisma.predictionPurchase.upsert({
+      where: {
+        userId_predictionId: {
+          userId: input.userId,
+          predictionId: input.predictionId,
+        },
+      },
+      create: {
+        userId: input.userId,
+        predictionId: input.predictionId,
+        paymentId: input.paymentId,
+        amountMinor: input.amountMinor,
+        currency: input.currency,
+      },
+      // A re-delivered success or a re-bought revoked ticket simply comes
+      // back; the upsert makes both arrivals the same statement.
+      update: {
+        paymentId: input.paymentId,
+        amountMinor: input.amountMinor,
+        revokedAt: null,
+      },
+    });
+
+    await writeAuditLog({
+      action: AUDIT_ACTIONS.TICKET_PURCHASED,
+      entityType: 'Prediction',
+      entityId: input.predictionId,
+      summary: 'ბილეთი შეძენილია გადახდით',
+      actorId: input.userId,
+      metadata: { paymentId: input.paymentId },
+    });
+  },
+
+  async revokeTicketPurchase(input) {
+    await prisma.predictionPurchase.updateMany({
+      where: {
+        userId: input.userId,
+        predictionId: input.predictionId,
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+
+    await writeAuditLog({
+      action: AUDIT_ACTIONS.TICKET_PURCHASE_REVOKED,
+      entityType: 'Prediction',
+      entityId: input.predictionId,
+      summary: `ბილეთზე წვდომა შეწყდა: ${input.reason}`,
+      actorId: input.userId,
+    });
   },
 
   async creditAnalystEarning(input) {

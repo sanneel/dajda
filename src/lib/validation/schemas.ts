@@ -141,6 +141,25 @@ export const createPredictionSchema = z.object({
   visibility: z.enum(PredictionVisibility).default('PUBLIC'),
   eventAt: z.coerce.date().optional(),
   publishNow: z.coerce.boolean().default(false),
+  /**
+   * The single-purchase price of a paid bet, entered in GEL and stored in
+   * minor units. A paid bet is its own product apart from the subscription,
+   * so a price is required whenever visibility is not PUBLIC.
+   */
+  price: z.coerce
+    .number()
+    .min(1, 'ფასი მინიმუმ 1 ლარია.')
+    .max(500, 'ფასი ძალიან დიდია.')
+    .transform((value) => Math.round(value * 100))
+    .optional(),
+}).superRefine((data, ctx) => {
+  if (data.visibility !== 'PUBLIC' && data.price === undefined) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['price'],
+      message: 'მიუთითეთ ფასიანი ბილეთის ფასი.',
+    });
+  }
 });
 
 /** Only presentation fields - the frozen set is not even accepted as input. */
