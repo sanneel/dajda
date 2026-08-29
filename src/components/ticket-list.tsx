@@ -80,7 +80,118 @@ export function TicketList({
   profileTab?: 'free' | 'paid';
 }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-line">
+    <>
+    {/* Phones and tablets: one card per bet, per the mobile reference -
+        a sideways-scrolling table is not a feed you can read with a thumb. */}
+    <ul className="space-y-3 lg:hidden">
+      {tickets.map((ticket) => {
+        const locked = lockedIds?.has(ticket.id) ?? false;
+        const tag = showPrice ? priceTag(tickets, ticket) : null;
+
+        return (
+          <li
+            key={ticket.id}
+            className="rounded-card border border-line bg-surface p-4"
+          >
+            <div className="flex items-start gap-3">
+              {locked ? (
+                <span className="flex size-14 shrink-0 items-center justify-center rounded-md border border-line bg-elevated">
+                  <Lock className="size-5 text-ink-faint" aria-hidden="true" />
+                </span>
+              ) : (
+                <span className="relative block size-14 shrink-0 overflow-hidden rounded-md border border-line bg-canvas">
+                  <Image
+                    src={ticket.screenshotPath}
+                    alt=""
+                    fill
+                    sizes="3.5rem"
+                    className="object-cover"
+                  />
+                </span>
+              )}
+
+              <div className="min-w-0 flex-1">
+                <p className="font-medium leading-snug text-ink">
+                  {locked ? 'დახურული პროგნოზი' : ticket.titleKa}
+                </p>
+                <p className="mt-0.5 text-sm text-accent">
+                  {ticket.sport.nameKa}
+                </p>
+              </div>
+
+              <StatusBadge status={ticket.status} />
+            </div>
+
+            <dl className="mt-4 grid grid-cols-3 gap-2 text-sm">
+              <div className="min-w-0">
+                <dt className="text-xs text-ink-faint">ავტორი</dt>
+                <dd className="truncate text-ink">
+                  {ticket.author ? (
+                    <Link
+                      href={`/analysts/${ticket.author.slug}?tab=${profileTab}`}
+                      className="hover:text-accent"
+                    >
+                      {ticket.author.displayName}
+                    </Link>
+                  ) : (
+                    ticket.postedBy.name
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-ink-faint">კოეფ.</dt>
+                <dd className="tabular font-semibold text-ink">
+                  {formatOdds(ticket.oddsMilli)}
+                </dd>
+              </div>
+              <div className="text-right">
+                <dt className="text-xs text-ink-faint">მოგების %</dt>
+                <dd className="tabular font-medium text-ink">
+                  {ticket.authorHitRateBps !== null
+                    ? formatPercentBps(ticket.authorHitRateBps)
+                    : '–'}
+                </dd>
+              </div>
+            </dl>
+
+            {ticket.eventAt ? (
+              <p className="tabular mt-2 text-xs text-ink-faint">
+                იწყება: {formatDateTimeKa(ticket.eventAt)}
+              </p>
+            ) : null}
+
+            {showPrice && ticket.feedPriceMinor !== null ? (
+              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
+                <span className="tabular font-semibold text-ink">
+                  {formatMoney(ticket.feedPriceMinor, ticket.priceCurrency ?? 'GEL')}
+                </span>
+                {tag === 'cheap' ? (
+                  <Badge tone="accent">იაფი</Badge>
+                ) : tag === 'expensive' ? (
+                  <Badge tone="warn">ძვირი</Badge>
+                ) : null}
+                <span className="text-xs text-ink-faint">
+                  {ticket.priceBillingPeriod
+                    ? `გამოწერით / ${BILLING_PERIOD_KA[ticket.priceBillingPeriod]}`
+                    : 'ერთჯერადი'}
+                </span>
+              </p>
+            ) : null}
+
+            <Link
+              href={`/free/${ticket.id}`}
+              className="mt-3 flex min-h-11 items-center justify-between rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-ink-faint"
+            >
+              დეტალურად ნახვა
+              <span aria-hidden="true" className="text-ink-faint">›</span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+
+    {/* Desktop: the ruled table, one bet per row. */}
+    <div className="hidden overflow-x-auto rounded-md border border-line lg:block">
       <table className="w-full min-w-[56rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-line bg-elevated text-left">
@@ -261,5 +372,6 @@ export function TicketList({
         </tbody>
       </table>
     </div>
+    </>
   );
 }
