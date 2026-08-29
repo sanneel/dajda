@@ -69,15 +69,15 @@ export default async function FreeTicketsPage({
           უფასო პროგნოზები
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-muted">
-          ატვირთვა შეუძლია ყველა დარეგისტრირებულ მომხმარებელს. ავტორის
-          სვეტში ჩანს ვისი პროგნოზია და როგორი ჩანაწერი უდგას უკან.
+          პროგნოზებს აქვეყნებენ ანალიტიკოსები. ავტორის სვეტში ჩანს ვისი
+          პროგნოზია და როგორი ჩანაწერი უდგას უკან.
         </p>
       </header>
 
       {/* --------------------------------------------------------------- */}
-      {/* Upload for members; the way in for everyone else                  */}
+      {/* Upload for analysts; the way in for everyone else                 */}
       {/* --------------------------------------------------------------- */}
-      {actor ? (
+      {actor && (actor.analystProfileId || actor.role === 'ADMIN') ? (
         <details className="mb-6 rounded-card border border-line bg-surface">
           <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-medium text-ink marker:content-none sm:px-5">
             <span className="text-accent">+</span> პროგნოზის ატვირთვა
@@ -91,9 +91,16 @@ export default async function FreeTicketsPage({
             />
           </div>
         </details>
+      ) : actor ? (
+        <p className="mb-6 rounded-card border border-line bg-surface px-4 py-3.5 text-sm text-ink-muted sm:px-5">
+          პროგნოზის ატვირთვა ანალიტიკოსებს შეუძლიათ.{' '}
+          <Link href="/apply" className="text-accent underline">
+            ანალიტიკოსად რეგისტრაცია
+          </Link>
+        </p>
       ) : (
         <p className="mb-6 rounded-card border border-line bg-surface px-4 py-3.5 text-sm text-ink-muted sm:px-5">
-          დახურული პროგნოზები და ატვირთვა იხსნება შესვლის შემდეგ.{' '}
+          დახურული პროგნოზები იხსნება შესვლის შემდეგ.{' '}
           <Link href="/login" className="text-accent underline">
             შესვლა
           </Link>{' '}

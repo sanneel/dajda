@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
-import { requireUser } from '@/lib/auth/authorization';
+import { requireApprovedAnalyst } from '@/lib/auth/authorization';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import {
   ERROR_CODES,
@@ -16,26 +16,25 @@ import { storeScreenshot } from '@/lib/uploads';
 import { freeTicketSchema } from '@/lib/validation/schemas';
 
 /**
- * Community free tickets.
+ * Free-feed tickets, posted from /free.
  *
- * Any signed-in user may post one. Three rules keep that from polluting the
- * thing the product actually sells:
+ * Only an approved analyst may post one - the free feed carries the same
+ * signature as everything else on the product: a verifiable author. Two
+ * rules still apply:
  *
- *   1. `authorId` stays null, so the ticket belongs to no analyst's record and
- *      is excluded from every accuracy and units figure.
- *   2. Visibility is forced PUBLIC here rather than read from the form. A
- *      community post is a free ticket by definition; letting the form choose
- *      would let anyone publish behind someone else's paywall.
- *   3. When an ANALYST posts here, it is still a community ticket. Their own
- *      record is built on /analyst, deliberately, so the two cannot be mixed
- *      up by accident.
+ *   1. `authorId` stays null, so a ticket posted HERE belongs to no analyst's
+ *      record and is excluded from every accuracy and units figure. An
+ *      analyst's own record is built on /analyst, deliberately, so the two
+ *      cannot be mixed up by accident.
+ *   2. Visibility is forced PUBLIC here rather than read from the form -
+ *      letting the form choose would let a post slip behind a paywall.
  */
 export async function postFreeTicketAction(
   _previous: ActionResult<{ ticketId: string }> | null,
   formData: FormData,
 ): Promise<ActionResult<{ ticketId: string }>> {
   try {
-    const actor = await requireUser();
+    const actor = await requireApprovedAnalyst();
 
     const limit = rateLimiter.check(
       `free:${actor.userId}`,

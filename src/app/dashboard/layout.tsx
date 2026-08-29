@@ -7,11 +7,12 @@ import { SiteFooter } from '@/components/layout/site-footer';
 import { LogoutButton } from '@/components/logout-button';
 
 /*
- * Two destinations, so the sidebar is gone.
+ * A short horizontal nav, not a sidebar.
  *
- * It used to list five, four of which were slices of the same account that now
- * sit on one page. A sticky 15rem column to switch between two pages costs
- * more than it navigates.
+ * It used to list five entries, four of which were slices of the same account
+ * that now sit on one page. ანგარიში and პარამეტრები are the two real
+ * destinations; a non-analyst also gets the way into ანალიტიკოსად
+ * რეგისტრაცია, an analyst their own workspace.
  */
 export default async function DashboardLayout({
   children,
@@ -51,6 +52,23 @@ export default async function DashboardLayout({
               >
                 პარამეტრები
               </Link>
+            </li>
+            <li>
+              {actor.analystProfileId ? (
+                <Link
+                  href="/analyst"
+                  className="inline-flex min-h-11 items-center rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+                >
+                  ჩემი ფსონები
+                </Link>
+              ) : (
+                <Link
+                  href="/apply"
+                  className="inline-flex min-h-11 items-center rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+                >
+                  ანალიტიკოსად რეგისტრაცია
+                </Link>
+              )}
             </li>
           </ul>
 
