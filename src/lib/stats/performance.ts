@@ -246,6 +246,8 @@ export type OddsBucket = {
   lost: number;
   decided: number;
   profitUnitsCenti: number;
+  /** WON+LOST stakes only, mirroring summarizePerformance - the ROI base. */
+  stakedUnitsCenti: number;
 };
 
 /*
@@ -270,6 +272,7 @@ export function oddsBucketPerformance(
     lost: 0,
     decided: 0,
     profitUnitsCenti: 0,
+    stakedUnitsCenti: 0,
   }));
 
   for (const record of records) {
@@ -283,13 +286,11 @@ export function oddsBucketPerformance(
 
     const bucket = buckets[index];
     if (!bucket) continue;
-    if (record.status === 'WON') {
-      bucket.won += 1;
+    if (record.status === 'WON' || record.status === 'LOST') {
+      bucket.won += record.status === 'WON' ? 1 : 0;
+      bucket.lost += record.status === 'LOST' ? 1 : 0;
       bucket.decided += 1;
-    }
-    if (record.status === 'LOST') {
-      bucket.lost += 1;
-      bucket.decided += 1;
+      bucket.stakedUnitsCenti += record.stakeUnitsCenti;
     }
     bucket.profitUnitsCenti += record.profitUnitsCenti ?? 0;
   }

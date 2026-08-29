@@ -2,79 +2,75 @@
 
 import { useState } from 'react';
 import type { OddsBucket } from '@/lib/stats/performance';
-import { formatUnitsSigned } from '@/lib/format';
+import {
+  formatPercentBps,
+  formatPercentBpsSigned,
+  formatUnitsSigned,
+} from '@/lib/format';
 
 /**
- * Profit per odds range: what the author does with favourites versus long
- * shots. The same construction as MonthlyBars - columns from a zero baseline,
- * a range scale underneath, and a tap-to-read caption - so the two charts
- * read as one instrument.
+ * "Top selected odds", per the reference: bars count the TIPS in each odds
+ * range - where this author actually lives on the odds ladder - and the
+ * table under them carries the judgement figures per range: win rate,
+ * profit and ROI. Volume in the picture, performance in the numbers;
+ * putting profit in the bars made rare long-shot wins dwarf the record.
+ *
+ * Tapping a bar (or a row) highlights its pair, so the two read as one
+ * instrument on a phone as well.
  */
 export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
-  // An empty range stays visible at zero: "never bets 10+" is information.
-  const played = buckets.filter(
-    (bucket) => bucket.decided > 0 || bucket.profitUnitsCenti !== 0,
-  );
   const [active, setActive] = useState<number | null>(null);
 
-  if (played.length === 0) {
+  const anyDecided = buckets.some((bucket) => bucket.decided > 0);
+  if (!anyDecided) {
     return (
       <div className="flex h-[160px] items-center justify-center rounded-md border border-dashed border-line text-sm text-ink-muted">
-        დათვლილი ფსონი ჯერ არ არის.
+        დათვლილი ბილეთი ჯერ არ არის.
       </div>
     );
   }
 
-  const magnitude = Math.max(
-    ...buckets.map((bucket) => Math.abs(bucket.profitUnitsCenti)),
-    100,
-  );
-  const selected = active !== null ? buckets[active] : undefined;
+  const maxCount = Math.max(...buckets.map((bucket) => bucket.decided), 1);
+
+  const roiBps = (bucket: OddsBucket) =>
+    bucket.stakedUnitsCenti > 0
+      ? Math.round((bucket.profitUnitsCenti * 10_000) / bucket.stakedUnitsCenti)
+      : null;
 
   return (
     <div>
-      <div className="flex h-[160px] items-stretch gap-3">
+      {/* Bars: how many decided tips landed in each range. */}
+      <div className="flex h-[130px] items-end gap-3">
         {buckets.map((bucket, index) => {
-          const positive = bucket.profitUnitsCenti >= 0;
-          const share = Math.abs(bucket.profitUnitsCenti) / magnitude;
-          const heightPct = Math.max(share * 50, 1.5);
           const isActive = index === active;
+          const share = bucket.decided / maxCount;
+          const heightPct = bucket.decided === 0 ? 1.5 : Math.max(share * 100, 4);
 
           return (
             <button
               key={bucket.label}
               type="button"
-              onClick={() => setActive(index)}
+              onClick={() => setActive(isActive ? null : index)}
               aria-pressed={isActive}
-              title={`კოეფ. ${bucket.label}: ${formatUnitsSigned(bucket.profitUnitsCenti)} ერთეული (${bucket.won}-${bucket.lost})`}
-              className={`flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-center rounded-sm transition-colors ${
+              title={`კუში ${bucket.label}: ${bucket.decided} ბილეთი`}
+              className={`flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-end gap-1 rounded-sm pt-1 transition-colors ${
                 isActive ? 'bg-elevated' : 'hover:bg-elevated/60'
               }`}
             >
-              <span className="flex w-full flex-1 items-end justify-center">
-                {positive ? (
-                  <span
-                    className={`w-full rounded-t-sm ${isActive ? 'bg-win' : 'bg-win/70'}`}
-                    style={{ height: `${heightPct * 2}%` }}
-                  />
-                ) : null}
+              <span className="tabular text-xs text-ink-muted">
+                {bucket.decided}
               </span>
-              <span className="h-px w-full bg-line-strong" />
-              <span className="flex w-full flex-1 items-start justify-center">
-                {!positive ? (
-                  <span
-                    className={`w-full rounded-b-sm ${isActive ? 'bg-loss' : 'bg-loss/70'}`}
-                    style={{ height: `${heightPct * 2}%` }}
-                  />
-                ) : null}
-              </span>
+              <span
+                className={`w-full rounded-t-sm ${isActive ? 'bg-accent' : 'bg-accent/70'}`}
+                style={{ height: `${heightPct}%` }}
+              />
             </button>
           );
         })}
       </div>
 
       {/* The odds scale, under the columns it labels. */}
-      <div className="mt-2 flex gap-3">
+      <div className="flex gap-3 border-t border-line-strong pt-1.5">
         {buckets.map((bucket, index) => (
           <div
             key={bucket.label}
@@ -87,50 +83,85 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
         ))}
       </div>
 
-      <p className="mt-3 border-t border-line pt-2.5 text-sm text-ink-muted" aria-live="polite">
-        {selected ? (
-          <>
-            <span className="font-medium text-ink">კოეფ. {selected.label}</span>
-            {' · '}
-            <span
-              className={`tabular font-medium ${
-                selected.profitUnitsCenti > 0
-                  ? 'text-win'
-                  : selected.profitUnitsCenti < 0
-                    ? 'text-loss'
-                    : 'text-ink-muted'
-              }`}
-            >
-              {formatUnitsSigned(selected.profitUnitsCenti)} ერთ.
-            </span>
-            {` · ${selected.won} მოგებული, ${selected.lost} წაგებული`}
-          </>
-        ) : (
-          'აირჩიეთ სვეტი დეტალებისთვის.'
-        )}
-      </p>
-
-      <table className="sr-only">
-        <caption>შედეგი კოეფიციენტის მიხედვით</caption>
-        <thead>
-          <tr>
-            <th scope="col">კოეფიციენტი</th>
-            <th scope="col">მოგებული</th>
-            <th scope="col">წაგებული</th>
-            <th scope="col">ერთეული</th>
-          </tr>
-        </thead>
-        <tbody>
-          {buckets.map((bucket) => (
-            <tr key={bucket.label}>
-              <th scope="row">{bucket.label}</th>
-              <td>{bucket.won}</td>
-              <td>{bucket.lost}</td>
-              <td>{formatUnitsSigned(bucket.profitUnitsCenti)}</td>
+      {/* The same ranges as numbers: the reference's table, in units. */}
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[22rem] text-sm">
+          <caption className="sr-only">შედეგი კუშის მიხედვით</caption>
+          <thead>
+            <tr className="border-b border-line text-left">
+              <th scope="col" className="py-1.5 pr-2 font-medium text-ink-muted">
+                კუში
+              </th>
+              <th scope="col" className="tabular py-1.5 pr-2 text-right font-medium text-ink-muted">
+                ბილეთი
+              </th>
+              <th scope="col" className="tabular py-1.5 pr-2 text-right font-medium text-ink-muted">
+                მოგების %
+              </th>
+              <th scope="col" className="tabular py-1.5 pr-2 text-right font-medium text-ink-muted">
+                პროფიტი
+              </th>
+              <th scope="col" className="tabular py-1.5 text-right font-medium text-ink-muted">
+                ROI
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {buckets.map((bucket, index) => {
+              const roi = roiBps(bucket);
+              return (
+                <tr
+                  key={bucket.label}
+                  onClick={() => setActive(index === active ? null : index)}
+                  className={`cursor-pointer border-b border-line last:border-0 ${
+                    index === active ? 'bg-elevated' : 'hover:bg-elevated/60'
+                  }`}
+                >
+                  <th scope="row" className="tabular py-1.5 pr-2 text-left font-medium text-ink">
+                    {bucket.label}
+                  </th>
+                  <td className="tabular py-1.5 pr-2 text-right text-ink-muted">
+                    {bucket.decided}
+                  </td>
+                  <td className="tabular py-1.5 pr-2 text-right text-ink-muted">
+                    {bucket.decided > 0
+                      ? formatPercentBps(
+                          Math.round((bucket.won * 10_000) / bucket.decided),
+                        )
+                      : '·'}
+                  </td>
+                  <td
+                    className={`tabular py-1.5 pr-2 text-right font-medium ${
+                      bucket.profitUnitsCenti > 0
+                        ? 'text-win'
+                        : bucket.profitUnitsCenti < 0
+                          ? 'text-loss'
+                          : 'text-ink-muted'
+                    }`}
+                  >
+                    {bucket.decided > 0
+                      ? formatUnitsSigned(bucket.profitUnitsCenti)
+                      : '·'}
+                  </td>
+                  <td
+                    className={`tabular py-1.5 text-right ${
+                      roi === null
+                        ? 'text-ink-muted'
+                        : roi > 0
+                          ? 'text-win'
+                          : roi < 0
+                            ? 'text-loss'
+                            : 'text-ink-muted'
+                    }`}
+                  >
+                    {roi === null ? '·' : formatPercentBpsSigned(roi)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

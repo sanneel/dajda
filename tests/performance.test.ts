@@ -307,16 +307,16 @@ describe('oddsBucketPerformance', () => {
       '6–10',
       '10+',
     ]);
-    expect(buckets[0]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 85 });
-    expect(buckets[1]).toMatchObject({ won: 0, lost: 1, profitUnitsCenti: -100 });
-    expect(buckets[2]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 600 });
-    expect(buckets[3]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 1100 });
+    expect(buckets[0]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 85, stakedUnitsCenti: 100 });
+    expect(buckets[1]).toMatchObject({ won: 0, lost: 1, profitUnitsCenti: -100, stakedUnitsCenti: 100 });
+    expect(buckets[2]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 600, stakedUnitsCenti: 100 });
+    expect(buckets[3]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 1100, stakedUnitsCenti: 100 });
   });
 
   it('adds a VOID stake-return as zero profit without touching the hit rate', () => {
     const buckets = oddsBucketPerformance([
       record({ status: 'VOID', oddsMilli: 2500, profitUnitsCenti: 0 }),
     ]);
-    expect(buckets[1]).toMatchObject({ won: 0, lost: 0, decided: 0, profitUnitsCenti: 0 });
+    expect(buckets[1]).toMatchObject({ won: 0, lost: 0, decided: 0, profitUnitsCenti: 0, stakedUnitsCenti: 0 });
   });
 });

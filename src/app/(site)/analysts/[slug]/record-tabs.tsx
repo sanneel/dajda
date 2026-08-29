@@ -115,10 +115,11 @@ export function RecordTabs({
             {/*
              * The paid record sits above the price, because it IS the
              * product: a subscription buys access to these bets, so the
-             * numbers a buyer is paying for belong on the page where they
-             * decide to pay.
+             * numbers (and the same two charts every other tab gets) belong
+             * on the page where a buyer decides to pay.
              */}
             <RecordStats summary={paid} />
+            <ChartPair tab={tab} charts={paidCharts} />
             <div className="border-t border-line pt-6">
               <Plans plans={sellable} isAuthenticated={isAuthenticated} />
             </div>
@@ -131,28 +132,10 @@ export function RecordTabs({
              * tab charts the free record, the paid tab the paid one, so a
              * number and its picture can never disagree.
              */}
-            <div className="mt-6 grid gap-6 border-t border-line pt-5 lg:grid-cols-2 lg:gap-8">
-              <div>
-                <h3 className="mb-3 text-sm font-medium text-ink">
-                  თვიური შედეგი
-                </h3>
-                <MonthlyBars
-                  key={tab}
-                  buckets={(tab === 'FREE' ? freeCharts : paidCharts).monthly}
-                />
-              </div>
-              <div>
-                <h3 className="mb-3 text-sm font-medium text-ink">
-                  შედეგი კოეფიციენტის მიხედვით
-                </h3>
-                <OddsBucketsChart
-                  key={tab}
-                  buckets={
-                    (tab === 'FREE' ? freeCharts : paidCharts).oddsBuckets
-                  }
-                />
-              </div>
-            </div>
+            <ChartPair
+              tab={tab}
+              charts={tab === 'FREE' ? freeCharts : paidCharts}
+            />
           </div>
         )}
       </CardBody>
@@ -234,6 +217,24 @@ function RecordStats({ summary }: { summary: PerformanceSummary }) {
           lost={summary.lost}
           pending={summary.pending}
         />
+      </div>
+    </div>
+  );
+}
+
+/** The two charts every panel carries, keyed so switching resets selection. */
+function ChartPair({ tab, charts }: { tab: Tab; charts: TabCharts }) {
+  return (
+    <div className="mt-6 grid gap-6 border-t border-line pt-5 lg:grid-cols-2 lg:gap-8">
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-ink">თვიური შედეგი</h3>
+        <MonthlyBars key={tab} buckets={charts.monthly} />
+      </div>
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-ink">
+          ტოპ არჩეული კუშები
+        </h3>
+        <OddsBucketsChart key={tab} buckets={charts.oddsBuckets} />
       </div>
     </div>
   );
