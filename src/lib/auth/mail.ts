@@ -30,7 +30,15 @@ export function verificationEmail(link: string, code: string): AuthMailContent {
   const expiry =
     'ბმული და კოდი მოქმედებს 24 საათი. თუ ეს თქვენ არ ყოფილხართ, უბრალოდ არ მიაქციოთ წერილს ყურადღება.';
   return {
-    subject: 'DAJDA: დაადასტურეთ ელფოსტა',
+    /*
+     * The code lives in the SUBJECT on purpose. Phone notifications show
+     * sender and subject, so the code is readable from the lock screen
+     * without opening anything - and the OS autofill scanners (Apple Mail,
+     * and from iOS 26 the notifications of Gmail and other mail apps) hunt
+     * for exactly this "code keyword next to digits" shape. The keyword
+     * sits adjacent to the digits to feed those heuristics.
+     */
+    subject: `DAJDA · დადასტურების კოდი: ${code}`,
     text: [
       'გამარჯობა,',
       '',

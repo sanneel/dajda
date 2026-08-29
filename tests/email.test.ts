@@ -63,7 +63,10 @@ describe('auth mail templates', () => {
     const content = verificationEmail(link, '123456');
 
     expect(content.text).toContain(link);
-    expect(content.subject).toContain('დაადასტურეთ');
+    // The code rides in the subject so a lock-screen notification shows it
+    // and the OS autofill scanners can lift it.
+    expect(content.subject).toContain('123456');
+    expect(content.subject).toContain('კოდი');
   });
 
   it('puts the reset link in the body and promises inaction is safe', async () => {
