@@ -18,6 +18,8 @@ import { ResendVerificationButton } from "./resend-verification-button";
 import { VerifyCodeForm } from "./verify-code-form";
 import { TopUpForm } from "./top-up-form";
 import { Avatar } from "@/components/ui/avatar";
+import { PaymentReturnBanner } from "@/components/payment-return";
+import { paymentReturnStatus } from "@/lib/payments/return-status";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +41,17 @@ export const metadata: Metadata = {
  * Settings stays separate: it is a form you go to on purpose, and mixing
  * editable fields into a page you read would invite accidental edits.
  */
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const actor = await requireUser();
+  // Coming back from the payment page: say what is happening to the money.
+  const returnStatus = await paymentReturnStatus(
+    (await searchParams).order,
+    actor.userId,
+  );
 
   const [
     subscriptions,
@@ -150,6 +161,8 @@ export default async function DashboardPage() {
         </div>
       </header>
 
+      {returnStatus ? <PaymentReturnBanner status={returnStatus} /> : null}
+
       {!actor.emailVerifiedAt ? (
         <Alert tone="info" title="ელფოსტა არ არის დადასტურებული">
           <div className="space-y-3">
@@ -172,6 +185,16 @@ export default async function DashboardPage() {
           გვაქვს <span className="tabular">{pendingPayments}</span>{" "}
           დაუდასტურებელი გადახდა. გამოწერა გააქტიურდება მხოლოდ ბანკიდან
           სერვერული დადასტურების მიღების შემდეგ.
+        </Alert>
+      ) : null}
+
+      {actor.analystStatus === 'PENDING' ? (
+        <Alert tone="info" title="ანალიტიკოსის განაცხადი განიხილება">
+          ადმინისტრატორი ამოწმებს თქვენს დოკუმენტებს. დადასტურებისთანავე
+          მიიღებთ შეტყობინებას და გაიხსნება ავტორის სამუშაო გვერდი.{" "}
+          <Link href="/apply" className="font-medium underline">
+            სტატუსის ნახვა →
+          </Link>
         </Alert>
       ) : null}
 

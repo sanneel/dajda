@@ -54,12 +54,24 @@ export default async function DashboardLayout({
               </Link>
             </li>
             <li>
-              {actor.analystProfileId ? (
+              {/*
+               * Three states, not two: an APPROVED analyst gets their
+               * workspace, a PENDING applicant a status link (the workspace
+               * would just refuse them), everyone else the way to apply.
+               */}
+              {actor.analystStatus === 'APPROVED' ? (
                 <Link
                   href="/analyst"
                   className="inline-flex min-h-11 items-center whitespace-nowrap rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
                 >
                   ჩემი ფსონები
+                </Link>
+              ) : actor.analystStatus === 'PENDING' ? (
+                <Link
+                  href="/apply"
+                  className="inline-flex min-h-11 items-center whitespace-nowrap rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+                >
+                  განაცხადი განიხილება
                 </Link>
               ) : (
                 <Link

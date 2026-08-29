@@ -9,7 +9,13 @@ export function TopUpForm() {
   const [state, action, pending] = useActionState(topUpBalanceAction, null);
 
   return (
-    <form action={action} className="space-y-2">
+    <form
+      action={action}
+      className="space-y-2"
+      // React 19 resets the form after every action; canceling the reset
+      // keeps what was typed (see register-form for the full story).
+      onReset={(event) => event.preventDefault()}
+    >
       {state && !state.ok ? (
         <Alert tone="error">
           {state.error.fieldErrors?.amountGel?.[0] ?? state.error.message}

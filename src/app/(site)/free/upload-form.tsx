@@ -53,7 +53,16 @@ export function FreeTicketForm({
   }
 
   return (
-    <form ref={formRef} action={action} className="space-y-5">
+    <form
+      ref={formRef}
+      action={action}
+      className="space-y-5"
+      // Let the explicit success reset through; block React 19's automatic
+      // reset when the action failed, so an error never wipes the draft.
+      onReset={(event) => {
+        if (state && !state.ok) event.preventDefault();
+      }}
+    >
       {state && !state.ok && !state.error.fieldErrors ? (
         <Alert tone="error">{state.error.message}</Alert>
       ) : null}

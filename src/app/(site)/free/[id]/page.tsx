@@ -13,6 +13,8 @@ import { Avatar } from '@/components/ui/avatar';
 import { ButtonLink } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 import { ReportForm } from '@/components/report-form';
+import { PaymentReturnBanner } from '@/components/payment-return';
+import { paymentReturnStatus } from '@/lib/payments/return-status';
 import { BuyTicketButton } from './buy-button';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 
@@ -56,8 +58,10 @@ export async function generateMetadata({
  */
 export default async function TicketPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
   const ticket = await getTicketById(id);
@@ -65,6 +69,11 @@ export default async function TicketPage({
   if (!ticket) notFound();
 
   const actor = await getCurrentUser();
+  // Coming back from the payment page: say what is happening to the money.
+  const returnStatus = await paymentReturnStatus(
+    (await searchParams).order,
+    actor?.userId,
+  );
   const canView = await canViewPrediction(actor, {
     id: ticket.id,
     visibility: ticket.visibility,
@@ -106,6 +115,12 @@ export default async function TicketPage({
         <span aria-hidden="true"> / </span>
         <span className="text-ink">{ticket.sport.nameKa}</span>
       </nav>
+
+      {returnStatus ? (
+        <div className="mb-5">
+          <PaymentReturnBanner status={returnStatus} />
+        </div>
+      ) : null}
 
       {ticket.supersededAt ? (
         <div className="mb-5">

@@ -18,7 +18,14 @@ export function ProfileForm({
   const fieldErrors = state && !state.ok ? state.error.fieldErrors : undefined;
 
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form
+      action={action}
+      className="space-y-4"
+      noValidate
+      // React 19 resets the form after every action; canceling the reset
+      // keeps what was typed (see register-form for the full story).
+      onReset={(event) => event.preventDefault()}
+    >
       {state?.ok ? <Alert tone="success">მონაცემები შენახულია.</Alert> : null}
       {state && !state.ok && !fieldErrors ? (
         <Alert tone="error">{state.error.message}</Alert>

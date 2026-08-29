@@ -33,7 +33,13 @@ export function PlanPriceForm({
   }, [state, router]);
 
   return (
-    <form action={action} className="space-y-3">
+    <form
+      action={action}
+      className="space-y-3"
+      // React 19 resets the form after every action; canceling the reset
+      // keeps what was typed (see register-form for the full story).
+      onReset={(event) => event.preventDefault()}
+    >
       <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="თვიური ფასი">
         {PRICES.map((price) => (
           <label

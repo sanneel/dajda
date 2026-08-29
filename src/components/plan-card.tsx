@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Check } from 'lucide-react';
 import type { PlanTier, BillingPeriod } from '@/generated/prisma/enums';
 import { BILLING_PERIOD_KA, PLAN_TIER_KA } from '@/lib/labels';
@@ -40,9 +41,16 @@ export function PlanCard({
   currentStatus?: 'ACTIVE' | 'PENDING';
 }) {
   const [state, action, pending] = useActionState(startCheckoutAction, null);
+  const router = useRouter();
+
+  // A balance (or free-plan) activation completes without the gateway;
+  // refresh so the page reflects the new subscription at once.
+  useEffect(() => {
+    if (state?.ok) router.refresh();
+  }, [state, router]);
 
   const isFree = plan.priceMinor === 0;
-  const owned = currentStatus === 'ACTIVE';
+  const owned = currentStatus === 'ACTIVE' || Boolean(state?.ok);
 
   return (
     <div
@@ -125,6 +133,13 @@ export function PlanCard({
           </a>
         )}
 
+        {state?.ok ? (
+          <div className="mb-3">
+            <Alert tone="success" title="გამოწერა გააქტიურდა">
+              წვდომა უკვე გახსნილია.
+            </Alert>
+          </div>
+        ) : null}
         {state && !state.ok ? (
           <div className="mt-3">
             <Alert tone="error">{state.error.message}</Alert>

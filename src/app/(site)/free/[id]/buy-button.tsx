@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { purchaseTicketAction } from '@/actions/purchases';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
@@ -21,6 +22,20 @@ export function BuyTicketButton({
   priceMinor: number;
 }) {
   const [state, action, pending] = useActionState(purchaseTicketAction, null);
+  const router = useRouter();
+
+  // A balance purchase completes right here; refresh so the pick appears.
+  useEffect(() => {
+    if (state?.ok) router.refresh();
+  }, [state, router]);
+
+  if (state?.ok) {
+    return (
+      <Alert tone="success" title="შეძენილია">
+        ბილეთი გაიხსნა - წამში გამოჩნდება.
+      </Alert>
+    );
+  }
 
   return (
     <form action={action} className="space-y-3">

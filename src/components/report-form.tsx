@@ -47,7 +47,15 @@ export function ReportForm({
       </button>
 
       {open ? (
-        <form action={action} className="mt-3 space-y-3">
+        <form
+          action={action}
+          className="mt-3 space-y-3"
+      // Let the explicit success reset through; block React 19's automatic
+      // reset when the action failed, so an error never wipes the draft.
+      onReset={(event) => {
+        if (state && !state.ok) event.preventDefault();
+      }}
+        >
           <input type="hidden" name="targetType" value={targetType} />
           <input type="hidden" name="targetId" value={targetId} />
 

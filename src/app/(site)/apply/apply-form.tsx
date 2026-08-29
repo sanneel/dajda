@@ -27,7 +27,14 @@ export function AnalystApplyForm({ sports }: { sports: SportOption[] }) {
   }
 
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form
+      action={action}
+      className="space-y-4"
+      noValidate
+      // React 19 resets the form after every action; canceling the reset
+      // keeps what was typed (see register-form for the full story).
+      onReset={(event) => event.preventDefault()}
+    >
       {generalError ? <Alert tone="error">{generalError}</Alert> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
