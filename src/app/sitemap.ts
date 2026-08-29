@@ -7,7 +7,6 @@ export const dynamic = 'force-dynamic';
 /** The public pages that exist whether or not anybody has published yet. */
 const STATIC_PATHS: { path: string; priority: number }[] = [
   { path: '/', priority: 1 },
-  { path: '/analysts', priority: 0.9 },
   { path: '/free', priority: 0.8 },
   { path: '/paid', priority: 0.7 },
   { path: '/how-it-works', priority: 0.6 },

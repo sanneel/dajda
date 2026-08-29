@@ -50,6 +50,13 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
 
+  async redirects() {
+    return [
+      // The analyst ranking moved to the root; old links keep working.
+      { source: '/analysts', destination: '/', permanent: true },
+    ];
+  },
+
   async headers() {
     return [
       {

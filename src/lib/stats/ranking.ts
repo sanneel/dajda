@@ -29,7 +29,14 @@ export type AnalystListItem = {
   } | null;
 };
 
-export type AnalystSort = 'score' | 'profit' | 'volume' | 'recent';
+export type AnalystSort =
+  | 'score'
+  | 'profit'
+  | 'volume'
+  | 'recent'
+  | 'accuracy'
+  | 'odds-high'
+  | 'odds-low';
 
 /**
  * Ordering never uses hit rate on its own.
@@ -54,6 +61,27 @@ export function sortAnalysts(
   const sorted = [...items];
 
   switch (sort) {
+    /*
+     * Accuracy is gated exactly like the default score: a 3-0 week must not
+     * sit above a 60% record earned over forty bets, so low-sample analysts
+     * sort below adequately-sampled ones whatever their rate says.
+     */
+    case 'accuracy':
+      sorted.sort(
+        (a, b) =>
+          Number(a.lowSample) - Number(b.lowSample) ||
+          b.allTime.hitRateBps - a.allTime.hitRateBps ||
+          b.allTime.decided - a.allTime.decided,
+      );
+      break;
+    // Average odds answer "who plays long/short" - a stylistic question, so
+    // like profit and volume they are not gated.
+    case 'odds-high':
+      sorted.sort((a, b) => b.allTime.avgOddsMilli - a.allTime.avgOddsMilli);
+      break;
+    case 'odds-low':
+      sorted.sort((a, b) => a.allTime.avgOddsMilli - b.allTime.avgOddsMilli);
+      break;
     case 'profit':
       sorted.sort(
         (a, b) =>

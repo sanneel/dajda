@@ -142,7 +142,8 @@ export async function postBetAction(
 
     revalidatePath('/analyst');
     revalidatePath('/free');
-    revalidatePath('/analysts');
+    revalidatePath('/');
+    revalidatePath('/analysts', 'layout');
 
     return ok({ predictionId: prediction.id });
   } catch (error) {
@@ -461,7 +462,8 @@ export async function setPlanPriceAction(
     });
 
     revalidatePath('/analyst');
-    revalidatePath('/analysts');
+    revalidatePath('/');
+    revalidatePath('/analysts', 'layout');
     return ok({ priceMinor });
   } catch (error) {
     return toActionFailure(error);

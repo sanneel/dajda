@@ -241,7 +241,7 @@ export default async function DashboardPage() {
               title="აქტიური გამოწერა არ გაქვთ"
               description="გამოწერა ყოველი ავტორის პროფილზეა: აირჩიეთ ავტორი და ნახეთ მისი გეგმები."
               action={
-                <ButtonLink href="/analysts">ანალიტიკოსების ნახვა</ButtonLink>
+                <ButtonLink href="/">ანალიტიკოსების ნახვა</ButtonLink>
               }
             />
           ) : (

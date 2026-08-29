@@ -64,10 +64,11 @@ export async function SiteHeader() {
           {actor ? (
             <Link
               href="/dashboard"
-              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-line-strong px-4 text-sm text-ink transition-colors hover:border-ink-faint"
+              aria-label={`პროფილი — ${actor.name}`}
+              title={actor.name}
+              className="inline-flex size-11 items-center justify-center rounded-full transition-opacity hover:opacity-80"
             >
               <Avatar name={actor.name} size="sm" />
-              <span className="max-w-32 truncate">{actor.name}</span>
             </Link>
           ) : (
             <AuthButtons

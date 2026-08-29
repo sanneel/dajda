@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { Logo } from '@/components/brand/logo';
 import { ButtonLink } from '@/components/ui/button';
 
@@ -27,11 +26,6 @@ export default function NotFound() {
         </ButtonLink>
       </div>
 
-      <p className="mt-8 text-sm text-ink-faint">
-        <Link href="/analysts" className="hover:text-ink">
-          ანალიტიკოსების ნახვა
-        </Link>
-      </p>
     </main>
   );
 }

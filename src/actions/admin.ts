@@ -111,7 +111,8 @@ export async function decideAnalystAction(
     });
 
     revalidatePath('/admin/analysts');
-    revalidatePath('/analysts');
+    revalidatePath('/');
+    revalidatePath('/analysts', 'layout');
     return ok({ status: decision });
   } catch (error) {
     return toActionFailure(error);

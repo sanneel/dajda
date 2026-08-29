@@ -1,76 +1,189 @@
-import { BarChart3, ShieldCheck, Users } from 'lucide-react';
-import { topAnalysts } from '@/lib/queries/analysts';
+import Link from 'next/link';
+import { Users } from 'lucide-react';
+import { listAnalysts, type AnalystSort } from '@/lib/queries/analysts';
+import { listSports } from '@/lib/queries/tickets';
+import { AnalystList } from '@/components/analyst-list';
+import { EmptyState } from '@/components/ui/feedback';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
-import { Hero } from './hero';
 
-// Live results and a session-dependent header: never statically cached.
 export const dynamic = 'force-dynamic';
 
-const FEATURES = [
-  {
-    icon: BarChart3,
-    title: 'დეტალური ანალიტიკა',
-    body: 'ყველა ავტორზე ჩანს სიზუსტე, ჩანაწერი და შედეგი ერთეულებში. ეს წარსული შედეგებია და არა მომავლის დაპირება.',
-  },
-  {
-    icon: Users,
-    title: 'საუკეთესო ანალიტიკოსები',
-    body: 'ავტორები ლაგდებიან საკუთარი შემოწმებადი შედეგების მიხედვით და არა პოპულარობით. ყველა განაცხადს ხელით ვამოწმებთ.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'დაბლოკილი ჩანაწერი',
-    body: 'გამოქვეყნების შემდეგ პროგნოზის კოეფიციენტი, არჩევანი და მტკიცებულება უცვლელია. შესწორება ისტორიას ვერ შლის.',
-  },
+// No metadata export: the root page carries the site-wide title and
+// description defined in the root layout.
+
+const SORTS: { value: AnalystSort; label: string }[] = [
+  { value: 'score', label: 'DAJDA რეიტინგი' },
+  { value: 'accuracy', label: 'სიზუსტე' },
+  { value: 'profit', label: 'პროფიტი' },
+  { value: 'odds-high', label: 'საშ. კუში · მაღალი' },
+  { value: 'odds-low', label: 'საშ. კუში · დაბალი' },
+  { value: 'recent', label: 'ბოლო 30 დღე' },
+  { value: 'volume', label: 'ფსონების რაოდენობა' },
 ];
 
-export default async function HomePage() {
-  const analysts = await topAnalysts(3);
+/**
+ * The home page: the analyst ranking itself.
+ *
+ * One thing per row: who they are, how they have done, and a way to subscribe.
+ * The controls sit in a dark band above the list, per the reference, so the
+ * page reads as "settings, then results" rather than as one undifferentiated
+ * column of boxes.
+ *
+ * The ordering rule is enforced in `sortAnalysts`, where a short record cannot
+ * outrank a long one whatever is selected here.
+ */
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const raw = await searchParams;
+
+  const sortParam = typeof raw.sort === 'string' ? raw.sort : 'score';
+  const sort = (
+    SORTS.some((option) => option.value === sortParam) ? sortParam : 'score'
+  ) as AnalystSort;
+
+  const sportParam = typeof raw.sport === 'string' ? raw.sport : undefined;
+  const queryParam =
+    typeof raw.q === 'string' && raw.q.trim() !== ''
+      ? raw.q.trim()
+      : undefined;
+
+  const [analysts, sports] = await Promise.all([
+    listAnalysts({ sort, sportCode: sportParam, query: queryParam }),
+    listSports(),
+  ]);
+
+  const selectClass =
+    'min-h-11 w-full rounded-control border border-on-band/25 bg-on-band/10 px-3 text-sm text-on-band ' +
+    // The options themselves render in the OS palette, so they need an
+    // explicit light ground or they inherit white-on-white in some browsers.
+    '[&>option]:bg-surface [&>option]:text-ink';
 
   return (
-    <>
-      <Hero analysts={analysts} />
+    <div className="mx-auto max-w-page px-4 py-10 sm:px-8">
+      <header className="mb-8">
+        <h1 className="font-display text-3xl leading-tight text-ink sm:text-5xl">
+          ნახე, ვისი ანალიზი
+          <br />
+          <span className="text-accent">მართლდება.</span>
+        </h1>
 
-      {/* ---------------------------------------------------------------- */}
-      {/* Three claims, on white, divided by rules rather than boxed as     */}
-      {/* cards: they are one row of statements, not three products.        */}
-      {/* ---------------------------------------------------------------- */}
+        <p className="mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
+          ავტორები პროგნოზს მოვლენის დაწყებამდე აქვეყნებენ, შედეგი უცვლელად ფიქსირდება
+          და სტატისტიკა შემოწმებადია, წაგებული პროგნოზების ჩათვლით.
+        </p>
+
+        <Link
+          href="/how-it-works"
+          className="mt-5 inline-block text-sm font-medium text-accent"
+        >
+          როგორ მუშაობს? →
+        </Link>
+      </header>
+
+      <div className="mb-6 border-t border-line pt-7">
+        <h2 className="font-display text-xl text-ink">ანალიტიკოსების რეიტინგი</h2>
+        <p className="mt-1.5 max-w-xl text-sm text-ink-muted">
+          სტატისტიკა ასახავს წარსულს და არ არის მომავლის გარანტია.
+        </p>
+      </div>
+
       {/*
-       * Same ground as the hero and the notice below it. Alternating
-       * surface/canvas/elevated bands down the page made it read as three
-       * unrelated strips; one ground lets the panel and the cards be the only
-       * things that lift off it.
+       * A plain GET form, not a row of link chips. Labelled controls read
+       * as one control bar and stay one tab stop each as the sport list grows;
+       * it also works with JavaScript disabled.
        */}
-      <section className="bg-canvas" aria-labelledby="features-heading">
-        <h2 id="features-heading" className="sr-only">
-          რას გთავაზობთ DAJDA
-        </h2>
-        <div className="mx-auto grid max-w-page gap-y-8 px-4 py-12 sm:px-6 lg:grid-cols-3 lg:gap-x-10 lg:divide-x lg:divide-line">
-          {FEATURES.map((feature) => (
-            <div
-              key={feature.title}
-              className="flex gap-4 lg:px-8 lg:first:pl-0 lg:last:pr-0"
+      <form
+        method="get"
+        action="/"
+        className="mb-5 rounded-panel bg-band p-4 sm:p-5"
+        aria-label="ანალიტიკოსების ფილტრი"
+      >
+        <div className="grid gap-4 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div className="min-w-0">
+            <label
+              htmlFor="filter-q"
+              className="rule-label mb-2 block text-on-band/75"
             >
-              <span
-                className="flex size-11 shrink-0 items-center justify-center rounded-control bg-elevated text-ink"
-                aria-hidden="true"
-              >
-                <feature.icon className="size-5" />
-              </span>
-              <div className="min-w-0">
-                <h3 className="font-display text-base text-ink">
-                  {feature.title}
-                </h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
-                  {feature.body}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+              ძებნა
+            </label>
+            <input
+              id="filter-q"
+              type="search"
+              name="q"
+              defaultValue={queryParam ?? ''}
+              placeholder="ანალიტიკოსის სახელი"
+              className="min-h-11 w-full rounded-control border border-on-band/25 bg-on-band/10 px-3 text-sm text-on-band placeholder:text-on-band/50"
+            />
+          </div>
 
-      <ResponsibleUseNotice />
-    </>
+          <div className="min-w-0">
+            <label
+              htmlFor="filter-sort"
+              className="rule-label mb-2 block text-on-band/75"
+            >
+              დალაგება
+            </label>
+            <select
+              id="filter-sort"
+              name="sort"
+              defaultValue={sort}
+              className={selectClass}
+            >
+              {SORTS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="min-w-0">
+            <label
+              htmlFor="filter-sport"
+              className="rule-label mb-2 block text-on-band/75"
+            >
+              სპორტი
+            </label>
+            <select
+              id="filter-sport"
+              name="sport"
+              defaultValue={sportParam ?? ''}
+              className={selectClass}
+            >
+              <option value="">ყველა სპორტი</option>
+              {sports.map((sport) => (
+                <option key={sport.code} value={sport.code}>
+                  {sport.nameKa}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="submit"
+            className="min-h-11 rounded-control bg-on-band px-6 text-sm font-semibold text-band transition-colors hover:opacity-90"
+          >
+            ჩვენება
+          </button>
+        </div>
+      </form>
+
+      {analysts.length === 0 ? (
+        <EmptyState
+          icon={<Users className="size-8" aria-hidden="true" />}
+          title="ანალიტიკოსი ვერ მოიძებნა"
+          description="სცადეთ სხვა ძებნა ან წაშალეთ ფილტრი."
+        />
+      ) : (
+        <AnalystList analysts={analysts} />
+      )}
+
+      <div className="mt-12">
+        <ResponsibleUseNotice />
+      </div>
+    </div>
   );
 }

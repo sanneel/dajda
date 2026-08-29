@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Home, LogIn, Ticket, User, Users } from 'lucide-react';
+import { BarChart3, Home, LogIn, Ticket, User } from 'lucide-react';
 
 /**
  * App-style tab bar, phones and tablets only.
@@ -27,7 +27,6 @@ type Tab = {
 function tabsFor(isAuthenticated: boolean, isAnalyst: boolean): Tab[] {
   return [
     { href: '/', label: 'მთავარი', icon: Home },
-    { href: '/analysts', label: 'ანალიტიკოსები', icon: Users },
     { href: '/free', label: 'უფასო', icon: Ticket },
     ...(isAnalyst
       ? [{ href: '/analyst', label: 'ჩემი ფსონები', icon: BarChart3 }]
@@ -59,8 +58,9 @@ export function BottomNav({
       >
         {tabs.map((tab) => {
           /*
-           * Segment-aware matching, not startsWith: "/analysts" begins with
-           * "/analyst", and a plain prefix test would light both tabs at once.
+           * Segment-aware matching, not startsWith: "/analysts/[slug]" begins
+           * with "/analyst", and a plain prefix test would light the analyst
+           * tab on someone else's profile.
            */
           const active =
             pathname === tab.href || pathname.startsWith(`${tab.href}/`);

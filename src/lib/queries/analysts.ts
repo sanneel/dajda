@@ -54,12 +54,22 @@ function toRecords(
 export async function listAnalysts(options?: {
   sportCode?: string;
   sort?: AnalystSort;
+  /** Case-insensitive name search, from the list's search box. */
+  query?: string;
 }): Promise<AnalystListItem[]> {
   const profiles = await prisma.analystProfile.findMany({
     where: {
       status: 'APPROVED',
       ...(options?.sportCode
         ? { sports: { some: { sport: { code: options.sportCode } } } }
+        : {}),
+      ...(options?.query?.trim()
+        ? {
+            displayName: {
+              contains: options.query.trim(),
+              mode: 'insensitive',
+            },
+          }
         : {}),
     },
     select: {
@@ -226,10 +236,3 @@ export async function getAnalystBySlug(slug: string) {
   };
 }
 
-/** Top performers for the home page. */
-export async function topAnalysts(limit = 4): Promise<AnalystListItem[]> {
-  const all = await listAnalysts({ sort: 'score' });
-  // Never surface an analyst whose record is too short to mean anything.
-  const eligible = all.filter((analyst) => !analyst.lowSample);
-  return (eligible.length > 0 ? eligible : all).slice(0, limit);
-}
