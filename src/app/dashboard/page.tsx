@@ -9,7 +9,7 @@ import {
   PAYMENT_STATUS_KA,
   SUBSCRIPTION_STATUS_KA,
 } from "@/lib/labels";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, EmptyState } from "@/components/ui/feedback";
 import { ButtonLink } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { CancelSubscriptionButton } from "./cancel-button";
 import { ResendVerificationButton } from "./resend-verification-button";
 import { VerifyCodeForm } from "./verify-code-form";
 import { TopUpForm } from "./top-up-form";
+import { Avatar } from "@/components/ui/avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -106,13 +107,20 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="font-display text-2xl text-ink sm:text-3xl">
-          გამარჯობა, {actor.name}
-        </h1>
-        <p className="mt-1.5 text-ink-muted">
-          თქვენი გამოწერები, ბალანსი და გადახდების ისტორია ერთ გვერდზე.
-        </p>
+      {/*
+       * Identity, not a greeting. On a phone this page opens from the
+       * "პროფილი" tab, and a display-size hello plus a sentence describing
+       * the sections below it cost a whole screen before the first number.
+       * A profile page's header is who you are; everything else is content.
+       */}
+      <header className="flex items-center gap-3">
+        <Avatar name={actor.name} size="md" />
+        <div className="min-w-0">
+          <h1 className="truncate font-display text-lg text-ink">
+            {actor.name}
+          </h1>
+          <p className="truncate text-sm text-ink-muted">{actor.email}</p>
+        </div>
       </header>
 
       {!actor.emailVerifiedAt ? (
@@ -144,21 +152,41 @@ export default async function DashboardPage() {
       {/* Balance                                                           */}
       {/* ---------------------------------------------------------------- */}
       <Card as="section">
-        <CardHeader
-          title="ბალანსი"
-          level={2}
-          description="თუ ბალანსი გეგმის სრულ ფასს ფარავს, გამოწერა პირდაპირ ბალანსიდან გადაიხდება, ბარათის გარეშე."
-        />
         <CardBody>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <p className="font-display text-3xl text-ink tabular">
-              {formatMoney(balance.balanceMinor, "GEL")}
-            </p>
-            <TopUpForm />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm text-ink-muted">ბალანსი</h2>
+              <p className="font-display text-3xl text-ink tabular">
+                {formatMoney(balance.balanceMinor, "GEL")}
+              </p>
+            </div>
+            {/*
+             * The top-up form starts folded. Most visits to this page are a
+             * glance at a number or a cancellation, and an always-open input
+             * with its explanation made the first card the tallest thing on a
+             * phone. Native details, so it costs no JavaScript.
+             */}
+            <details className="group">
+              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors marker:content-none hover:border-ink-faint">
+                <span className="group-open:hidden">შევსება</span>
+                <span className="hidden group-open:inline">დახურვა</span>
+              </summary>
+              <div className="mt-3 space-y-2">
+                <TopUpForm />
+                <p className="max-w-72 text-xs leading-relaxed text-ink-faint">
+                  თუ ბალანსი გეგმის სრულ ფასს ფარავს, გამოწერა პირდაპირ
+                  ბალანსიდან გადაიხდება, ბარათის გარეშე.
+                </p>
+              </div>
+            </details>
           </div>
 
           {balanceEntries.length > 0 ? (
-            <ul className="mt-4 divide-y divide-line border-t border-line text-sm">
+            <details className="mt-4 border-t border-line pt-3">
+              <summary className="cursor-pointer list-none text-sm text-ink-muted marker:content-none hover:text-ink">
+                ბოლო მოძრაობები ({balanceEntries.length})
+              </summary>
+              <ul className="mt-2 divide-y divide-line text-sm">
               {balanceEntries.map((entry) => (
                 <li
                   key={entry.id}
@@ -185,7 +213,8 @@ export default async function DashboardPage() {
                   </span>
                 </li>
               ))}
-            </ul>
+              </ul>
+            </details>
           ) : null}
         </CardBody>
       </Card>
@@ -269,66 +298,65 @@ export default async function DashboardPage() {
                     </div>
                   </div>
 
-                  <dl className="mt-3 grid grid-cols-2 gap-3 border-t border-line pt-3 text-sm sm:grid-cols-3">
-                    <div>
-                      <dt className="text-xs text-ink-muted">დაიწყო</dt>
-                      <dd className="tabular text-ink">
-                        {subscription.startedAt
-                          ? formatDateKa(subscription.startedAt)
-                          : "·"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-ink-muted">
-                        {subscription.cancelAtPeriodEnd
-                          ? "წვდომა მთავრდება"
-                          : "შემდეგი განახლება"}
-                      </dt>
-                      <dd className="tabular text-ink">
+                  {/*
+                    * One date, not a grid of three. The question this row
+                    * answers is "when does the next charge (or the access)
+                    * end" - the start date is nostalgia and "cancellation:
+                    * none" was a column saying nothing.
+                    */}
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <span className="text-ink-muted">
+                      {subscription.cancelAtPeriodEnd
+                        ? "წვდომა მთავრდება: "
+                        : "განახლდება: "}
+                      <span className="tabular text-ink">
                         {subscription.currentPeriodEnd
                           ? formatDateKa(subscription.currentPeriodEnd)
                           : "·"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-ink-muted">გაუქმება</dt>
-                      <dd className="text-ink">
-                        {subscription.cancelAtPeriodEnd
-                          ? "დაგეგმილია"
-                          : "არ არის"}
-                      </dd>
-                    </div>
-                  </dl>
-
-                  {subscription.status === "ACTIVE" &&
-                  !subscription.cancelAtPeriodEnd ? (
-                    <div className="mt-3 border-t border-line pt-3">
+                      </span>
+                    </span>
+                    {subscription.status === "ACTIVE" &&
+                    !subscription.cancelAtPeriodEnd ? (
                       <CancelSubscriptionButton
                         subscriptionId={subscription.id}
                       />
-                      <p className="mt-2 text-xs text-ink-faint">
-                        გაუქმების შემდეგ წვდომა რჩება გადახდილი პერიოდის
-                        ბოლომდე. თანხა ავტომატურად აღარ ჩამოიჭრება.
-                      </p>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>
           )}
+          {subscriptions.some(
+            (subscription) =>
+              subscription.status === "ACTIVE" &&
+              !subscription.cancelAtPeriodEnd,
+          ) ? (
+            <p className="mt-3 border-t border-line pt-3 text-xs text-ink-faint">
+              გაუქმების შემდეგ წვდომა რჩება გადახდილი პერიოდის ბოლომდე და
+              თანხა ავტომატურად აღარ ჩამოიჭრება.
+            </p>
+          ) : null}
         </div>
       </details>
 
       {/* ---------------------------------------------------------------- */}
       {/* Payments                                                          */}
       {/* ---------------------------------------------------------------- */}
-      <Card as="section">
-        <CardHeader
-          title="გადახდების ისტორია"
-          level={2}
-          description="სტატუსი მოდის გადახდის პროვაიდერის სერვერული დადასტურებიდან."
-        />
-        <CardBody>
+      {/*
+       * Collapsed by default: history is the section people need rarely and
+       * scroll past always. The count on the summary says whether opening
+       * is worth it.
+       */}
+      <details className="rounded-card border border-line bg-surface">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 marker:content-none sm:px-5">
+          <span className="font-display text-base text-ink">
+            გადახდების ისტორია
+          </span>
+          <span className="tabular text-sm text-ink-faint">
+            {payments.length}
+          </span>
+        </summary>
+        <div className="border-t border-line p-4 sm:p-5">
           {payments.length === 0 ? (
             <EmptyState title="გადახდა ჯერ არ დაფიქსირებულა" />
           ) : (
@@ -392,8 +420,8 @@ export default async function DashboardPage() {
               </table>
             </div>
           )}
-        </CardBody>
-      </Card>
+        </div>
+      </details>
     </div>
   );
 }
