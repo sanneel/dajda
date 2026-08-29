@@ -87,6 +87,8 @@ export const ticketFilterSchema = z.object({
    */
   odds: z.enum(['high', 'low']).optional(),
   acc: z.enum(['high', 'low']).optional(),
+  /** Paid feed only: order by the ticket's one-off price. */
+  price: z.enum(['high', 'low']).optional(),
   soon: z.literal('1').optional(),
   page: z.coerce.number().int().min(1).max(500).default(1),
 });

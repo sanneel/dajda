@@ -55,6 +55,7 @@ export default async function PaidTicketsPage({
     const query = new URLSearchParams();
     if (filter.odds) query.set('odds', filter.odds);
     if (filter.acc) query.set('acc', filter.acc);
+    if (filter.price) query.set('price', filter.price);
     if (filter.soon) query.set('soon', '1');
     if (page > 1) query.set('page', String(page));
     const suffix = query.toString();
@@ -83,7 +84,13 @@ export default async function PaidTicketsPage({
       >
         <SortTicks
           basePath="/paid"
-          state={{ odds: filter.odds, acc: filter.acc, soon: filter.soon === '1' }}
+          showPrice
+          state={{
+            odds: filter.odds,
+            acc: filter.acc,
+            price: filter.price,
+            soon: filter.soon === '1',
+          }}
         />
         <span className="ml-auto tabular text-xs text-ink-faint">
           {total} პროგნოზი

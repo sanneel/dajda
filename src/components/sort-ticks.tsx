@@ -15,6 +15,8 @@ import type { TickDirection } from '@/lib/queries/tickets';
 export type TickState = {
   odds?: TickDirection;
   acc?: TickDirection;
+  /** Paid feed only. */
+  price?: TickDirection;
   soon?: boolean;
 };
 
@@ -22,6 +24,7 @@ function buildHref(basePath: string, state: TickState): string {
   const query = new URLSearchParams();
   if (state.odds) query.set('odds', state.odds);
   if (state.acc) query.set('acc', state.acc);
+  if (state.price) query.set('price', state.price);
   if (state.soon) query.set('soon', '1');
   const suffix = query.toString();
   return suffix ? `${basePath}?${suffix}` : basePath;
@@ -45,6 +48,9 @@ function Tick({
   return (
     <Link
       href={href}
+      // The tick changes the list, not the reader's place on the page: a
+      // scroll-to-top on every click is what made the bar feel broken.
+      scroll={false}
       aria-pressed={on}
       className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm transition-colors ${
         on
@@ -73,9 +79,12 @@ const DIRECTION_KA: Record<TickDirection, string> = {
 export function SortTicks({
   basePath,
   state,
+  showPrice = false,
 }: {
   basePath: string;
   state: TickState;
+  /** The paid feed adds a ფასი tick; the free feed has nothing priced. */
+  showPrice?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="დალაგება">
@@ -102,6 +111,20 @@ export function SortTicks({
           </span>
         ) : null}
       </Tick>
+
+      {showPrice ? (
+        <Tick
+          href={buildHref(basePath, { ...state, price: nextDirection(state.price) })}
+          on={state.price !== undefined}
+        >
+          ფასი
+          {state.price ? (
+            <span className="text-xs opacity-80">
+              {DIRECTION_KA[state.price]} {state.price === 'high' ? '↓' : '↑'}
+            </span>
+          ) : null}
+        </Tick>
+      ) : null}
 
       <Tick
         href={buildHref(basePath, { ...state, soon: !state.soon })}

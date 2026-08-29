@@ -245,6 +245,18 @@ function sortFeed(items: FeedTicket[], filter: TicketFilter, now = Date.now()) {
     });
   }
 
+  if (filter.price) {
+    const sign = filter.price === 'high' ? -1 : 1;
+    keys.push((a, b) => {
+      const pa = a.feedPriceMinor;
+      const pb = b.feedPriceMinor;
+      // Unpriced rows sink whatever the direction: no price is not a price.
+      if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
+      if (pa === null || pb === null) return 0;
+      return sign * (pa - pb);
+    });
+  }
+
   if (filter.soon === '1' || keys.length === 0) keys.push(bySoon);
   keys.push(publishedDesc);
 
