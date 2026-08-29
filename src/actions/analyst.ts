@@ -84,7 +84,7 @@ async function notifyNewBet(
     const free = prediction.visibility === 'PUBLIC';
     await enqueueForAnalystAudience(analystProfileId, 'NEW_BET', {
       subjectKa: free
-        ? `${profile.displayName}-მ დადო უფასო ბილეთი`
+        ? `უფასო ბილეთი ${profile.displayName}სგან`
         : `ახალი ფასიანი პროგნოზი: ${profile.displayName}`,
       bodyKa: free
         ? `${prediction.titleKa}\nკოეფიციენტი: ${formatOdds(prediction.oddsMilli)}`
