@@ -9,6 +9,7 @@ import { GoogleLoginButton } from '@/components/auth/google-button';
 import { BottomNav } from './bottom-nav';
 import { MobileNav } from './mobile-nav';
 import { NavLinks } from './nav-links';
+import { NotificationBell } from './notification-bell';
 
 /**
  * Site header.
@@ -60,6 +61,8 @@ export async function SiteHeader() {
 
           <ThemeToggle />
 
+          {actor ? <NotificationBell userId={actor.userId} /> : null}
+
           {actor ? (
             <Link
               href="/dashboard"
@@ -86,7 +89,8 @@ export async function SiteHeader() {
          * menu button crowd the bar off the right edge on a small phone. It
          * lives inside the drawer on this breakpoint instead.
          */}
-        <div className="ml-auto lg:hidden">
+        <div className="ml-auto flex items-center gap-1 lg:hidden">
+          {actor ? <NotificationBell userId={actor.userId} /> : null}
           <MobileNav
             isAuthenticated={Boolean(actor)}
             isAdmin={isAdmin}

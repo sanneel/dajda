@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { Bookmark, BookmarkCheck } from 'lucide-react';
+import { UserPlus, UserCheck } from 'lucide-react';
 import { toggleSavedAnalystAction } from '@/actions/subscriptions';
 
 export function SaveAnalystButton({
@@ -30,6 +30,7 @@ export function SaveAnalystButton({
         type="submit"
         disabled={pending}
         aria-pressed={saved}
+        title="მიიღებთ შეტყობინებას ამ ავტორის ახალ ბილეთზე"
         className={`inline-flex min-h-11 items-center gap-2 rounded-md border px-4 text-sm transition-colors disabled:opacity-45 ${
           saved
             ? 'border-accent/40 bg-accent/10 text-accent'
@@ -37,11 +38,11 @@ export function SaveAnalystButton({
         }`}
       >
         {saved ? (
-          <BookmarkCheck className="size-4" aria-hidden="true" />
+          <UserCheck className="size-4" aria-hidden="true" />
         ) : (
-          <Bookmark className="size-4" aria-hidden="true" />
+          <UserPlus className="size-4" aria-hidden="true" />
         )}
-        {saved ? 'შენახულია' : 'შენახვა'}
+        {saved ? 'ფოლოუშია' : 'ფოლოუ'}
       </button>
     </form>
   );

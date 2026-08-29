@@ -62,7 +62,12 @@ function fieldErrorsFrom(error: {
  */
 async function notifyNewBet(
   analystProfileId: string,
-  prediction: { id: string; titleKa: string; oddsMilli: number },
+  prediction: {
+    id: string;
+    titleKa: string;
+    oddsMilli: number;
+    visibility: 'PUBLIC' | 'PREMIUM' | 'VIP';
+  },
 ): Promise<void> {
   try {
     const profile = await prisma.analystProfile.findUnique({
@@ -70,10 +75,21 @@ async function notifyNewBet(
       select: { displayName: true, slug: true },
     });
     if (!profile) return;
+
+    /*
+     * The audience includes followers who are not subscribers, and a paid
+     * pick's title IS the merchandise - so a paid bet announces itself
+     * without the title, and only a free one carries it.
+     */
+    const free = prediction.visibility === 'PUBLIC';
     await enqueueForAnalystAudience(analystProfileId, 'NEW_BET', {
-      subjectKa: `ახალი პროგნოზი: ${profile.displayName}`,
-      bodyKa: `${prediction.titleKa}\nკოეფიციენტი: ${formatOdds(prediction.oddsMilli)}`,
-      linkPath: `/analysts/${profile.slug}`,
+      subjectKa: free
+        ? `${profile.displayName}-მ დადო უფასო ბილეთი`
+        : `ახალი ფასიანი პროგნოზი: ${profile.displayName}`,
+      bodyKa: free
+        ? `${prediction.titleKa}\nკოეფიციენტი: ${formatOdds(prediction.oddsMilli)}`
+        : `კოეფიციენტი: ${formatOdds(prediction.oddsMilli)}\nდეტალები ბმულზე.`,
+      linkPath: `/free/${prediction.id}`,
       predictionId: prediction.id,
     });
   } catch (error) {
