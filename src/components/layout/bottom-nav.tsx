@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Home, LogIn, Ticket, User } from 'lucide-react';
+import { BarChart3, Crown, Home, LogIn, Ticket, User } from 'lucide-react';
 
 /**
  * App-style tab bar, phones and tablets only.
@@ -28,6 +28,7 @@ function tabsFor(isAuthenticated: boolean, isAnalyst: boolean): Tab[] {
   return [
     { href: '/', label: 'მთავარი', icon: Home },
     { href: '/free', label: 'უფასო', icon: Ticket },
+    { href: '/paid', label: 'ფასიანი', icon: Crown },
     ...(isAnalyst
       ? [{ href: '/analyst', label: 'ჩემი ფსონები', icon: BarChart3 }]
       : []),
