@@ -82,11 +82,13 @@ export const ticketFilterSchema = z.object({
   sport: z.string().trim().min(1).max(40).optional(),
   status: z.enum(PredictionStatus).optional(),
   /**
-   * Exactly two orders, both buyer questions: "what starts soonest" and
-   * "whose record earned the most". Anything else the feed could sort by is
-   * derivable from these two pages of context or is noise.
+   * Tick-style, combinable orderings. Each key is optional and they stack:
+   * odds first, then the author's accuracy, then kickoff. With nothing
+   * ticked the feed falls back to "what starts soonest".
    */
-  sort: z.enum(['soon', 'profit']).default('soon'),
+  odds: z.enum(['high', 'low']).optional(),
+  acc: z.enum(['high', 'low']).optional(),
+  soon: z.literal('1').optional(),
   page: z.coerce.number().int().min(1).max(500).default(1),
 });
 

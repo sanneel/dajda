@@ -50,7 +50,8 @@ export type PublicTicket = Prisma.PredictionGetPayload<{
   select: typeof publicTicketSelect;
 }>;
 
-export type TicketSort = 'soon' | 'profit';
+/** A tick's direction on the feed's combinable sort bar. */
+export type TickDirection = 'high' | 'low';
 
 /**
  * A feed row: the ticket plus the two things a buyer reads next to it - the
@@ -180,7 +181,7 @@ async function listTicketFeed(kind: 'FREE' | 'PAID', filter: TicketFilter) {
     };
   });
 
-  sortFeed(enriched, filter.sort ?? 'soon');
+  sortFeed(enriched, filter);
 
   const page = filter.page ?? 1;
   const total = enriched.length;
@@ -193,29 +194,15 @@ async function listTicketFeed(kind: 'FREE' | 'PAID', filter: TicketFilter) {
   };
 }
 
-function sortFeed(items: FeedTicket[], sort: TicketSort, now = Date.now()) {
+function sortFeed(items: FeedTicket[], filter: TicketFilter, now = Date.now()) {
   const publishedDesc = (a: FeedTicket, b: FeedTicket) =>
     (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0);
 
-  if (sort === 'profit') {
-    // Tickets from the most profitable records first. Community tickets have
-    // no record and sink to the bottom rather than pretending to a zero.
-    items.sort((a, b) => {
-      const pa = a.authorProfitUnitsCenti;
-      const pb = b.authorProfitUnitsCenti;
-      if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
-      if (pa !== null && pb !== null && pa !== pb) return pb - pa;
-      return publishedDesc(a, b);
-    });
-    return;
-  }
-
-  // 'soon': what can still be acted on, nearest kickoff first; everything
-  // already started or without a time falls back to newest-published.
+  // "What can still be acted on": nearest kickoff first; everything already
+  // started or without a time falls back behind, newest-published.
   const upcoming = (ticket: FeedTicket) =>
     ticket.eventAt !== null && ticket.eventAt.getTime() >= now;
-
-  items.sort((a, b) => {
+  const bySoon = (a: FeedTicket, b: FeedTicket) => {
     const ua = upcoming(a);
     const ub = upcoming(b);
     if (ua !== ub) return ua ? -1 : 1;
@@ -223,7 +210,42 @@ function sortFeed(items: FeedTicket[], sort: TicketSort, now = Date.now()) {
       // Both have an eventAt by construction of `upcoming`.
       return (a.eventAt as Date).getTime() - (b.eventAt as Date).getTime();
     }
-    return publishedDesc(a, b);
+    return 0;
+  };
+
+  /*
+   * The ticks stack in the order the bar shows them: odds, then the author's
+   * accuracy, then kickoff. Each later key only breaks the ties the earlier
+   * ones leave. Community tickets have no record and sink below authored
+   * ones under the accuracy key rather than pretending to a zero.
+   */
+  const keys: ((a: FeedTicket, b: FeedTicket) => number)[] = [];
+
+  if (filter.odds) {
+    const sign = filter.odds === 'high' ? -1 : 1;
+    keys.push((a, b) => sign * (a.oddsMilli - b.oddsMilli));
+  }
+
+  if (filter.acc) {
+    const sign = filter.acc === 'high' ? -1 : 1;
+    keys.push((a, b) => {
+      const ha = a.authorHitRateBps;
+      const hb = b.authorHitRateBps;
+      if ((ha === null) !== (hb === null)) return ha === null ? 1 : -1;
+      if (ha === null || hb === null) return 0;
+      return sign * (ha - hb);
+    });
+  }
+
+  if (filter.soon === '1' || keys.length === 0) keys.push(bySoon);
+  keys.push(publishedDesc);
+
+  items.sort((a, b) => {
+    for (const key of keys) {
+      const order = key(a, b);
+      if (order !== 0) return order;
+    }
+    return 0;
   });
 }
 

@@ -4,14 +4,12 @@ import { Ticket } from 'lucide-react';
 import {
   activePlanGrants,
   listPaidTickets,
-  listSports,
-  type TicketSort,
 } from '@/lib/queries/tickets';
 import { ticketFilterSchema } from '@/lib/validation/schemas';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { isTicketLocked } from '@/lib/auth/entitlements';
 import { TicketList } from '@/components/ticket-list';
-import { SortSelect } from '@/components/sort-select';
+import { SortTicks } from '@/components/sort-ticks';
 import { EmptyState } from '@/components/ui/feedback';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 
@@ -22,24 +20,6 @@ export const metadata: Metadata = {
   description:
     'ანალიტიკოსების ფასიანი პროგნოზები: შეძენამდე ჩანს კოეფიციენტი, ფასი და პირველი პოზიციის დაწყების დრო, დახურვის შემდეგ კი სრული ჩანაწერი.',
 };
-
-/*
- * The hint under each option is the sort key in plain words. Both orderings
- * are defensible and neither is guessable from its name alone, so the menu
- * says which question it answers rather than making the reader try one.
- */
-const SORTS: { value: TicketSort; label: string; hintKa: string }[] = [
-  {
-    value: 'soon',
-    label: 'მალე იწყება',
-    hintKa: 'პირველი პოზიციის დაწყების დროით',
-  },
-  {
-    value: 'profit',
-    label: 'პროფიტი',
-    hintKa: 'ავტორის ჩანაწერის მოგებით',
-  },
-];
 
 /**
  * The paid feed: every PREMIUM/VIP bet in the same table the free feed uses,
@@ -55,13 +35,12 @@ export default async function PaidTicketsPage({
 }) {
   const raw = await searchParams;
   const parsed = ticketFilterSchema.safeParse(raw);
-  const filter = parsed.success ? parsed.data : { page: 1, sort: 'soon' as const };
+  const filter = parsed.success ? parsed.data : { page: 1 };
 
   const actor = await getCurrentUser();
 
-  const [{ items, total, page, pageCount }, sports, grants] = await Promise.all([
+  const [{ items, total, page, pageCount }, grants] = await Promise.all([
     listPaidTickets(filter),
-    listSports(),
     activePlanGrants(actor?.userId),
   ]);
 
@@ -69,18 +48,12 @@ export default async function PaidTicketsPage({
     ? { role: actor.role, analystProfileId: actor.analystProfileId }
     : null;
 
-  const hrefFor = (overrides: {
-    sport?: string | null;
-    sort?: TicketSort;
-    page?: number;
-  }) => {
+  const hrefFor = (page: number) => {
     const query = new URLSearchParams();
-    const sport =
-      overrides.sport === undefined ? filter.sport : overrides.sport;
-    const sort = overrides.sort ?? filter.sort ?? 'soon';
-    if (sport) query.set('sport', sport);
-    if (sort !== 'soon') query.set('sort', sort);
-    if ((overrides.page ?? 1) > 1) query.set('page', String(overrides.page));
+    if (filter.odds) query.set('odds', filter.odds);
+    if (filter.acc) query.set('acc', filter.acc);
+    if (filter.soon) query.set('soon', '1');
+    if (page > 1) query.set('page', String(page));
     const suffix = query.toString();
     return suffix ? `/paid?${suffix}` : '/paid';
   };
@@ -99,45 +72,18 @@ export default async function PaidTicketsPage({
       </header>
 
       {/* --------------------------------------------------------------- */}
-      {/* One control bar: sport left, order and count right                */}
+      {/* One control bar: sort ticks left, count right                     */}
       {/* --------------------------------------------------------------- */}
       <nav
         className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-line py-3 text-sm"
-        aria-label="ფილტრი და სორტირება"
+        aria-label="დალაგება"
       >
-        <Link
-          href={hrefFor({ sport: null })}
-          className={
-            filter.sport ? 'text-ink-muted hover:text-ink' : 'text-accent'
-          }
-        >
-          ყველა
-        </Link>
-        {sports.map((sport) => (
-          <Link
-            key={sport.code}
-            href={hrefFor({ sport: sport.code })}
-            className={
-              filter.sport === sport.code
-                ? 'text-accent'
-                : 'text-ink-muted hover:text-ink'
-            }
-          >
-            {sport.nameKa}
-          </Link>
-        ))}
-
-        <span className="ml-auto flex items-center gap-x-4">
-          <SortSelect
-            value={filter.sort ?? 'soon'}
-            options={SORTS.map((sort) => ({
-              ...sort,
-              href: hrefFor({ sort: sort.value }),
-            }))}
-          />
-          <span className="tabular text-xs text-ink-faint">
-            {total} პროგნოზი
-          </span>
+        <SortTicks
+          basePath="/paid"
+          state={{ odds: filter.odds, acc: filter.acc, soon: filter.soon === '1' }}
+        />
+        <span className="ml-auto tabular text-xs text-ink-faint">
+          {total} პროგნოზი
         </span>
       </nav>
 
@@ -145,7 +91,7 @@ export default async function PaidTicketsPage({
         <EmptyState
           icon={<Ticket className="size-8" aria-hidden="true" />}
           title="პროგნოზი ჯერ არ არის"
-          description="აირჩიეთ სხვა სპორტი ან შეამოწმეთ მოგვიანებით."
+          description="შეამოწმეთ მოგვიანებით."
         />
       ) : (
         <TicketList
@@ -179,7 +125,7 @@ export default async function PaidTicketsPage({
         >
           {page > 1 ? (
             <Link
-              href={hrefFor({ page: page - 1 })}
+              href={hrefFor(page - 1)}
               className="text-ink hover:text-accent"
             >
               წინა
@@ -192,7 +138,7 @@ export default async function PaidTicketsPage({
           </span>
           {page < pageCount ? (
             <Link
-              href={hrefFor({ page: page + 1 })}
+              href={hrefFor(page + 1)}
               className="text-ink hover:text-accent"
             >
               შემდეგი
