@@ -116,7 +116,7 @@ export default async function FreeTicketsPage({
       {/* One control bar: sort ticks left, count right                     */}
       {/* --------------------------------------------------------------- */}
       <nav
-        className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-line py-3 text-sm"
+        className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm"
         aria-label="დალაგება"
       >
         <SortTicks

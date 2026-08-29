@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Bell, Send } from 'lucide-react';
 import { prisma } from '@/lib/db';
 import { formatDateTimeKa } from '@/lib/format';
+import { ClosableDetails } from '@/components/ui/closable-details';
 
 /**
  * The bell: the follower's view of what is still open.
@@ -44,7 +45,7 @@ export async function NotificationBell({ userId }: { userId: string }) {
   const count = tickets.length + (needsTelegram ? 1 : 0);
 
   return (
-    <details className="relative">
+    <ClosableDetails className="relative">
       <summary
         className="relative inline-flex size-11 cursor-pointer list-none items-center justify-center rounded-full text-ink-muted transition-colors marker:content-none hover:bg-elevated hover:text-ink"
         aria-label={`შეტყობინებები (${count})`}
@@ -115,6 +116,6 @@ export async function NotificationBell({ userId }: { userId: string }) {
           ) : null}
         </ul>
       </div>
-    </details>
+    </ClosableDetails>
   );
 }
