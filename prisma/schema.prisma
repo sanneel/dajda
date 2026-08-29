@@ -523,6 +523,11 @@ model Prediction {
   correctedBy    Prediction? @relation("PredictionCorrection")
   supersededAt   DateTime?
 
+  /// Set by the author to feature this bet in the "ტოპ ბილეთები" strip on
+  /// their public profile (max 3 at a time, enforced in the action). The
+  /// timestamp doubles as the strip's ordering.
+  pinnedAt DateTime?
+
   isDemo    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

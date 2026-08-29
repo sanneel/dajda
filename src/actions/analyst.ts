@@ -469,3 +469,78 @@ export async function setPlanPriceAction(
     return toActionFailure(error);
   }
 }
+
+/** How many bets a profile may feature at once. */
+const MAX_PINNED_BETS = 3;
+
+/**
+ * Pin or unpin one of the author's own published bets as a "ტოპ ბილეთი".
+ *
+ * The pinned strip replaced the full history table on the public profile, so
+ * this is the analyst's only lever over what that section shows. The cap is
+ * enforced here, not in the schema: three is an editorial rule, not an
+ * integrity one.
+ */
+export async function togglePinBetAction(
+  predictionId: string,
+): Promise<ActionResult<{ pinned: boolean }>> {
+  try {
+    const actor = await requireApprovedAnalyst();
+
+    const prediction = await prisma.prediction.findUnique({
+      where: { id: predictionId },
+      select: {
+        id: true,
+        authorId: true,
+        publishedAt: true,
+        supersededAt: true,
+        pinnedAt: true,
+      },
+    });
+
+    // The same answer for "not yours" as for "not there": no probing.
+    if (!prediction || prediction.authorId !== actor.analystProfileId) {
+      return fail(ERROR_CODES.NOT_FOUND);
+    }
+    if (prediction.publishedAt === null || prediction.supersededAt !== null) {
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        'დაპინვა მხოლოდ გამოქვეყნებულ ბილეთს შეუძლია.',
+      );
+    }
+
+    if (prediction.pinnedAt !== null) {
+      await prisma.prediction.update({
+        where: { id: prediction.id },
+        data: { pinnedAt: null },
+      });
+      revalidatePath('/analyst');
+      revalidatePath('/analysts', 'layout');
+      return ok({ pinned: false });
+    }
+
+    const pinnedCount = await prisma.prediction.count({
+      where: {
+        authorId: actor.analystProfileId,
+        pinnedAt: { not: null },
+        supersededAt: null,
+      },
+    });
+    if (pinnedCount >= MAX_PINNED_BETS) {
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        `მაქსიმუმ ${MAX_PINNED_BETS} დაპინული ბილეთი. ჯერ მოხსენით რომელიმე.`,
+      );
+    }
+
+    await prisma.prediction.update({
+      where: { id: prediction.id },
+      data: { pinnedAt: new Date() },
+    });
+    revalidatePath('/analyst');
+    revalidatePath('/analysts', 'layout');
+    return ok({ pinned: true });
+  } catch (error) {
+    return toActionFailure(error);
+  }
+}

@@ -205,6 +205,7 @@ export async function getAnalystBySlug(slug: string) {
       publishedAt: true,
       eventAt: true,
       finishedAt: true,
+      pinnedAt: true,
       version: true,
       correctionOfId: true,
       sport: { select: { code: true, nameKa: true } },

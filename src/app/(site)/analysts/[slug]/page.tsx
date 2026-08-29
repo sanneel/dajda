@@ -20,7 +20,7 @@ import {
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge, DemoBadge, StatusBadge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
-import { Alert, EmptyState } from '@/components/ui/feedback';
+import { Alert } from '@/components/ui/feedback';
 import { analystFeed } from '@/lib/queries/feed';
 import { Feed } from '@/components/feed';
 import { CumulativeUnitsChart } from '@/components/charts/cumulative-units';
@@ -142,6 +142,16 @@ export default async function AnalystProfilePage({
   const cumulative = cumulativeUnits(records);
   const monthly = monthlyPerformance(records);
 
+  // Newest pin first. The cap is enforced at pin time; the slice here is
+  // only a belt against rows pinned before the cap existed.
+  const pinned = predictions
+    .filter((prediction) => prediction.pinnedAt !== null)
+    .sort(
+      (a, b) =>
+        (b.pinnedAt as Date).getTime() - (a.pinnedAt as Date).getTime(),
+    )
+    .slice(0, 3);
+
   return (
     <div className="mx-auto max-w-page px-4 py-10 sm:px-6">
       {/* ------------------------------------------------------------- */}
@@ -258,137 +268,109 @@ export default async function AnalystProfilePage({
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* Full history                                                    */}
+      {/* ტოპ ბილეთები: what the author chose to feature                   */}
       {/* ------------------------------------------------------------- */}
-      <section className="mt-10" aria-labelledby="history-heading">
-        <h2
-          id="history-heading"
-          className="text-2xl font-semibold tracking-tight text-ink"
-        >
-          ფსონების ისტორია
-        </h2>
-        <p className="mt-1.5 text-sm text-ink-muted">
-          სრული სია, შედეგის მიხედვით გაუფილტრავად.
-        </p>
+      {/*
+       * Replaced the full history table. The complete record still exists -
+       * the stats above are computed from every published bet and the feed
+       * shows them chronologically - but the strip here is editorial: up to
+       * three bets the author pinned from their workspace.
+       */}
+      {pinned.length > 0 ? (
+        <section className="mt-10" aria-labelledby="pinned-heading">
+          <h2
+            id="pinned-heading"
+            className="text-2xl font-semibold tracking-tight text-ink"
+          >
+            ტოპ ბილეთები
+          </h2>
+          <p className="mt-1.5 text-sm text-ink-muted">
+            ავტორის მიერ არჩეული ბილეთები საკუთარი ჩანაწერიდან.
+          </p>
 
-        {predictions.length === 0 ? (
-          <div className="mt-5">
-            <EmptyState title="გამოქვეყნებული ფსონი ჯერ არ არის" />
-          </div>
-        ) : (
-          <div className="mt-5 overflow-x-auto rounded-md border border-line">
-            <table className="w-full min-w-[52rem] border-collapse text-sm">
-              <caption className="sr-only">
-                {profile.displayName}: გამოქვეყნებული ფსონების სრული სია
-              </caption>
-              <thead>
-                <tr className="border-b border-line bg-elevated text-left">
-                  <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
-                    მატჩი
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
-                    სკრინშოტი
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
-                    კოეფ.
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
-                    გამოქვეყნდა
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
-                    შედეგი
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium text-ink-muted">
-                    ერთეული
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {predictions.map((prediction) => (
-                  <tr
-                    key={prediction.id}
-                    className="border-b border-line last:border-0 hover:bg-elevated"
-                  >
-                    <td className="px-4 py-3">
+          <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {pinned.map((prediction) => {
+              const locked = lockedBetIds.has(prediction.id);
+              const units = prediction.result?.profitUnitsCenti ?? null;
+
+              return (
+                <li
+                  key={prediction.id}
+                  className="overflow-hidden rounded-card border border-line bg-surface"
+                >
+                  {locked ? (
+                    <span className="flex h-36 items-center justify-center border-b border-line bg-elevated">
+                      <Lock
+                        className="size-6 text-ink-faint"
+                        aria-hidden="true"
+                      />
+                    </span>
+                  ) : (
+                    <a
+                      href={prediction.screenshotPath}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="relative block h-36 border-b border-line bg-canvas"
+                    >
+                      <Image
+                        src={prediction.screenshotPath}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1024px) 20rem, 100vw"
+                        className="object-cover"
+                      />
+                    </a>
+                  )}
+
+                  <div className="p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <a
                         href={`/free/${prediction.id}`}
-                        className="font-medium text-ink hover:text-accent"
+                        className="min-w-0 font-medium text-ink hover:text-accent"
                       >
-                        {lockedBetIds.has(prediction.id) ? (
-                          <span className="inline-flex items-center gap-1.5">
-                            <Lock
-                              className="size-3.5 text-ink-faint"
-                              aria-hidden="true"
-                            />
-                            დახურული პროგნოზი
-                          </span>
-                        ) : (
-                          prediction.titleKa
-                        )}
+                        {locked ? 'დახურული პროგნოზი' : prediction.titleKa}
                       </a>
-                      <div className="text-xs text-ink-faint">
-                        {prediction.sport.nameKa}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {/* The slip, small. Proof that the row is not just a
-                          claim typed into a table. A locked bet shows no slip,
-                          because the slip IS the pick being sold. */}
-                      {lockedBetIds.has(prediction.id) ? (
-                        <span className="flex h-12 w-16 items-center justify-center rounded border border-line bg-elevated">
-                          <Lock
-                            className="size-4 text-ink-faint"
-                            aria-hidden="true"
-                          />
-                        </span>
-                      ) : (
-                        <a
-                          href={prediction.screenshotPath}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="relative block h-12 w-16 overflow-hidden rounded border border-line bg-canvas"
-                        >
-                          <Image
-                            src={prediction.screenshotPath}
-                            alt=""
-                            fill
-                            sizes="4rem"
-                            className="object-cover"
-                          />
-                        </a>
-                      )}
-                    </td>
-                    <td className="tabular px-4 py-3 text-ink">
-                      {formatOdds(prediction.oddsMilli)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-ink-muted">
-                      {prediction.publishedAt
-                        ? formatDateTimeKa(prediction.publishedAt)
-                        : '·'}
-                    </td>
-                    <td className="px-4 py-3">
                       <StatusBadge status={prediction.status} />
-                    </td>
-                    <td
-                      className={`tabular px-4 py-3 text-right font-medium ${
-                        (prediction.result?.profitUnitsCenti ?? 0) > 0
-                          ? 'text-win'
-                          : (prediction.result?.profitUnitsCenti ?? 0) < 0
-                            ? 'text-loss'
-                            : 'text-ink-muted'
-                      }`}
-                    >
-                      {prediction.result
-                        ? formatUnitsSigned(prediction.result.profitUnitsCenti)
-                        : '·'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                    </div>
+
+                    <p className="mt-1.5 text-xs text-ink-muted">
+                      {prediction.sport.nameKa}
+                      {' · კოეფ. '}
+                      <span className="tabular">
+                        {formatOdds(prediction.oddsMilli)}
+                      </span>
+                      {prediction.publishedAt ? (
+                        <>
+                          {' · '}
+                          <span className="tabular">
+                            {formatDateTimeKa(prediction.publishedAt)}
+                          </span>
+                        </>
+                      ) : null}
+                      {units !== null ? (
+                        <>
+                          {' · '}
+                          <span
+                            className={`tabular font-medium ${
+                              units > 0
+                                ? 'text-win'
+                                : units < 0
+                                  ? 'text-loss'
+                                  : 'text-ink-muted'
+                            }`}
+                          >
+                            {formatUnitsSigned(units)} ერთ.
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface p-4">
         <p className="text-sm text-ink-muted">

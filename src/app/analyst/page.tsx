@@ -20,6 +20,7 @@ import { ShowMoreList } from '@/components/ui/show-more';
 import { analystFeed } from '@/lib/queries/feed';
 import { Feed } from '@/components/feed';
 import { FinishBetForm } from './finish-form';
+import { PinBetButton } from './pin-button';
 import { AnalystComposer } from './composer';
 import { LiveSessionControls } from './live-session';
 
@@ -66,6 +67,7 @@ export default async function AnalystPage() {
           eventAt: true,
           finishedAt: true,
           supersededAt: true,
+          pinnedAt: true,
           sport: { select: { nameKa: true } },
           result: { select: { profitUnitsCenti: true, settledAt: true } },
         },
@@ -335,6 +337,7 @@ type Bet = {
   publishedAt: Date | null;
   eventAt: Date | null;
   finishedAt: Date | null;
+  pinnedAt: Date | null;
   sport: { nameKa: string };
   result: { profitUnitsCenti: number; settledAt: Date } | null;
 };
@@ -447,6 +450,15 @@ function BetRow({ bet, showFinish }: { bet: Bet; showFinish: boolean }) {
         {showFinish ? (
           <div className="mt-3">
             <FinishBetForm predictionId={bet.id} />
+          </div>
+        ) : null}
+
+        {bet.publishedAt !== null ? (
+          <div className="mt-3">
+            <PinBetButton
+              predictionId={bet.id}
+              pinned={bet.pinnedAt !== null}
+            />
           </div>
         ) : null}
       </div>
