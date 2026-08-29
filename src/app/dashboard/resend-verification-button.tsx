@@ -39,7 +39,7 @@ export function ResendVerificationButton() {
 
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
-      <Button type="submit" size="sm" disabled={pending}>
+      <Button type="submit" variant="secondary" size="sm" disabled={pending}>
         {pending ? 'იგზავნება…' : 'ბმულის ხელახლა გაგზავნა'}
       </Button>
       {state && !state.ok ? (

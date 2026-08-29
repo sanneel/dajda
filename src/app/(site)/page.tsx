@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { Users } from 'lucide-react';
+import { getCurrentUser } from '@/lib/auth/authorization';
+import { ButtonLink } from '@/components/ui/button';
 import { listAnalysts, type AnalystSort } from '@/lib/queries/analysts';
 import { listSports } from '@/lib/queries/tickets';
 import { AnalystList } from '@/components/analyst-list';
@@ -49,9 +51,10 @@ export default async function HomePage({
       ? raw.q.trim()
       : undefined;
 
-  const [analysts, sports] = await Promise.all([
+  const [analysts, sports, actor] = await Promise.all([
     listAnalysts({ sort, sportCode: sportParam, query: queryParam }),
     listSports(),
+    getCurrentUser(),
   ]);
 
   const selectClass =
@@ -74,12 +77,21 @@ export default async function HomePage({
           და სტატისტიკა შემოწმებადია, წაგებული პროგნოზების ჩათვლით.
         </p>
 
-        <Link
-          href="/how-it-works"
-          className="mt-5 inline-block text-sm font-medium text-accent"
-        >
-          როგორ მუშაობს? →
-        </Link>
+        {/*
+         * A visitor gets the one committed action; a member already has an
+         * account, so the quiet explainer link is all that remains.
+         */}
+        <div className="mt-6 flex flex-wrap items-center gap-4">
+          {!actor ? (
+            <ButtonLink href="/register">შექმენი ანგარიში</ButtonLink>
+          ) : null}
+          <Link
+            href="/how-it-works"
+            className="inline-block text-sm font-medium text-accent"
+          >
+            როგორ მუშაობს? →
+          </Link>
+        </div>
       </header>
 
       <div className="mb-6 border-t border-line pt-7">

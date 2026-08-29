@@ -308,6 +308,61 @@ export default async function DashboardPage() {
       {/* Balance                                                           */}
       {/* ---------------------------------------------------------------- */}
       {/* ---------------------------------------------------------------- */}
+      {/* First steps: only while there is nothing else to show             */}
+      {/* ---------------------------------------------------------------- */}
+      {subscriptions.length === 0 && purchases.length === 0 ? (
+        <Card as="section">
+          <CardBody>
+            <h2 className="font-display text-base text-ink">საიდან დავიწყო?</h2>
+            <ul className="mt-3 divide-y divide-line text-sm">
+              <li>
+                <Link
+                  href="/"
+                  className="flex min-h-11 items-center justify-between gap-3 py-2 text-ink-muted transition-colors hover:text-ink"
+                >
+                  <span>
+                    <span className="font-medium text-ink">
+                      ნახე ანალიტიკოსების რეიტინგი
+                    </span>
+                    {" "}— ვისი ანალიზი მართლდება
+                  </span>
+                  <span aria-hidden="true" className="text-accent">→</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/free"
+                  className="flex min-h-11 items-center justify-between gap-3 py-2 text-ink-muted transition-colors hover:text-ink"
+                >
+                  <span>
+                    <span className="font-medium text-ink">
+                      გახსენი უფასო პროგნოზები
+                    </span>
+                    {" "}— გადახდის გარეშე
+                  </span>
+                  <span aria-hidden="true" className="text-accent">→</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/paid"
+                  className="flex min-h-11 items-center justify-between gap-3 py-2 text-ink-muted transition-colors hover:text-ink"
+                >
+                  <span>
+                    <span className="font-medium text-ink">
+                      ნახე ფასიანი პროგნოზები
+                    </span>
+                    {" "}— იყიდე ცალკე ან გამოწერით
+                  </span>
+                  <span aria-hidden="true" className="text-accent">→</span>
+                </Link>
+              </li>
+            </ul>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {/* ---------------------------------------------------------------- */}
       {/* Purchased tickets                                                 */}
       {/* ---------------------------------------------------------------- */}
       {purchases.length > 0 ? (

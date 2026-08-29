@@ -36,11 +36,11 @@ export default async function DashboardLayout({
           aria-label="პროფილის ნავიგაცია"
           className="mb-6 flex items-center justify-between gap-4 border-b border-line pb-4"
         >
-          <ul className="flex items-center gap-1">
+          <ul className="flex min-w-0 items-center gap-1 overflow-x-auto">
             <li>
               <Link
                 href="/dashboard"
-                className="inline-flex min-h-11 items-center rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+                className="inline-flex min-h-11 items-center whitespace-nowrap rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
               >
                 ანგარიში
               </Link>
@@ -48,7 +48,7 @@ export default async function DashboardLayout({
             <li>
               <Link
                 href="/dashboard/settings"
-                className="inline-flex min-h-11 items-center rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+                className="inline-flex min-h-11 items-center whitespace-nowrap rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
               >
                 პარამეტრები
               </Link>
@@ -57,14 +57,14 @@ export default async function DashboardLayout({
               {actor.analystProfileId ? (
                 <Link
                   href="/analyst"
-                  className="inline-flex min-h-11 items-center rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+                  className="inline-flex min-h-11 items-center whitespace-nowrap rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
                 >
                   ჩემი ფსონები
                 </Link>
               ) : (
                 <Link
                   href="/apply"
-                  className="inline-flex min-h-11 items-center rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+                  className="inline-flex min-h-11 items-center whitespace-nowrap rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
                 >
                   ანალიტიკოსად რეგისტრაცია
                 </Link>

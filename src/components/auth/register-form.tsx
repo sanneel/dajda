@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import Link from 'next/link';
 import { registerAction } from '@/actions/auth';
 import { Checkbox, Field, Input } from '@/components/ui/field';
@@ -10,6 +10,17 @@ import { Alert } from '@/components/ui/feedback';
 export function RegisterForm() {
   const [state, action, pending] = useActionState(registerAction, null);
 
+  /*
+   * Controlled on purpose: React 19 resets uncontrolled fields after a form
+   * action completes, so one wrong password wiped the whole form - name,
+   * email and both consent boxes. State survives the round trip.
+   */
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+
   const fieldErrors = state && !state.ok ? state.error.fieldErrors : undefined;
   const generalError =
     state && !state.ok && !fieldErrors ? state.error.message : null;
@@ -17,7 +28,18 @@ export function RegisterForm() {
   const errorFor = (field: string) => fieldErrors?.[field]?.[0];
 
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form
+      action={action}
+      className="space-y-4"
+      noValidate
+      /*
+       * React 19 resets the form after every action, flipping checkboxes off
+       * at the DOM level even when their React state says on. The reset event
+       * is cancelable; canceling it keeps every typed value through a failed
+       * submit.
+       */
+      onReset={(event) => event.preventDefault()}
+    >
       {generalError ? <Alert tone="error">{generalError}</Alert> : null}
 
       <Field label="სახელი" htmlFor="name" required error={errorFor('name')}>
@@ -26,6 +48,8 @@ export function RegisterForm() {
           name="name"
           autoComplete="name"
           required
+          value={name}
+          onChange={(event) => setName(event.target.value)}
           error={Boolean(errorFor('name'))}
         />
       </Field>
@@ -43,6 +67,8 @@ export function RegisterForm() {
           autoComplete="email"
           required
           placeholder="mail@example.ge"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
           error={Boolean(errorFor('email'))}
         />
       </Field>
@@ -60,6 +86,8 @@ export function RegisterForm() {
           type="password"
           autoComplete="new-password"
           required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
           error={Boolean(errorFor('password'))}
         />
       </Field>
@@ -69,6 +97,8 @@ export function RegisterForm() {
           id="ageConfirmed"
           name="ageConfirmed"
           label="ვადასტურებ, რომ ვარ 18 წლის ან მეტის."
+          checked={ageConfirmed}
+          onChange={(event) => setAgeConfirmed(event.target.checked)}
           error={errorFor('ageConfirmed')}
         />
 
@@ -116,6 +146,8 @@ export function RegisterForm() {
               .
             </>
           }
+          checked={acceptTerms}
+          onChange={(event) => setAcceptTerms(event.target.checked)}
           error={errorFor('acceptTerms')}
         />
       </div>
