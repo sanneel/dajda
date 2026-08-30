@@ -3,7 +3,6 @@ import { Google_Sans } from 'next/font/google';
 import './globals.css';
 import { ThemeApplier } from '@/components/theme-applier';
 import { ThemeScript } from '@/components/theme-script';
-import { DemoBanner } from '@/components/demo-banner';
 
 /**
  * One face for the entire product.
@@ -93,12 +92,6 @@ export default function RootLayout({
         >
           გადადი მთავარ შინაარსზე
         </a>
-        {/*
-         * Mounted at the root rather than in a page layout so that it also
-         * covers /admin, the auth pages and the error boundaries. There is no
-         * route where a demo deployment should look like a real one.
-         */}
-        <DemoBanner />
         {children}
       </body>
     </html>

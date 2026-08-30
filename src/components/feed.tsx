@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Lock, Radio } from 'lucide-react';
+import { Radio } from 'lucide-react';
 import type { FeedEntry } from '@/lib/queries/feed';
 import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
 import { StatusBadge } from './ui/badge';
 import { ShowMoreList } from './ui/show-more';
+import { SportTile } from './sport-tile';
 
 /**
  * An analyst's feed.
@@ -136,22 +137,23 @@ function BetEntry({
       </div>
 
       <div className="mt-2 flex flex-wrap items-start gap-4">
-        <Link
-          href={`/free/${bet.id}`}
-          className={`relative h-16 w-24 shrink-0 overflow-hidden rounded border border-line ${
-            locked ? 'flex items-center justify-center bg-elevated' : 'bg-canvas'
-          }`}
-        >
+        <Link href={`/free/${bet.id}`} className="shrink-0">
           {locked ? (
-            <Lock className="size-4 text-ink-faint" aria-hidden="true" />
-          ) : (
-            <Image
-              src={bet.screenshotPath}
-              alt=""
-              fill
-              sizes="6rem"
-              className="object-cover"
+            <SportTile
+              code={bet.sport.code}
+              className="h-16 w-24 rounded"
+              iconClassName="size-6"
             />
+          ) : (
+            <span className="relative block h-16 w-24 overflow-hidden rounded border border-line bg-canvas">
+              <Image
+                src={bet.screenshotPath}
+                alt=""
+                fill
+                sizes="6rem"
+                className="object-cover"
+              />
+            </span>
           )}
         </Link>
 

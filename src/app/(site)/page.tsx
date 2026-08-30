@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Users } from 'lucide-react';
+import { ChevronDown, Users } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { AnalystSearch } from '@/components/analyst-search';
 import { ButtonLink } from '@/components/ui/button';
@@ -73,10 +73,13 @@ export default async function HomePage({
   ]);
 
   const selectClass =
-    'min-h-11 w-full rounded-control border border-on-band/25 bg-on-band/10 px-3 text-sm text-on-band ' +
+    'min-h-10 w-full appearance-none rounded-control border border-on-band/20 bg-on-band/10 py-2 pl-3 pr-9 text-sm text-on-band ' +
+    'transition-colors hover:border-on-band/35 focus:border-on-band/60 focus:outline-none ' +
     // The options themselves render in the OS palette, so they need an
     // explicit light ground or they inherit white-on-white in some browsers.
     '[&>option]:bg-surface [&>option]:text-ink';
+
+  const labelClass = 'rule-label mb-1.5 block text-on-band/60';
 
   return (
     <div className="mx-auto max-w-page px-4 py-6 sm:px-8 sm:py-10">
@@ -132,76 +135,100 @@ export default async function HomePage({
          * at most, or the list the page exists for starts below the fold.
          * Search lives behind the icon until tapped (order-first when open).
          */}
-        <div className="flex flex-wrap items-end gap-2.5 sm:gap-3">
-          <AnalystSearch initialQuery={queryParam ?? ''} />
-
+        <div className="flex flex-wrap items-end gap-x-2 gap-y-3 sm:gap-x-3">
           <div className="min-w-0 flex-1 basis-[7.5rem]">
             <label
               htmlFor="filter-sort"
-              className="rule-label mb-1.5 block text-on-band/75"
+              className={labelClass}
             >
               დალაგება
             </label>
-            <select
-              id="filter-sort"
-              name="sort"
-              defaultValue={sort}
-              className={selectClass}
-            >
-              {SORTS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                id="filter-sort"
+                name="sort"
+                defaultValue={sort}
+                className={selectClass}
+              >
+                {SORTS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-on-band/55"
+                aria-hidden="true"
+              />
+            </div>
           </div>
 
           <div className="min-w-0 flex-1 basis-[7.5rem]">
             <label
               htmlFor="filter-period"
-              className="rule-label mb-1.5 block text-on-band/75"
+              className={labelClass}
             >
               პერიოდი
             </label>
-            <select
-              id="filter-period"
-              name="period"
-              defaultValue={period}
-              className={selectClass}
-            >
-              {PERIODS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                id="filter-period"
+                name="period"
+                defaultValue={period}
+                className={selectClass}
+              >
+                {PERIODS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-on-band/55"
+                aria-hidden="true"
+              />
+            </div>
           </div>
 
           <div className="min-w-0 flex-1 basis-[7.5rem]">
             <label
               htmlFor="filter-sport"
-              className="rule-label mb-1.5 block text-on-band/75"
+              className={labelClass}
             >
               სპორტი
             </label>
-            <select
-              id="filter-sport"
-              name="sport"
-              defaultValue={sportParam ?? ''}
-              className={selectClass}
-            >
-              <option value="">ყველა სპორტი</option>
-              {sports.map((sport) => (
-                <option key={sport.code} value={sport.code}>
-                  {sport.nameKa}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                id="filter-sport"
+                name="sport"
+                defaultValue={sportParam ?? ''}
+                className={selectClass}
+              >
+                <option value="">ყველა სპორტი</option>
+                {sports.map((sport) => (
+                  <option key={sport.code} value={sport.code}>
+                    {sport.nameKa}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-on-band/55"
+                aria-hidden="true"
+              />
+            </div>
           </div>
+
+          {/*
+           * Search and submit close the row, in the order they are reached
+           * for: the optional tool, then the action. Both stay direct children
+           * of this row, so an opened search can take a full-width row of its
+           * own (order-first) instead of being boxed into a corner of one.
+           */}
+          <AnalystSearch initialQuery={queryParam ?? ''} />
 
           <button
             type="submit"
-            className="min-h-11 shrink-0 rounded-control bg-on-band px-5 text-sm font-semibold text-band transition-colors hover:opacity-90"
+            className="min-h-10 shrink-0 rounded-control bg-on-band px-5 text-sm font-semibold text-band transition-opacity hover:opacity-90"
           >
             ჩვენება
           </button>

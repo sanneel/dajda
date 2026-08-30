@@ -76,15 +76,13 @@ export default async function PaidTicketsPage({
       </header>
 
       {/* --------------------------------------------------------------- */}
-      {/* One control bar: sort ticks left, count right                     */}
+      {/* One control bar: caption and count, then the chips               */}
       {/* --------------------------------------------------------------- */}
-      <nav
-        className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm"
-        aria-label="დალაგება"
-      >
+      <div className="mb-5">
         <SortTicks
           basePath="/paid"
           showPrice
+          total={total}
           state={{
             odds: filter.odds,
             acc: filter.acc === '1',
@@ -92,10 +90,7 @@ export default async function PaidTicketsPage({
             soon: filter.soon === '1',
           }}
         />
-        <span className="ml-auto tabular text-xs text-ink-faint">
-          {total} პროგნოზი
-        </span>
-      </nav>
+      </div>
 
       {items.length === 0 ? (
         <EmptyState

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 /**
  * The ranking's search, folded behind an icon.
@@ -31,9 +31,15 @@ export function AnalystSearch({ initialQuery }: { initialQuery: string }) {
         onClick={() => setOpen(true)}
         aria-label="ანალიტიკოსის ძებნა"
         title="ძებნა"
-        className="inline-flex size-11 shrink-0 items-center justify-center rounded-control border border-on-band/25 bg-on-band/10 text-on-band transition-colors hover:border-on-band/50"
+        /*
+         * Sits at the end of the row, after the selects: it is the control
+         * used least, so it reads as a tool next to the submit button rather
+         * than as the first thing the band asks for. Icon-sized, not
+         * field-sized, for the same reason.
+         */
+        className="ml-auto inline-flex size-9 shrink-0 items-center justify-center self-end rounded-control text-on-band/70 transition-colors hover:bg-on-band/10 hover:text-on-band"
       >
-        <Search className="size-5" aria-hidden="true" />
+        <Search className="size-4" aria-hidden="true" />
       </button>
     );
   }
@@ -55,8 +61,20 @@ export function AnalystSearch({ initialQuery }: { initialQuery: string }) {
           name="q"
           defaultValue={initialQuery}
           placeholder="ანალიტიკოსის სახელი"
-          className="min-h-11 w-full rounded-control border border-on-band/25 bg-on-band/10 pl-9 pr-3 text-sm text-on-band placeholder:text-on-band/50"
+          className="min-h-10 w-full rounded-control border border-on-band/20 bg-on-band/10 pl-9 pr-10 text-sm text-on-band transition-colors placeholder:text-on-band/50 focus:border-on-band/50 focus:outline-none"
         />
+        {/*
+         * Opening search costs one tap, so closing it should too - otherwise
+         * the band keeps a row it no longer needs for the rest of the visit.
+         */}
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label="ძებნის დახურვა"
+          className="absolute right-1 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-control text-on-band/60 transition-colors hover:bg-on-band/10 hover:text-on-band"
+        >
+          <X className="size-4" aria-hidden="true" />
+        </button>
       </div>
     </div>
   );

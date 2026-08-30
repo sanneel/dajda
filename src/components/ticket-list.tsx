@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Lock } from 'lucide-react';
 import type { FeedTicket } from '@/lib/queries/tickets';
 import { PREDICTION_VISIBILITY_KA } from '@/lib/labels';
 import {
@@ -10,6 +9,7 @@ import {
   formatPercentBps,
 } from '@/lib/format';
 import { Badge } from './ui/badge';
+import { SportTile } from './sport-tile';
 
 /**
  * The ticket feed as a ruled table, one bet per row. The free and the paid
@@ -96,9 +96,11 @@ export function TicketList({
           >
             <div className="flex items-start gap-3">
               {hidden ? (
-                <span className="flex size-14 shrink-0 items-center justify-center rounded-md border border-line bg-elevated">
-                  <Lock className="size-5 text-ink-faint" aria-hidden="true" />
-                </span>
+                <SportTile
+                  code={ticket.sport.code}
+                  className="size-14 rounded-md"
+                  iconClassName="size-6"
+                />
               ) : (
                 <span className="relative block size-14 shrink-0 overflow-hidden rounded-md border border-line bg-canvas">
                   <Image
@@ -237,12 +239,11 @@ export function TicketList({
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     {hidden ? (
-                      <span className="flex h-12 w-16 shrink-0 items-center justify-center rounded border border-line bg-elevated">
-                        <Lock
-                          className="size-4 text-ink-faint"
-                          aria-hidden="true"
-                        />
-                      </span>
+                      <SportTile
+                        code={ticket.sport.code}
+                        className="h-12 w-16 rounded"
+                        iconClassName="size-5"
+                      />
                     ) : (
                       <span className="relative block h-12 w-16 shrink-0 overflow-hidden rounded border border-line bg-canvas">
                         <Image
