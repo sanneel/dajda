@@ -7,7 +7,11 @@ import { join } from 'node:path';
 const MIGRATIONS = 'F:/dajda/prisma/migrations';
 const db = new PGlite();
 
-const dirs = readdirSync(MIGRATIONS).filter((d) => !d.startsWith('_')).sort();
+// Directories only: `migration_lock.toml` sits alongside them and is not one.
+const dirs = readdirSync(MIGRATIONS, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))
+  .map((entry) => entry.name)
+  .sort();
 for (const dir of dirs) {
   const sql = readFileSync(join(MIGRATIONS, dir, 'migration.sql'), 'utf8');
   try {

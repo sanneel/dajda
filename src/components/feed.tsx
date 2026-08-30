@@ -180,7 +180,7 @@ function BetEntry({
                     bet.result.profitUnitsCenti < 0 ? 'text-loss' : 'text-win'
                   }`}
                 >
-                  {formatUnitsSigned(bet.result.profitUnitsCenti)} ერთ.
+                  {formatUnitsSigned(bet.result.profitUnitsCenti)}
                 </span>
               </>
             ) : null}

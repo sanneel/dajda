@@ -231,14 +231,13 @@ describe('bet creation', () => {
   });
 
   /*
-   * Regression guard. The schema TRANSFORMS these two fields into their stored
-   * integer scale, so every write path must use the parsed value as-is. A
-   * second multiplication in the service stored 1.85 as odds 1850.00.
+   * Regression guard. The schema TRANSFORMS odds into their stored integer
+   * scale, so every write path must use the parsed value as-is. A second
+   * multiplication in the service stored 1.85 as odds 1850.00.
    */
-  it('returns odds and stake already in their stored scale', () => {
-    const parsed = createPredictionSchema.parse({ ...valid, stakeUnits: '1.5' });
+  it('returns odds already in their stored scale', () => {
+    const parsed = createPredictionSchema.parse(valid);
     expect(parsed.odds).toBe(1850);
-    expect(parsed.stakeUnits).toBe(150);
   });
 
   it('scales a free ticket the same way', () => {
@@ -256,7 +255,36 @@ describe('bet creation', () => {
     expect(parsed.publishNow).toBe(false);
     expect(parsed.visibility).toBe('PUBLIC');
     expect(parsed.confidence).toBe('MEDIUM');
-    expect(parsed.stakeUnits).toBe(100);
+  });
+
+  /*
+   * Three access types, and only the singly-buyable one carries a price:
+   * subscription-only is not for sale on its own, free obviously is not.
+   */
+  it('requires a price for a singly-buyable ticket and not for the others', () => {
+    expect(
+      createPredictionSchema.safeParse({ ...valid, visibility: 'PREMIUM' })
+        .success,
+    ).toBe(false);
+    expect(
+      createPredictionSchema.safeParse({
+        ...valid,
+        visibility: 'PREMIUM',
+        price: '10',
+      }).success,
+    ).toBe(true);
+    expect(
+      createPredictionSchema.safeParse({ ...valid, visibility: 'VIP' }).success,
+    ).toBe(true);
+  });
+
+  it('refuses a last match that starts before the first', () => {
+    const parsed = createPredictionSchema.safeParse({
+      ...valid,
+      eventAt: '2026-09-01T18:00',
+      eventEndAt: '2026-09-01T16:00',
+    });
+    expect(parsed.success).toBe(false);
   });
 });
 

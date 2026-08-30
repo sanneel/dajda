@@ -12,7 +12,7 @@ import { TicketList } from '@/components/ticket-list';
 import { SortTicks } from '@/components/sort-ticks';
 import { EmptyState } from '@/components/ui/feedback';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
-import { FreeTicketForm } from './upload-form';
+import { AddTicketButton } from '@/components/add-ticket-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,22 +76,17 @@ export default async function FreeTicketsPage({
       </header>
 
       {/* --------------------------------------------------------------- */}
-      {/* Upload for analysts; the way in for everyone else                 */}
+      {/* Posting, for analysts; the way in for everyone else               */}
       {/* --------------------------------------------------------------- */}
-      {actor && (actor.analystProfileId || actor.role === 'ADMIN') ? (
-        <details className="mb-6 rounded-card border border-line bg-surface">
-          <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-medium text-ink marker:content-none sm:px-5">
-            <span className="text-accent">+</span> პროგნოზის ატვირთვა
-          </summary>
-          <div className="border-t border-line p-4 sm:p-5">
-            <FreeTicketForm
-              sports={sports.map((sport) => ({
-                value: sport.id,
-                label: sport.nameKa,
-              }))}
-            />
-          </div>
-        </details>
+      {actor?.analystProfileId ? (
+        <div className="mb-6">
+          <AddTicketButton
+            sports={sports.map((sport) => ({
+              value: sport.id,
+              label: sport.nameKa,
+            }))}
+          />
+        </div>
       ) : actor ? (
         <p className="mb-6 rounded-card border border-line bg-surface px-4 py-3.5 text-sm text-ink-muted sm:px-5">
           პროგნოზის ატვირთვა ანალიტიკოსებს შეუძლიათ.{' '}

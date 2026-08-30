@@ -343,8 +343,7 @@ export default async function AdminPredictionsPage({
                               : 'text-ink'
                           }`}
                         >
-                          {formatUnitsSigned(prediction.result.profitUnitsCenti)}{' '}
-                          ერთ.
+                          {formatUnitsSigned(prediction.result.profitUnitsCenti)}
                         </span>
                         {' · წყარო: '}
                         <span className="text-ink">

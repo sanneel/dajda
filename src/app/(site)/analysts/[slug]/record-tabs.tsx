@@ -11,7 +11,6 @@ import { formatGelSigned, formatPercentBps } from '@/lib/format';
 import { Card, CardBody } from '@/components/ui/card';
 import { Stat, RecordBar } from '@/components/ui/stat';
 import { PlanCard, type PlanView } from '@/components/plan-card';
-import { MonthlyBars } from '@/components/charts/monthly-bars';
 import { OddsBucketsChart } from '@/components/charts/odds-buckets';
 
 type Tab = 'FREE' | 'PAID' | 'PLANS';
@@ -219,20 +218,20 @@ function RecordStats({ summary }: { summary: PerformanceSummary }) {
   );
 }
 
-/** The two charts every panel carries, keyed so switching resets selection. */
+/**
+ * Per-odds-range performance, keyed so switching a tab resets selection.
+ *
+ * The monthly bar chart that stood beside this is gone with the bars: two
+ * pictures above the fold pushed the record itself off a phone screen, and
+ * neither said anything the numbers do not say exactly.
+ */
 function ChartPair({ tab, charts }: { tab: Tab; charts: TabCharts }) {
   return (
-    <div className="mt-6 grid gap-6 border-t border-line pt-5 lg:grid-cols-2 lg:gap-8">
-      <div>
-        <h3 className="mb-3 text-sm font-medium text-ink">თვიური შედეგი</h3>
-        <MonthlyBars key={tab} buckets={charts.monthly} />
-      </div>
-      <div>
-        <h3 className="mb-3 text-sm font-medium text-ink">
-          ტოპ არჩეული კუშები
-        </h3>
-        <OddsBucketsChart key={tab} buckets={charts.oddsBuckets} />
-      </div>
+    <div className="mt-6 border-t border-line pt-5">
+      <h3 className="mb-3 text-sm font-medium text-ink">
+        შედეგი კოეფიციენტების მიხედვით
+      </h3>
+      <OddsBucketsChart key={tab} buckets={charts.oddsBuckets} />
     </div>
   );
 }

@@ -218,12 +218,17 @@ export async function getAnalystBySlug(slug: string) {
       resultScreenshotPath: true,
       status: true,
       visibility: true,
+      // The per-ticket price, for the history list's ფასიანი column.
+      priceMinor: true,
       oddsMilli: true,
       stakeUnitsCenti: true,
       confidence: true,
       publishedAt: true,
       eventAt: true,
+      eventEndAt: true,
       finishedAt: true,
+      // A superseded row is a corrected draft, not part of the record.
+      supersededAt: true,
       pinnedAt: true,
       version: true,
       correctionOfId: true,

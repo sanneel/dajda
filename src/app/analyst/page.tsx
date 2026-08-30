@@ -216,7 +216,7 @@ export default async function AnalystPage() {
                     ? '·'
                     : formatUnitsSigned(record.profitUnitsCenti)
                 }
-                hint="ერთეული"
+                hint="დათვლილიდან"
                 tone={
                   record.profitUnitsCenti > 0
                     ? 'win'
@@ -504,7 +504,7 @@ function BetRow({ bet, showFinish }: { bet: Bet; showFinish: boolean }) {
                   bet.result.profitUnitsCenti < 0 ? 'text-loss' : 'text-win'
                 }`}
               >
-                {formatUnitsSigned(bet.result.profitUnitsCenti)} ერთ.
+                {formatUnitsSigned(bet.result.profitUnitsCenti)}
               </span>
             </>
           ) : null}

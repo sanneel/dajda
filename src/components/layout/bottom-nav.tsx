@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Crown, Home, LogIn, Ticket, User } from 'lucide-react';
+import { Crown, Home, LogIn, Ticket, User } from 'lucide-react';
 
 /**
  * App-style tab bar, phones and tablets only.
@@ -29,12 +29,17 @@ function tabsFor(isAuthenticated: boolean, isAnalyst: boolean): Tab[] {
     { href: '/', label: 'მთავარი', icon: Home },
     { href: '/free', label: 'უფასო', icon: Ticket },
     { href: '/paid', label: 'ფასიანი', icon: Crown },
-    ...(isAnalyst
-      ? [{ href: '/analyst', label: 'ჩემი ფსონები', icon: BarChart3 }]
-      : []),
-    isAuthenticated
-      ? { href: '/dashboard', label: 'პროფილი', icon: User }
-      : { href: '/login', label: 'შესვლა', icon: LogIn },
+    /*
+     * An analyst had two tabs for themselves - a workspace and an account
+     * page - which is one more than the bar has room for and one more than
+     * the idea deserves: their workspace IS their page. It takes the profile
+     * slot; account settings stay reachable from inside it.
+     */
+    isAnalyst
+      ? { href: '/analyst', label: 'პროფილი', icon: User }
+      : isAuthenticated
+        ? { href: '/dashboard', label: 'პროფილი', icon: User }
+        : { href: '/login', label: 'შესვლა', icon: LogIn },
   ];
 }
 

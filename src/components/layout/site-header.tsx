@@ -46,7 +46,7 @@ export async function SiteHeader() {
               href="/analyst"
               className="inline-flex min-h-11 items-center px-2 text-sm text-accent hover:underline"
             >
-              ჩემი ფსონები
+              ჩემი გვერდი
             </Link>
           ) : null}
 

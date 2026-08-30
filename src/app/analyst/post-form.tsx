@@ -2,7 +2,7 @@
 
 import { useActionState, useRef, useState } from 'react';
 import Image from 'next/image';
-import { ImagePlus, Repeat2 } from 'lucide-react';
+import { ImagePlus, Plus, X } from 'lucide-react';
 import { postBetAction } from '@/actions/analyst';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
@@ -34,11 +34,28 @@ export function PostBetForm({
   onPosted?: () => void;
 }) {
   const [state, action, pending] = useActionState(postBetAction, null);
-  const [preview, setPreview] = useState<string | null>(null);
+  /*
+   * Files are held here, not left to the input, because a second pick has to
+   * ADD to the set rather than replace it - which is what an <input multiple>
+   * does on its own. The input is re-populated from this list through a
+   * DataTransfer before submit, so the form still posts plain files.
+   */
+  const [files, setFiles] = useState<File[]>([]);
   const [visibility, setVisibility] = useState('PREMIUM');
   const [price, setPrice] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const fieldRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const MAX_SLIPS = 6;
+
+  /** Mirror `files` into the real form input the action reads. */
+  const syncField = (next: File[]) => {
+    setFiles(next);
+    const transfer = new DataTransfer();
+    for (const file of next) transfer.items.add(file);
+    if (fieldRef.current) fieldRef.current.files = transfer.files;
+  };
 
   const errorFor = (field: string) =>
     state && !state.ok ? state.error.fieldErrors?.[field]?.[0] : undefined;
@@ -90,48 +107,45 @@ export function PostBetForm({
       ) : null}
 
       {/* ----------------------------------------------------------------- */}
-      {/* 1. The slip                                                        */}
+      {/* 1. The slips                                                       */}
       {/* ----------------------------------------------------------------- */}
       <div>
+        {/* The real field the action reads. Kept in sync from `files`. */}
         <input
-          ref={fileRef}
+          ref={fieldRef}
           id="screenshot"
           name="screenshot"
           type="file"
+          multiple
           accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           required
           className="sr-only"
+          tabIndex={-1}
+          onChange={() => {}}
+        />
+        {/* The picker the buttons open. Its result is APPENDED, so picking a
+            second time adds a leg rather than discarding the first. */}
+        <input
+          ref={pickerRef}
+          type="file"
+          multiple
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          className="sr-only"
+          tabIndex={-1}
           onChange={(event) => {
-            const file = event.target.files?.[0];
-            setPreview(file ? URL.createObjectURL(file) : null);
+            const picked = Array.from(event.target.files ?? []);
+            if (picked.length > 0) {
+              syncField([...files, ...picked].slice(0, MAX_SLIPS));
+            }
+            // Let the same file be picked again after a removal.
+            event.target.value = '';
           }}
         />
 
-        {preview ? (
-          <div className="space-y-2">
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card border border-line bg-canvas">
-              {/* Local object URL, so next/image optimisation is bypassed. */}
-              <Image
-                src={preview}
-                alt="ატვირთული კუპონის გადახედვა"
-                fill
-                unoptimized
-                className="object-contain"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="inline-flex min-h-9 items-center gap-1.5 text-sm font-medium text-accent hover:underline"
-            >
-              <Repeat2 className="size-4" aria-hidden="true" />
-              სხვა ფოტოს არჩევა
-            </button>
-          </div>
-        ) : (
+        {files.length === 0 ? (
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
+            onClick={() => pickerRef.current?.click()}
             aria-describedby="screenshot-help"
             className={`flex w-full flex-col items-center justify-center gap-2 rounded-card border-2 border-dashed px-6 py-10 text-center transition-colors ${
               screenshotError
@@ -144,9 +158,53 @@ export function PostBetForm({
               კუპონის სკრინშოტი
             </span>
             <span className="text-sm text-ink-muted">
-              დააჭირეთ ფოტოს ასარჩევად
+              დააჭირეთ ფოტოს ასარჩევად, შეიძლება რამდენიმე
             </span>
           </button>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5">
+            {files.map((file, index) => (
+              <div
+                key={`${file.name}-${file.lastModified}-${index}`}
+                className="relative aspect-[4/3] overflow-hidden rounded-card border border-line bg-canvas"
+              >
+                {/* Local object URL, so next/image optimisation is bypassed. */}
+                <Image
+                  src={URL.createObjectURL(file)}
+                  alt={`კუპონის ფოტო ${index + 1}`}
+                  fill
+                  unoptimized
+                  className="object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    syncField(files.filter((_, at) => at !== index))
+                  }
+                  aria-label={`ფოტო ${index + 1} წაშლა`}
+                  className="absolute right-1.5 top-1.5 inline-flex size-8 items-center justify-center rounded-full bg-ink/70 text-on-ink transition-opacity hover:opacity-80"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </button>
+                {index === 0 ? (
+                  <span className="absolute bottom-1.5 left-1.5 rounded bg-ink/70 px-1.5 py-0.5 text-xs text-on-ink">
+                    მთავარი
+                  </span>
+                ) : null}
+              </div>
+            ))}
+
+            {files.length < MAX_SLIPS ? (
+              <button
+                type="button"
+                onClick={() => pickerRef.current?.click()}
+                className="flex aspect-[4/3] flex-col items-center justify-center gap-1.5 rounded-card border-2 border-dashed border-line-strong bg-canvas text-ink-muted transition-colors hover:border-accent hover:text-ink"
+              >
+                <Plus className="size-6" aria-hidden="true" />
+                <span className="text-sm font-medium">ფოტოს დამატება</span>
+              </button>
+            ) : null}
+          </div>
         )}
 
         {screenshotError ? (
@@ -155,7 +213,7 @@ export function PostBetForm({
           </p>
         ) : (
           <p id="screenshot-help" className="mt-1.5 text-xs text-ink-muted">
-            JPG, PNG, HEIC ან WebP, მაქსიმუმ 12MB.
+            JPG, PNG, HEIC ან WebP. მაქსიმუმ {MAX_SLIPS} ფოტო, თითო 12MB-მდე.
           </p>
         )}
       </div>
@@ -183,26 +241,6 @@ export function PostBetForm({
           />
         </Field>
 
-        <Field
-          label="ერთეული"
-          htmlFor="stakeUnits"
-          required
-          error={errorFor('stakeUnits')}
-        >
-          <Input
-            id="stakeUnits"
-            name="stakeUnits"
-            type="number"
-            step="0.25"
-            min="0.25"
-            max="10"
-            defaultValue="1"
-            inputMode="decimal"
-            required
-            error={Boolean(errorFor('stakeUnits'))}
-          />
-        </Field>
-
         <Field label="სპორტი" htmlFor="sportId" required error={errorFor('sportId')}>
           <Select id="sportId" name="sportId" required>
             {sports.map((sport) => (
@@ -227,26 +265,49 @@ export function PostBetForm({
             error={Boolean(errorFor('eventAt'))}
           />
         </Field>
+
+        <Field
+          label="ბოლო მატჩის დაწყება"
+          htmlFor="eventEndAt"
+          error={errorFor('eventEndAt')}
+          hint="მრავალმატჩიან ბილეთზე. ერთმატჩიანზე დატოვეთ ცარიელი."
+        >
+          <Input
+            id="eventEndAt"
+            name="eventEndAt"
+            type="datetime-local"
+            error={Boolean(errorFor('eventEndAt'))}
+          />
+        </Field>
       </div>
 
       {/* ----------------------------------------------------------------- */}
-      {/* 3. Free or for sale                                                */}
+      {/* 3. How it is reached                                               */}
       {/* ----------------------------------------------------------------- */}
       <div className="space-y-4 rounded-card border border-line bg-canvas p-4">
         <fieldset>
           <legend className="mb-2 text-sm font-medium text-ink">
             ხელმისაწვდომობა
           </legend>
-          {/* Two states, so a segmented control rather than a dropdown: the
-              choice changes what the rest of this box asks for. */}
-          <div className="grid grid-cols-2 gap-2">
+          {/*
+           * Three genuinely different products, not a price switch:
+           *   უფასო    - anyone reads it.
+           *   ფასიანი  - sold on its own, at a price this author sets, and
+           *              included for their subscribers.
+           *   გამოწერა - subscribers only; not for sale separately, so it
+           *              carries no price at all.
+           * They used to collapse into two because ფასიანი and გამოწერა were
+           * the same form with the same fields.
+           */}
+          <div className="grid grid-cols-3 gap-2">
             {[
               { value: 'PUBLIC', label: 'უფასო' },
               { value: 'PREMIUM', label: 'ფასიანი' },
+              { value: 'VIP', label: 'გამოწერა' },
             ].map((option) => (
               <label
                 key={option.value}
-                className={`flex min-h-11 cursor-pointer items-center justify-center rounded-control border px-4 text-sm font-medium transition-colors ${
+                className={`flex min-h-11 cursor-pointer items-center justify-center rounded-control border px-2 text-sm font-medium transition-colors ${
                   visibility === option.value
                     ? 'border-accent bg-accent/10 text-accent'
                     : 'border-line text-ink-muted hover:border-ink-faint hover:text-ink'
@@ -264,9 +325,17 @@ export function PostBetForm({
               </label>
             ))}
           </div>
+
+          <p className="mt-2 text-xs text-ink-muted">
+            {visibility === 'PUBLIC'
+              ? 'ხედავს ყველა, ვინც შესულია.'
+              : visibility === 'PREMIUM'
+                ? 'იყიდება ცალკე, თქვენს ფასად. თქვენი გამომწერებისთვის ისედაც ღიაა.'
+                : 'მხოლოდ თქვენი გამომწერებისთვის. ცალკე არ იყიდება, ამიტომ ფასი არ სჭირდება.'}
+          </p>
         </fieldset>
 
-        {visibility !== 'PUBLIC' ? (
+        {visibility === 'PREMIUM' ? (
           <Field
             label="ბილეთის ფასი (₾)"
             htmlFor="price"
@@ -288,9 +357,9 @@ export function PostBetForm({
                 onChange={(event) => setPrice(event.target.value)}
                 error={Boolean(errorFor('price'))}
               />
-              {/* One-tap prices: what most tickets actually cost. */}
+              {/* One-tap prices; the field takes any amount up to 500. */}
               <div className="flex flex-wrap gap-1.5">
-                {['5', '10', '15', '20'].map((quick) => (
+                {['10', '20', '30', '50', '100'].map((quick) => (
                   <button
                     key={quick}
                     type="button"

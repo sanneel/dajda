@@ -130,9 +130,16 @@ describe('entitlements', () => {
     expect(satisfiesVisibility(['VIP'], 'PREMIUM')).toBe(true);
   });
 
-  it('does not let premium unlock VIP', () => {
-    expect(satisfiesVisibility(['PREMIUM'], 'VIP')).toBe(false);
+  /*
+   * PREMIUM and VIP are no longer cheap and expensive tiers: they are
+   * "buyable on its own" and "subscription only", and ONE subscription opens
+   * both. A subscriber locked out of the subscription-only tickets would be
+   * locked out of the thing they subscribed for.
+   */
+  it('lets a subscription unlock subscription-only content', () => {
+    expect(satisfiesVisibility(['PREMIUM'], 'VIP')).toBe(true);
     expect(satisfiesVisibility(['VIP'], 'VIP')).toBe(true);
+    expect(satisfiesVisibility(['FREE'], 'VIP')).toBe(false);
   });
 
   it('never conflates FREE with PUBLIC', () => {

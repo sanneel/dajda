@@ -24,6 +24,8 @@ import { RecordTabs } from './record-tabs';
 import { ReportForm } from '@/components/report-form';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 import { SaveAnalystButton } from './save-button';
+import { AddTicketButton } from '@/components/add-ticket-button';
+import { AnalystHistory } from './history';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,7 +83,9 @@ export default async function AnalystProfilePage({
   const { profile, predictions, allTime, freeAllTime, paidAllTime } = data;
   const actor = await getCurrentUser();
 
-  const [saved, subscriptions, grants, purchased] = await Promise.all([
+  const isOwnerEarly = actor?.analystProfileId === profile.id;
+
+  const [saved, subscriptions, grants, purchased, sports] = await Promise.all([
     actor
       ? prisma.savedAnalyst.count({
           where: { userId: actor.userId, analystProfileId: profile.id },
@@ -99,6 +103,14 @@ export default async function AnalystProfilePage({
       : Promise.resolve([]),
     activePlanGrants(actor?.userId),
     purchasedTicketIds(actor?.userId),
+    // Only the owner is offered the post form, so only they need the list.
+    isOwnerEarly
+      ? prisma.sport.findMany({
+          where: { isActive: true },
+          orderBy: { nameKa: 'asc' },
+          select: { id: true, nameKa: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const statusByPlan = new Map(
@@ -117,6 +129,9 @@ export default async function AnalystProfilePage({
   const viewer = actor
     ? { role: actor.role, analystProfileId: actor.analystProfileId }
     : null;
+
+  /** The author, looking at their own page. */
+  const isOwner = actor?.analystProfileId === profile.id;
   const lockedBetIds = new Set(
     predictions
       .filter(
@@ -198,7 +213,16 @@ export default async function AnalystProfilePage({
           </div>
         </div>
 
-        {actor ? (
+        {/* The owner gets the action that belongs to them; everyone else gets
+            the one that belongs to a reader. */}
+        {isOwner ? (
+          <AddTicketButton
+            sports={sports.map((sport) => ({
+              value: sport.id,
+              label: sport.nameKa,
+            }))}
+          />
+        ) : actor ? (
           <SaveAnalystButton
             analystProfileId={profile.id}
             initiallySaved={saved > 0}
@@ -331,7 +355,7 @@ export default async function AnalystProfilePage({
                                   : 'text-ink-muted'
                             }`}
                           >
-                            {formatUnitsSigned(units)} ერთ.
+                            {formatUnitsSigned(units)}
                           </span>
                         </>
                       ) : null}
@@ -344,16 +368,59 @@ export default async function AnalystProfilePage({
         </section>
       ) : null}
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface p-4">
-        <p className="text-sm text-ink-muted">
-          შეამჩნიეთ არაზუსტი შედეგი ან შეცდომაში შემყვანი ჩანაწერი?
+      {/* Reporting is for readers. An author looking at their own page has an
+          edit route for anything wrong on it, not a complaints box aimed at
+          themselves. */}
+      {isOwner ? null : (
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface p-4">
+          <p className="text-sm text-ink-muted">
+            შეამჩნიეთ არაზუსტი შედეგი ან შეცდომაში შემყვანი ჩანაწერი?
+          </p>
+          <ReportForm
+            targetType="ANALYST"
+            targetId={profile.id}
+            label="ავტორზე საჩივრის დაფიქსირება"
+          />
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* The full history, split by how each ticket was sold              */}
+      {/* ------------------------------------------------------------- */}
+      <section className="mt-10" aria-labelledby="history-heading">
+        <h2
+          id="history-heading"
+          className="text-2xl font-semibold tracking-tight text-ink"
+        >
+          ბილეთების ისტორია
+        </h2>
+        <p className="mt-1.5 text-sm text-ink-muted">
+          ყველაფერი, რაც ავტორს გამოუქვეყნებია, ტიპის მიხედვით.
         </p>
-        <ReportForm
-          targetType="ANALYST"
-          targetId={profile.id}
-          label="ავტორზე საჩივრის დაფიქსირება"
-        />
-      </div>
+
+        <div className="mt-5">
+          <AnalystHistory
+            entries={predictions
+              .filter(
+                (prediction) =>
+                  prediction.publishedAt !== null &&
+                  prediction.supersededAt === null,
+              )
+              .map((prediction) => ({
+                id: prediction.id,
+                titleKa: prediction.titleKa,
+                oddsMilli: prediction.oddsMilli,
+                visibility: prediction.visibility,
+                priceMinor: prediction.priceMinor,
+                status: prediction.status,
+                publishedAt:
+                  prediction.publishedAt?.toISOString() ?? null,
+                sportNameKa: prediction.sport.nameKa,
+                locked: lockedBetIds.has(prediction.id),
+              }))}
+          />
+        </div>
+      </section>
 
       <div className="mt-8">
         <ResponsibleUseNotice />

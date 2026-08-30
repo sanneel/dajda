@@ -496,6 +496,10 @@ model Prediction {
   /// Path to the uploaded bet slip. Required: a bet with no evidence is not a
   /// record, and the admin has nothing to check it against.
   screenshotPath String
+  /// Photos 2..N of the same slip, in order. A multi-leg ticket rarely fits
+  /// one screenshot; `screenshotPath` stays the primary one every list and
+  /// card renders, so nothing that reads it had to learn about this.
+  extraScreenshotPaths String[] @default([])
   /// Uploaded when the author marks the bet finished. Optional, because an
   /// admin can still verify without it, just more slowly.
   resultScreenshotPath String?
@@ -522,6 +526,9 @@ model Prediction {
   /// buying), and used for sorting and for nudging an author who has not
   /// marked a bet finished.
   eventAt     DateTime?
+  /// When the LAST leg kicks off, on a ticket that spans several matches.
+  /// Null on a single-match ticket, where `eventAt` already answers it.
+  eventEndAt  DateTime?
   /// Set by the AUTHOR to hand the bet to an admin for settlement. Never set
   /// by the admin, so "who said it was over" stays answerable.
   finishedAt  DateTime?

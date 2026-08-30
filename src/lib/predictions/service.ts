@@ -73,17 +73,28 @@ export async function createPrediction(
       postedById: actor.userId,
       sportId: sport.id,
       screenshotPath: input.screenshotPath,
+      extraScreenshotPaths: input.extraScreenshotPaths,
       titleKa,
       descriptionKa: input.descriptionKa ?? null,
-      // Already scaled by the schema: oddsSchema returns milli, stakeUnitsSchema
-      // returns centi. Multiplying again here would store 1.85 as 1850.00.
+      // Already scaled by the schema: oddsSchema returns milli. Multiplying
+      // again here would store 1.85 as 1850.00.
       oddsMilli: input.odds,
-      stakeUnitsCenti: input.stakeUnits,
+      /*
+       * Stake is no longer asked for and no longer shown: every ticket is one
+       * unit. The column stays because profit is denominated in units and the
+       * settled history was computed that way, so it keeps its default rather
+       * than becoming a nullable field nothing sets.
+       */
       confidence: input.confidence,
       visibility: input.visibility,
-      // A free bet never carries a price, whatever the form sent.
-      priceMinor: input.visibility === 'PUBLIC' ? null : (input.price ?? null),
+      /*
+       * Only the singly-buyable type carries a price. Free has none, and
+       * subscription-only is not for sale on its own - so a stray price from
+       * a hand-edited form is dropped rather than stored.
+       */
+      priceMinor: input.visibility === 'PREMIUM' ? (input.price ?? null) : null,
       eventAt: input.eventAt ?? null,
+      eventEndAt: input.eventEndAt ?? null,
       publishedAt,
     },
   });

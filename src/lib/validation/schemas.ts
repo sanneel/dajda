@@ -142,12 +142,21 @@ export const createPredictionSchema = z.object({
     .trim()
     .max(4000, 'აღწერა ძალიან გრძელია.')
     .optional(),
+  /**
+   * Photos 2..N of the same slip. The primary one is `screenshotPath`; these
+   * are the extra legs that did not fit in one screenshot.
+   */
+  extraScreenshotPaths: z.array(uploadPathSchema).max(5).default([]),
   odds: oddsSchema,
-  stakeUnits: stakeUnitsSchema.default(100),
   confidence: z.enum(ConfidenceLevel).default('MEDIUM'),
-  /** PUBLIC is a free bet. */
+  /**
+   * PUBLIC is free, PREMIUM is buyable singly (and included in the author's
+   * subscription), VIP is subscription-only.
+   */
   visibility: z.enum(PredictionVisibility).default('PUBLIC'),
   eventAt: z.coerce.date().optional(),
+  /** When the last leg starts, on a ticket that spans several matches. */
+  eventEndAt: z.coerce.date().optional(),
   publishNow: z.coerce.boolean().default(false),
   /**
    * The single-purchase price of a paid bet, entered in GEL and stored in
@@ -161,11 +170,28 @@ export const createPredictionSchema = z.object({
     .transform((value) => Math.round(value * 100))
     .optional(),
 }).superRefine((data, ctx) => {
-  if (data.visibility !== 'PUBLIC' && data.price === undefined) {
+  /*
+   * Only the singly-buyable type carries a price. A subscription-only ticket
+   * (VIP) has none by definition - it is not for sale on its own - and a free
+   * one obviously does not either.
+   */
+  if (data.visibility === 'PREMIUM' && data.price === undefined) {
     ctx.addIssue({
       code: 'custom',
       path: ['price'],
-      message: 'მიუთითეთ ფასიანი ბილეთის ფასი.',
+      message: 'მიუთითეთ ბილეთის ფასი.',
+    });
+  }
+
+  if (
+    data.eventAt &&
+    data.eventEndAt &&
+    data.eventEndAt.getTime() < data.eventAt.getTime()
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['eventEndAt'],
+      message: 'ბოლო მატჩი პირველზე ადრე ვერ დაიწყება.',
     });
   }
 });

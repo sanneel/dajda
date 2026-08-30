@@ -98,7 +98,7 @@ export function MobileNav({
                     href="/analyst"
                     className="flex min-h-12 items-center rounded-md px-3 text-base text-accent hover:bg-elevated"
                   >
-                    ჩემი ფსონები
+                    ჩემი გვერდი
                   </Link>
                 </li>
               ) : null}

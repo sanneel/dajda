@@ -16,10 +16,24 @@ import type {
  * being conflated by accident.
  */
 
+/*
+ * Three access types, two of which cost the same subscription.
+ *
+ *   PUBLIC  - უფასო: free to read.
+ *   PREMIUM - ფასიანი: buyable on its own for the author's per-ticket price,
+ *             and included for their subscribers.
+ *   VIP     - გამოწერა: subscribers only. No one-off price exists for it.
+ *
+ * So PREMIUM and VIP rank the SAME here: what separates them is not how much
+ * access they need but whether the author also offers the ticket for sale
+ * singly. There is one subscription per author, and it opens both. Ranking VIP
+ * above PREMIUM - as this did while VIP was a second, pricier tier - locked
+ * subscription-only tickets away from the very subscribers they are for.
+ */
 const VISIBILITY_RANK: Record<PredictionVisibility, number> = {
   PUBLIC: 0,
   PREMIUM: 1,
-  VIP: 2,
+  VIP: 1,
 };
 
 const PLAN_TIER_RANK: Record<PlanTier, number> = {

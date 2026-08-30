@@ -116,27 +116,43 @@ export async function postBetAction(
       );
     }
 
-    const slip = formData.get('screenshot');
-    if (!(slip instanceof File) || slip.size === 0) {
+    /*
+     * One or more slip photos, in the order the author picked them. The first
+     * is the primary; the rest hang off it. Every file is stored BEFORE the
+     * row is written, so a rejected image leaves no half-built bet behind.
+     */
+    const slips = formData
+      .getAll('screenshot')
+      .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+
+    if (slips.length === 0) {
       return fail(ERROR_CODES.VALIDATION_ERROR, 'ატვირთეთ ფსონის სკრინშოტი.', {
         screenshot: ['ატვირთეთ ფსონის სკრინშოტი.'],
       });
     }
+    if (slips.length > 6) {
+      return fail(ERROR_CODES.VALIDATION_ERROR, undefined, {
+        screenshot: ['მაქსიმუმ 6 ფოტო.'],
+      });
+    }
 
-    const stored = await storeScreenshot(slip);
+    const storedAll = [];
+    for (const file of slips) storedAll.push(await storeScreenshot(file));
+    const stored = storedAll[0]!;
 
     const parsed = createPredictionSchema.safeParse({
       sportId: formData.get('sportId'),
       screenshotPath: stored.urlPath,
+      extraScreenshotPaths: storedAll.slice(1).map((item) => item.urlPath),
       // Blank means "no name given", not an empty title: the service derives
       // one from the sport and the odds.
       titleKa: formData.get('titleKa') || undefined,
       descriptionKa: formData.get('descriptionKa') || undefined,
       odds: formData.get('odds'),
-      stakeUnits: formData.get('stakeUnits') || 1,
       confidence: formData.get('confidence') || 'MEDIUM',
       visibility: formData.get('visibility') || 'PUBLIC',
       eventAt: formData.get('eventAt') || undefined,
+      eventEndAt: formData.get('eventEndAt') || undefined,
       publishNow: formData.get('publishNow') !== 'off',
       price: formData.get('price') || undefined,
     });
