@@ -27,6 +27,22 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  experimental: {
+    /*
+     * Both upload surfaces - a bet slip and an analyst's identity document -
+     * arrive through a Server Action, and `storeScreenshot`/`storeIdentityDocument`
+     * accept up to 12MB before re-encoding. The Server Action body limit
+     * defaults to 1MB, though, so a real phone photo (routinely 3-8MB) made
+     * the request hang at "იგზავნება…" with nothing surfaced to the user.
+     * The ceiling here sits just above the 12MB the uploader itself enforces,
+     * so the honest "too large" message comes from our validator, not from a
+     * generic framework rejection.
+     */
+    serverActions: {
+      bodySizeLimit: '13mb',
+    },
+  },
+
   /*
    * Dev only (ignored by `next build`): lets a phone on the same Wi-Fi open
    * the dev server via the machine's LAN address. Next 16 refuses dev-asset

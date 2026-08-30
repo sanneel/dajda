@@ -456,10 +456,23 @@ async function main() {
       const isSettled = i < seed.count - 3;
       const eventAt = new Date(now - (seed.count - i) * 1.7 * day);
 
-      // Free bets: every fourth one, so the public feed is not empty.
+      // Free bets: every fourth one, so the public feed is not empty. The
+      // single live ticket is forced PREMIUM so a fresh demo always has an
+      // open, purchasable ticket on /paid rather than an empty shop.
       const visibility =
-        i % 4 === 0 ? 'PUBLIC' : i % 4 === 3 ? 'VIP' : 'PREMIUM';
+        i === seed.count - 1
+          ? 'PREMIUM'
+          : i % 4 === 0
+            ? 'PUBLIC'
+            : i % 4 === 3
+              ? 'VIP'
+              : 'PREMIUM';
       if (visibility === 'PUBLIC') freeCount += 1;
+
+      // A paid bet is its own product, so it carries a single-purchase price;
+      // free bets have none. 10 or 15 GEL, alternating, in tetri.
+      const priceMinor =
+        visibility === 'PUBLIC' ? null : i % 2 === 0 ? 1000 : 1500;
 
       const screenshotPath = await makeSlip(
         [pick, market, `კოეფიციენტი: ${odds.toFixed(2)}`, `ფსონი: 1 ერთეული`],
@@ -495,6 +508,7 @@ async function main() {
             oddsMilli,
             stakeUnitsCenti,
             visibility,
+            priceMinor,
             publishedAt,
             eventAt,
             finishedAt,
@@ -531,6 +545,7 @@ async function main() {
             oddsMilli,
             stakeUnitsCenti,
             visibility,
+            priceMinor,
             publishedAt,
             eventAt: new Date(now + 2 * day),
             isDemo: true,
@@ -556,6 +571,7 @@ async function main() {
             oddsMilli,
             stakeUnitsCenti,
             visibility,
+            priceMinor,
             publishedAt,
             eventAt,
             finishedAt: new Date(eventAt.getTime() + 2 * 60 * 60 * 1000),
