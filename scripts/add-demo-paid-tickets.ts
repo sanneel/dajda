@@ -117,6 +117,15 @@ async function main() {
     return;
   }
 
+  // A sport is required on every prediction. Demo analysts may carry no
+  // primary sport (older seed data left it null), so fall back to any active
+  // sport rather than skipping the analyst.
+  const fallbackSport = await prisma.sport.findFirst({
+    where: { isActive: true },
+    orderBy: { nameKa: 'asc' },
+    select: { id: true },
+  });
+
   const now = Date.now();
   let created = 0;
 
@@ -141,8 +150,9 @@ async function main() {
       continue;
     }
 
-    if (!analyst.primarySportId) {
-      console.info(`${analyst.displayName}: no primary sport, skipping.`);
+    const sportId = analyst.primarySportId ?? fallbackSport?.id;
+    if (!sportId) {
+      console.info(`${analyst.displayName}: no sport available, skipping.`);
       continue;
     }
 
@@ -158,7 +168,7 @@ async function main() {
         data: {
           author: { connect: { id: analyst.id } },
           postedBy: { connect: { id: analyst.userId } },
-          sport: { connect: { id: analyst.primarySportId } },
+          sport: { connect: { id: sportId } },
           screenshotPath,
           titleKa: `${t.pick} · ${t.market}`,
           descriptionKa: `${t.market}. ავტორის დასაბუთება ბილეთის შეძენის შემდეგ ჩანს. დემო ტექსტი.`,
