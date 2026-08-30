@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "prisma generate && next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && ADMIN_EMAIL=sandrosiradze@gmail.com tsx scripts/grant-admin.ts && next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
