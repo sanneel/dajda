@@ -26,6 +26,7 @@ export function PostBetForm({
   const [state, action, pending] = useActionState(postBetAction, null);
   const [preview, setPreview] = useState<string | null>(null);
   const [visibility, setVisibility] = useState('PREMIUM');
+  const [price, setPrice] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
 
   const errorFor = (field: string) =>
@@ -160,7 +161,7 @@ export function PostBetForm({
           label="ხელმისაწვდომობა"
           htmlFor="visibility"
           error={errorFor('visibility')}
-          hint="უფასო ჩანს ყველასთვის. დანარჩენი მოითხოვს გამოწერას."
+          hint="უფასო ჩანს ყველასთვის. ფასიანი იყიდება ცალკე, შენს ფასად - და შენი გამომწერებისთვის ისედაც ღიაა."
         >
           <Select
             id="visibility"
@@ -169,8 +170,8 @@ export function PostBetForm({
             onChange={(event) => setVisibility(event.target.value)}
           >
             <option value="PUBLIC">უფასო</option>
-            <option value="PREMIUM">Premium</option>
-            <option value="VIP">VIP</option>
+            <option value="PREMIUM">ფასიანი · Premium</option>
+            <option value="VIP">ფასიანი · VIP</option>
           </Select>
         </Field>
 
@@ -180,19 +181,40 @@ export function PostBetForm({
             htmlFor="price"
             required
             error={errorFor('price')}
-            hint="ცალკე პროდუქტი: მყიდველი ამ ერთ ბილეთს გამოწერის გარეშეც შეიძენს."
+            hint="ამ ერთი ბილეთის ფასი. მყიდველი გამოწერის გარეშე იხდის; შენ 85% გერიცხება."
           >
-            <Input
-              id="price"
-              name="price"
-              type="number"
-              min="1"
-              max="500"
-              step="0.5"
-              inputMode="decimal"
-              required
-              error={Boolean(errorFor('price'))}
-            />
+            <div className="space-y-2">
+              <Input
+                id="price"
+                name="price"
+                type="number"
+                min="1"
+                max="500"
+                step="0.5"
+                inputMode="decimal"
+                required
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
+                error={Boolean(errorFor('price'))}
+              />
+              {/* One-tap prices: what most tickets actually cost. */}
+              <div className="flex flex-wrap gap-1.5">
+                {['5', '10', '15', '20'].map((quick) => (
+                  <button
+                    key={quick}
+                    type="button"
+                    onClick={() => setPrice(quick)}
+                    className={`min-h-9 rounded-full border px-3.5 text-sm transition-colors ${
+                      price === quick
+                        ? 'border-accent text-accent'
+                        : 'border-line text-ink-muted hover:border-ink-faint hover:text-ink'
+                    }`}
+                  >
+                    {quick} ₾
+                  </button>
+                ))}
+              </div>
+            </div>
           </Field>
         ) : null}
 

@@ -99,7 +99,7 @@ export default async function AnalystProfilePage({
           select: { planId: true, status: true },
         })
       : Promise.resolve([]),
-    analystFeed(profile.id, 20),
+    analystFeed(profile.id, 50),
     activePlanGrants(actor?.userId),
     purchasedTicketIds(actor?.userId),
   ]);

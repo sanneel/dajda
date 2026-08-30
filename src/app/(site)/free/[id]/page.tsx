@@ -161,7 +161,9 @@ export default async function TicketPage({
           <Lock className="size-5 text-ink-faint" aria-hidden="true" />
           <p className="font-medium text-ink">
             {isPaid
-              ? 'ეს პროგნოზი იხსნება ავტორის გამოწერით'
+              ? ticket.priceMinor !== null && ticket.priceMinor > 0
+                ? 'ეს პროგნოზი იხსნება ერთჯერადი შეძენით ან გამოწერით'
+                : 'ეს პროგნოზი იხსნება ავტორის გამოწერით'
               : 'ეს პროგნოზი იხსნება შესვლის შემდეგ'}
           </p>
 

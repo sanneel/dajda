@@ -142,7 +142,7 @@ export async function assertCanViewPrediction(
   if (!(await canViewPrediction(actor, prediction))) {
     throw new AppError(
       ERROR_CODES.FORBIDDEN,
-      'ამ ანალიზის სანახავად საჭიროა შესაბამისი გამოწერა.',
+      'ამ ანალიზის სანახავად საჭიროა ბილეთის შეძენა ან შესაბამისი გამოწერა.',
     );
   }
 }
