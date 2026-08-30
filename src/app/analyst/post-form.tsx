@@ -41,7 +41,8 @@ export function PostBetForm({
    * DataTransfer before submit, so the form still posts plain files.
    */
   const [files, setFiles] = useState<File[]>([]);
-  const [visibility, setVisibility] = useState('PREMIUM');
+  // Subscription is the default: it is what an author's page is FOR.
+  const [visibility, setVisibility] = useState('VIP');
   const [price, setPrice] = useState('');
   const pickerRef = useRef<HTMLInputElement>(null);
   const fieldRef = useRef<HTMLInputElement>(null);
@@ -155,7 +156,7 @@ export function PostBetForm({
           >
             <ImagePlus className="size-8 text-ink-faint" aria-hidden="true" />
             <span className="text-base font-semibold text-ink">
-              კუპონის სკრინშოტი
+              ბილეთის სკრინშოტი
             </span>
             <span className="text-sm text-ink-muted">
               დააჭირეთ ფოტოს ასარჩევად, შეიძლება რამდენიმე
@@ -171,7 +172,7 @@ export function PostBetForm({
                 {/* Local object URL, so next/image optimisation is bypassed. */}
                 <Image
                   src={URL.createObjectURL(file)}
-                  alt={`კუპონის ფოტო ${index + 1}`}
+                  alt={`ბილეთის ფოტო ${index + 1}`}
                   fill
                   unoptimized
                   className="object-contain"
@@ -219,70 +220,7 @@ export function PostBetForm({
       </div>
 
       {/* ----------------------------------------------------------------- */}
-      {/* 2. What the record needs                                           */}
-      {/* ----------------------------------------------------------------- */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="კოეფიციენტი"
-          htmlFor="odds"
-          required
-          error={errorFor('odds')}
-        >
-          <Input
-            id="odds"
-            name="odds"
-            type="number"
-            step="0.01"
-            min="1.01"
-            inputMode="decimal"
-            placeholder="1.85"
-            required
-            error={Boolean(errorFor('odds'))}
-          />
-        </Field>
-
-        <Field label="სპორტი" htmlFor="sportId" required error={errorFor('sportId')}>
-          <Select id="sportId" name="sportId" required>
-            {sports.map((sport) => (
-              <option key={sport.value} value={sport.value}>
-                {sport.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field
-          label="პირველი მატჩის დაწყება"
-          htmlFor="eventAt"
-          required
-          error={errorFor('eventAt')}
-        >
-          <Input
-            id="eventAt"
-            name="eventAt"
-            type="datetime-local"
-            required
-            error={Boolean(errorFor('eventAt'))}
-          />
-        </Field>
-
-        <Field
-          label="ბოლო მატჩის დაწყება"
-          htmlFor="eventEndAt"
-          error={errorFor('eventEndAt')}
-          hint="მრავალმატჩიან ბილეთზე. ერთმატჩიანზე დატოვეთ ცარიელი."
-        >
-          <Input
-            id="eventEndAt"
-            name="eventEndAt"
-            type="datetime-local"
-            error={Boolean(errorFor('eventEndAt'))}
-          />
-        </Field>
-      </div>
-
-      {/* ----------------------------------------------------------------- */}
-      {/* 3. How it is reached                                               */}
+      {/* 2. How it is reached                                               */}
       {/* ----------------------------------------------------------------- */}
       <div className="space-y-4 rounded-card border border-line bg-canvas p-4">
         <fieldset>
@@ -377,6 +315,69 @@ export function PostBetForm({
             </div>
           </Field>
         ) : null}
+      </div>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* 3. What the record needs                                           */}
+      {/* ----------------------------------------------------------------- */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label="კოეფიციენტი"
+          htmlFor="odds"
+          required
+          error={errorFor('odds')}
+        >
+          <Input
+            id="odds"
+            name="odds"
+            type="number"
+            step="0.01"
+            min="1.01"
+            inputMode="decimal"
+            placeholder="1.85"
+            required
+            error={Boolean(errorFor('odds'))}
+          />
+        </Field>
+
+        <Field label="სპორტი" htmlFor="sportId" required error={errorFor('sportId')}>
+          <Select id="sportId" name="sportId" required>
+            {sports.map((sport) => (
+              <option key={sport.value} value={sport.value}>
+                {sport.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field
+          label="პირველი მატჩის დაწყება"
+          htmlFor="eventAt"
+          required
+          error={errorFor('eventAt')}
+        >
+          <Input
+            id="eventAt"
+            name="eventAt"
+            type="datetime-local"
+            required
+            error={Boolean(errorFor('eventAt'))}
+          />
+        </Field>
+
+        <Field
+          label="ბოლო მატჩის დაწყება"
+          htmlFor="eventEndAt"
+          error={errorFor('eventEndAt')}
+          hint="მრავალმატჩიან ბილეთზე. ერთმატჩიანზე დატოვეთ ცარიელი."
+        >
+          <Input
+            id="eventEndAt"
+            name="eventEndAt"
+            type="datetime-local"
+            error={Boolean(errorFor('eventEndAt'))}
+          />
+        </Field>
       </div>
 
       {/* ----------------------------------------------------------------- */}

@@ -23,6 +23,14 @@ export async function SiteHeader() {
   const isAdmin = actor?.role === 'ADMIN';
   // APPROVED, not merely applied: a pending applicant is not an analyst yet.
   const isAnalyst = actor?.analystStatus === 'APPROVED';
+  /*
+   * An approved analyst's "profile" is their PUBLIC page - the one readers
+   * judge them on and the one they check. The workspace behind it (drafts,
+   * settling, pricing, broadcasts) is reachable from there, rather than
+   * standing beside it in the nav as a second, near-identical profile.
+   */
+  const profileHref =
+    isAnalyst && actor?.analystSlug ? `/analysts/${actor.analystSlug}` : null;
 
   return (
     <>
@@ -41,12 +49,12 @@ export async function SiteHeader() {
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 lg:flex">
-          {isAnalyst ? (
+          {profileHref ? (
             <Link
-              href="/analyst"
+              href={profileHref}
               className="inline-flex min-h-11 items-center px-2 text-sm text-accent hover:underline"
             >
-              ჩემი გვერდი
+              პროფილი
             </Link>
           ) : null}
 
@@ -88,6 +96,7 @@ export async function SiteHeader() {
             isAuthenticated={Boolean(actor)}
             isAdmin={isAdmin}
             isAnalyst={isAnalyst}
+            profileHref={profileHref}
           />
         </div>
       </div>
@@ -99,7 +108,11 @@ export async function SiteHeader() {
      * It is position:fixed, so its place in the DOM does not matter; the
      * layouts reserve its height with bottom padding.
      */}
-    <BottomNav isAuthenticated={Boolean(actor)} isAnalyst={isAnalyst} />
+    <BottomNav
+      isAuthenticated={Boolean(actor)}
+      isAnalyst={isAnalyst}
+      profileHref={profileHref}
+    />
     </>
   );
 }

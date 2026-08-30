@@ -21,6 +21,8 @@ export type SessionActor = {
   role: 'USER' | 'ANALYST' | 'ADMIN';
   emailVerifiedAt: Date | null;
   analystProfileId: string | null;
+  /** Their public profile's slug, so navigation can link to it directly. */
+  analystSlug: string | null;
   analystStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | null;
 };
 
@@ -90,7 +92,7 @@ export async function readSession(): Promise<SessionActor | null> {
           role: true,
           status: true,
           emailVerifiedAt: true,
-          analystProfile: { select: { id: true, status: true } },
+          analystProfile: { select: { id: true, slug: true, status: true } },
         },
       },
     },
@@ -118,6 +120,7 @@ export async function readSession(): Promise<SessionActor | null> {
     role: session.user.role,
     emailVerifiedAt: session.user.emailVerifiedAt,
     analystProfileId: session.user.analystProfile?.id ?? null,
+    analystSlug: session.user.analystProfile?.slug ?? null,
     analystStatus: session.user.analystProfile?.status ?? null,
   };
 }

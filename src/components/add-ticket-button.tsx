@@ -39,7 +39,7 @@ export function AddTicketButton({
         open={open}
         onClose={() => setOpen(false)}
         title="ახალი ბილეთი"
-        description="დაიწყეთ კუპონის ფოტოთი."
+        description="დაიწყეთ ბილეთის ფოტოთი."
       >
         <PostBetForm sports={sports} onPosted={() => setOpen(false)} />
       </Drawer>

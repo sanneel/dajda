@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { Lock } from 'lucide-react';
+import { Lock, SlidersHorizontal } from 'lucide-react';
 import { getAnalystBySlug } from '@/lib/queries/analysts';
 import { activePlanGrants, purchasedTicketIds } from '@/lib/queries/tickets';
 import { getCurrentUser } from '@/lib/auth/authorization';
@@ -216,12 +217,25 @@ export default async function AnalystProfilePage({
         {/* The owner gets the action that belongs to them; everyone else gets
             the one that belongs to a reader. */}
         {isOwner ? (
-          <AddTicketButton
-            sports={sports.map((sport) => ({
-              value: sport.id,
-              label: sport.nameKa,
-            }))}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <AddTicketButton
+              sports={sports.map((sport) => ({
+                value: sport.id,
+                label: sport.nameKa,
+              }))}
+            />
+            {/* The workspace is no longer a second profile standing beside
+                this one in the nav; it is what this page cannot show -
+                drafts, settling, pricing, broadcasts - and it is reached
+                from here. */}
+            <Link
+              href="/analyst"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-ink-faint"
+            >
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+              მართვა
+            </Link>
+          </div>
         ) : actor ? (
           <SaveAnalystButton
             analystProfileId={profile.id}

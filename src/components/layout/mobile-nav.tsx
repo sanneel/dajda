@@ -18,10 +18,13 @@ export function MobileNav({
   isAuthenticated,
   isAdmin,
   isAnalyst = false,
+  profileHref,
 }: {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isAnalyst?: boolean;
+  /** An analyst's public profile, when they have one. */
+  profileHref?: string | null;
 }) {
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -95,10 +98,10 @@ export function MobileNav({
               {isAnalyst ? (
                 <li>
                   <Link
-                    href="/analyst"
+                    href={profileHref ?? '/analyst'}
                     className="flex min-h-12 items-center rounded-md px-3 text-base text-accent hover:bg-elevated"
                   >
-                    ჩემი გვერდი
+                    პროფილი
                   </Link>
                 </li>
               ) : null}

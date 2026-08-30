@@ -24,7 +24,11 @@ type Tab = {
   icon: typeof Home;
 };
 
-function tabsFor(isAuthenticated: boolean, isAnalyst: boolean): Tab[] {
+function tabsFor(
+  isAuthenticated: boolean,
+  isAnalyst: boolean,
+  profileHref: string | null,
+): Tab[] {
   return [
     { href: '/', label: 'მთავარი', icon: Home },
     { href: '/free', label: 'უფასო', icon: Ticket },
@@ -35,8 +39,8 @@ function tabsFor(isAuthenticated: boolean, isAnalyst: boolean): Tab[] {
      * the idea deserves: their workspace IS their page. It takes the profile
      * slot; account settings stay reachable from inside it.
      */
-    isAnalyst
-      ? { href: '/analyst', label: 'პროფილი', icon: User }
+    isAnalyst && profileHref
+      ? { href: profileHref, label: 'პროფილი', icon: User }
       : isAuthenticated
         ? { href: '/dashboard', label: 'პროფილი', icon: User }
         : { href: '/login', label: 'შესვლა', icon: LogIn },
@@ -46,12 +50,15 @@ function tabsFor(isAuthenticated: boolean, isAnalyst: boolean): Tab[] {
 export function BottomNav({
   isAuthenticated,
   isAnalyst,
+  profileHref,
 }: {
   isAuthenticated: boolean;
   isAnalyst: boolean;
+  /** An analyst's public profile, when they have one. */
+  profileHref?: string | null;
 }) {
   const pathname = usePathname();
-  const tabs = tabsFor(isAuthenticated, isAnalyst);
+  const tabs = tabsFor(isAuthenticated, isAnalyst, profileHref ?? null);
 
   return (
     <nav

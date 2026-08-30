@@ -106,7 +106,7 @@ export function CreateActions({
         open={sheet === 'ticket'}
         onClose={close}
         title="ახალი ბილეთი"
-        description="დაიწყეთ კუპონის ფოტოთი."
+        description="დაიწყეთ ბილეთის ფოტოთი."
       >
         <PostBetForm sports={sports} onPosted={close} />
       </Drawer>

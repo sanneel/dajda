@@ -114,7 +114,7 @@ async function makeSlip(lines: string[], tone: 'bet' | 'result') {
     <rect width="900" height="675" fill="#0e1013"/>
     <rect x="40" y="40" width="820" height="595" rx="10" fill="#16181c" stroke="#22262b" stroke-width="2"/>
     <text x="80" y="120" fill="${accent}" font-family="sans-serif" font-size="30" font-weight="700">
-      ${escapeXml(tone === 'bet' ? 'ფსონის კუპონი' : 'შედეგი')}
+      ${escapeXml(tone === 'bet' ? 'ფსონის ბილეთი' : 'შედეგი')}
     </text>
     ${lines
       .map(
@@ -122,7 +122,7 @@ async function makeSlip(lines: string[], tone: 'bet' | 'result') {
           `<text x="80" y="${195 + i * 52}" fill="#e8eaed" font-family="sans-serif" font-size="26">${escapeXml(line)}</text>`,
       )
       .join('')}
-    <text x="80" y="600" fill="#5a616b" font-family="sans-serif" font-size="22">დემო სურათი, რეალური კუპონი არ არის</text>
+    <text x="80" y="600" fill="#5a616b" font-family="sans-serif" font-size="22">დემო სურათი, რეალური ბილეთი არ არის</text>
   </svg>`;
 
   const name = `${randomBytes(16).toString('hex')}.webp`;
