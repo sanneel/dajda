@@ -112,7 +112,7 @@ export default async function HomePage({
         </div>
       </header>
 
-      <div className="mb-6 border-t border-line pt-7">
+      <div className="mb-6 mt-10">
         <h2 className="font-display text-xl text-ink">ანალიტიკოსების რეიტინგი</h2>
         <p className="mt-1.5 max-w-xl text-sm text-ink-muted">
           სტატისტიკა ასახავს წარსულს და არ არის მომავლის გარანტია.

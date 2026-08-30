@@ -99,7 +99,7 @@ export function SortTicks({
     (state.soon ? 1 : 0);
 
   return (
-    <div className="border-y border-line py-3">
+    <div>
       {/*
        * Caption line first, chips under it. Letting the count wrap in among
        * the chips is what made this bar look accidental on a phone: it landed

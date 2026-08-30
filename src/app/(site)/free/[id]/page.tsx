@@ -167,7 +167,7 @@ export default async function TicketPage({
               : 'ეს პროგნოზი იხსნება შესვლის შემდეგ'}
           </p>
 
-          <div className="grid w-full grid-cols-2 gap-4 border-y border-line py-4 sm:max-w-sm">
+          <div className="grid w-full grid-cols-2 gap-4 py-1 sm:max-w-sm">
             <div>
               <p className="text-xs text-ink-faint">კოეფიციენტი</p>
               <p className="tabular text-xl font-bold text-ink">

@@ -128,7 +128,7 @@ export default async function PaidTicketsPage({
 
       {pageCount > 1 ? (
         <nav
-          className="mt-8 flex items-center justify-between gap-4 border-t border-line pt-5 text-sm"
+          className="mt-8 flex items-center justify-between gap-4 text-sm"
           aria-label="გვერდები"
         >
           {page > 1 ? (
