@@ -22,10 +22,11 @@ type Mode = 'login' | 'register';
  * places, so there is one implementation rather than two that drift.
  */
 export function AuthButtons({
-  // The Telegram and Google buttons are SERVER components (they read env to
-  // decide whether to exist), so the header renders them and hands them in
-  // as a slot - a client component cannot import them, but it can place
-  // them.
+  // The Telegram and Google buttons are a SERVER component (it reads env to
+  // decide whether the buttons exist at all), so the header renders it and
+  // hands it in as a slot - a client component cannot import it, but it can
+  // place it. It sits ABOVE the form here for the same reason it does on the
+  // /login and /register pages: one tap beats a form nobody needed.
   socialButtons,
 }: {
   socialButtons?: ReactNode;
@@ -54,8 +55,8 @@ export function AuthButtons({
         onClose={() => setMode(null)}
         title="შესვლა"
       >
-        <LoginForm />
         {socialButtons}
+        <LoginForm />
         <p className="mt-5 border-t border-line pt-4 text-sm text-ink-muted">
           ანგარიში არ გაქვთ?{' '}
           <button
@@ -73,8 +74,8 @@ export function AuthButtons({
         onClose={() => setMode(null)}
         title="რეგისტრაცია"
       >
-        <RegisterForm />
         {socialButtons}
+        <RegisterForm />
         <p className="mt-5 border-t border-line pt-4 text-sm text-ink-muted">
           უკვე გაქვთ ანგარიში?{' '}
           <button

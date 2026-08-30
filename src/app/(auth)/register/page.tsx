@@ -3,8 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { RegisterForm } from '@/components/auth/register-form';
-import { TelegramLoginButton } from '@/components/auth/telegram-button';
-import { GoogleLoginButton } from '@/components/auth/google-button';
+import { SocialSignIn } from '@/components/auth/social-signin';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,9 +25,8 @@ export default async function RegisterPage() {
       </p>
 
       <div className="mt-6">
+        <SocialSignIn />
         <RegisterForm />
-        <TelegramLoginButton />
-        <GoogleLoginButton />
       </div>
 
       <p className="mt-6 border-t border-line pt-5 text-sm text-ink-muted">

@@ -4,8 +4,7 @@ import { Logo } from '@/components/brand/logo';
 import { Avatar } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { AuthButtons } from '@/components/auth/auth-buttons';
-import { TelegramLoginButton } from '@/components/auth/telegram-button';
-import { GoogleLoginButton } from '@/components/auth/google-button';
+import { SocialSignIn } from '@/components/auth/social-signin';
 import { BottomNav } from './bottom-nav';
 import { MobileNav } from './mobile-nav';
 import { NavLinks } from './nav-links';
@@ -74,14 +73,7 @@ export async function SiteHeader() {
               <Avatar name={actor.name} size="sm" />
             </Link>
           ) : (
-            <AuthButtons
-              socialButtons={
-                <>
-                  <TelegramLoginButton />
-                  <GoogleLoginButton />
-                </>
-              }
-            />
+            <AuthButtons socialButtons={<SocialSignIn />} />
           )}
         </div>
 
