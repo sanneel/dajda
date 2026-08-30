@@ -451,7 +451,7 @@ export async function setPlanPriceAction(
           data: {
             analystProfileId: profile.id,
             tier: 'PREMIUM',
-            nameKa: `${profile.displayName} · Premium`,
+            nameKa: `${profile.displayName} · გამოწერა`,
             descriptionKa: 'ავტორის ყველა პროგნოზი და ანალიზი.',
             featuresKa: [
               'ავტორის ყველა პროგნოზი',

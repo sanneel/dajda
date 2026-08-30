@@ -170,8 +170,7 @@ export function PostBetForm({
             onChange={(event) => setVisibility(event.target.value)}
           >
             <option value="PUBLIC">უფასო</option>
-            <option value="PREMIUM">ფასიანი · Premium</option>
-            <option value="VIP">ფასიანი · VIP</option>
+            <option value="PREMIUM">ფასიანი</option>
           </Select>
         </Field>
 

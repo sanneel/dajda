@@ -34,8 +34,10 @@ export const PREDICTION_STATUS_KA: Record<PredictionStatus, string> = {
 
 export const PREDICTION_VISIBILITY_KA: Record<PredictionVisibility, string> = {
   PUBLIC: 'ღია',
-  PREMIUM: 'Premium',
-  VIP: 'VIP',
+  // One paid tier as far as any reader is concerned; the enum keeps both
+  // values only because published rows already carry them.
+  PREMIUM: 'ფასიანი',
+  VIP: 'ფასიანი',
 };
 
 export const CONFIDENCE_KA: Record<ConfidenceLevel, string> = {
@@ -65,8 +67,8 @@ export const USER_STATUS_KA: Record<UserStatus, string> = {
 
 export const PLAN_TIER_KA: Record<PlanTier, string> = {
   FREE: 'უფასო',
-  PREMIUM: 'Premium',
-  VIP: 'VIP',
+  PREMIUM: 'გამოწერა',
+  VIP: 'გამოწერა',
 };
 
 export const BILLING_PERIOD_KA: Record<BillingPeriod, string> = {
