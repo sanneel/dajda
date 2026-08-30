@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth/authorization';
+import { AnalystSearch } from '@/components/analyst-search';
 import { ButtonLink } from '@/components/ui/button';
 import {
   listAnalysts,
@@ -78,8 +79,8 @@ export default async function HomePage({
     '[&>option]:bg-surface [&>option]:text-ink';
 
   return (
-    <div className="mx-auto max-w-page px-4 py-10 sm:px-8">
-      <header className="mb-8">
+    <div className="mx-auto max-w-page px-4 py-6 sm:px-8 sm:py-10">
+      <header className="mb-6 sm:mb-8">
         <h1 className="font-display text-3xl leading-tight text-ink sm:text-5xl">
           ნახე, ვისი ანალიზი
           <br />
@@ -123,31 +124,21 @@ export default async function HomePage({
       <form
         method="get"
         action="/"
-        className="mb-5 rounded-panel bg-band p-4 sm:p-5"
+        className="mb-5 rounded-panel bg-band p-3 sm:p-5"
         aria-label="ანალიტიკოსების ფილტრი"
       >
-        <div className="grid gap-4 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
-          <div className="min-w-0">
-            <label
-              htmlFor="filter-q"
-              className="rule-label mb-2 block text-on-band/75"
-            >
-              ძებნა
-            </label>
-            <input
-              id="filter-q"
-              type="search"
-              name="q"
-              defaultValue={queryParam ?? ''}
-              placeholder="ანალიტიკოსის სახელი"
-              className="min-h-11 w-full rounded-control border border-on-band/25 bg-on-band/10 px-3 text-sm text-on-band placeholder:text-on-band/50"
-            />
-          </div>
+        {/*
+         * One wrapping row, tight labels: on a phone this must cost two rows
+         * at most, or the list the page exists for starts below the fold.
+         * Search lives behind the icon until tapped (order-first when open).
+         */}
+        <div className="flex flex-wrap items-end gap-2.5 sm:gap-3">
+          <AnalystSearch initialQuery={queryParam ?? ''} />
 
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1 basis-[7.5rem]">
             <label
               htmlFor="filter-sort"
-              className="rule-label mb-2 block text-on-band/75"
+              className="rule-label mb-1.5 block text-on-band/75"
             >
               დალაგება
             </label>
@@ -165,10 +156,10 @@ export default async function HomePage({
             </select>
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1 basis-[7.5rem]">
             <label
               htmlFor="filter-period"
-              className="rule-label mb-2 block text-on-band/75"
+              className="rule-label mb-1.5 block text-on-band/75"
             >
               პერიოდი
             </label>
@@ -186,10 +177,10 @@ export default async function HomePage({
             </select>
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1 basis-[7.5rem]">
             <label
               htmlFor="filter-sport"
-              className="rule-label mb-2 block text-on-band/75"
+              className="rule-label mb-1.5 block text-on-band/75"
             >
               სპორტი
             </label>
@@ -210,7 +201,7 @@ export default async function HomePage({
 
           <button
             type="submit"
-            className="min-h-11 rounded-control bg-on-band px-6 text-sm font-semibold text-band transition-colors hover:opacity-90"
+            className="min-h-11 shrink-0 rounded-control bg-on-band px-5 text-sm font-semibold text-band transition-colors hover:opacity-90"
           >
             ჩვენება
           </button>
