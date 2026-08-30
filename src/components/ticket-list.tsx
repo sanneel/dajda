@@ -25,34 +25,6 @@ import { SportTile } from './sport-tile';
  * author, price - and withholds the pick: no title, no slip. Must stay a
  * server component, so the withheld fields never reach the browser at all.
  */
-/**
- * იაფი/ძვირი relative to the very list the reader is looking at: the median
- * of the one-off prices on this page. A tag against an invisible benchmark
- * would be an assertion; against the visible list it is a summary.
- */
-function priceTag(
-  tickets: FeedTicket[],
-  ticket: FeedTicket,
-): 'cheap' | 'expensive' | null {
-  if (ticket.feedPriceMinor === null) return null;
-  const prices = tickets
-    .filter((row) => row.feedPriceMinor !== null)
-    .map((row) => row.feedPriceMinor as number)
-    .sort((a, b) => a - b);
-  if (prices.length < 3) return null;
-
-  const median =
-    prices.length % 2 === 1
-      ? (prices[(prices.length - 1) / 2] as number)
-      : ((prices[prices.length / 2 - 1] as number) +
-          (prices[prices.length / 2] as number)) /
-        2;
-
-  if (ticket.feedPriceMinor < median) return 'cheap';
-  if (ticket.feedPriceMinor > median) return 'expensive';
-  return null;
-}
-
 export function TicketList({
   tickets,
   lockedIds,
@@ -87,7 +59,8 @@ export function TicketList({
       {tickets.map((ticket) => {
         const locked = lockedIds?.has(ticket.id) ?? false;
         const hidden = locked || maskPicks;
-        const tag = showPrice ? priceTag(tickets, ticket) : null;
+        const forSale =
+          showPrice && locked && ticket.feedPriceMinor !== null;
 
         return (
           <li
@@ -165,31 +138,35 @@ export function TicketList({
               </p>
             ) : null}
 
-            {showPrice && ticket.feedPriceMinor !== null ? (
-              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
+            {showPrice && ticket.feedPriceMinor !== null && !forSale ? (
+              <p className="mt-2 text-sm text-ink-muted">
                 <span className="tabular font-semibold text-ink">
                   {formatMoney(ticket.feedPriceMinor, ticket.priceCurrency ?? 'GEL')}
-                </span>
-                {tag === 'cheap' ? (
-                  <Badge tone="accent">იაფი</Badge>
-                ) : tag === 'expensive' ? (
-                  <Badge tone="warn">ძვირი</Badge>
-                ) : null}
-                <span className="text-xs text-ink-faint">ერთჯერადი</span>
+                </span>{' '}
+                · ერთჯერადი
               </p>
             ) : null}
 
-            <Link
-              href={`/free/${ticket.id}`}
-              className="mt-3 flex min-h-11 items-center justify-between rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-ink-faint"
-            >
-              {showPrice && locked && ticket.feedPriceMinor !== null
-                ? `ყიდვა · ${formatMoney(ticket.feedPriceMinor, ticket.priceCurrency ?? 'GEL')}`
-                : maskPicks
-                  ? 'პროგნოზის ნახვა'
-                  : 'დეტალურად ნახვა'}
-              <span aria-hidden="true" className="text-ink-faint">›</span>
-            </Link>
+            {forSale ? (
+              // The buy button IS the price: an accent-filled control the
+              // thumb lands on, not a neutral "view" link a paid ticket has to
+              // be tapped through to discover it costs money.
+              <Link
+                href={`/free/${ticket.id}`}
+                className="mt-3 flex min-h-11 items-center justify-center gap-1.5 rounded-control bg-accent px-4 text-sm font-semibold text-accent-ink transition-opacity hover:opacity-90"
+              >
+                ყიდვა ·{' '}
+                {formatMoney(ticket.feedPriceMinor!, ticket.priceCurrency ?? 'GEL')}
+              </Link>
+            ) : (
+              <Link
+                href={`/free/${ticket.id}`}
+                className="mt-3 flex min-h-11 items-center justify-between rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-ink-faint"
+              >
+                {maskPicks ? 'პროგნოზის ნახვა' : 'დეტალურად ნახვა'}
+                <span aria-hidden="true" className="text-ink-faint">›</span>
+              </Link>
+            )}
           </li>
         );
       })}
@@ -313,32 +290,31 @@ export function TicketList({
                 {showPrice ? (
                   <td className="px-4 py-3">
                     {ticket.feedPriceMinor !== null ? (
-                      <>
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          <span className="tabular font-medium text-ink">
+                      <div className="flex items-center gap-3">
+                        <div className="min-w-0">
+                          <div className="tabular font-medium text-ink">
                             {formatMoney(
                               ticket.feedPriceMinor,
                               ticket.priceCurrency ?? 'GEL',
                             )}
-                          </span>
-                          {priceTag(tickets, ticket) === 'cheap' ? (
-                            <Badge tone="accent">იაფი</Badge>
-                          ) : priceTag(tickets, ticket) === 'expensive' ? (
-                            <Badge tone="warn">ძვირი</Badge>
-                          ) : null}
-                        </span>
-                        <div className="text-xs text-ink-faint">
-                          ერთჯერადი
+                          </div>
+                          <div className="text-xs text-ink-faint">
+                            ერთჯერადი
+                          </div>
                         </div>
                         {locked ? (
+                          // The buy control sits in the same cell as the price,
+                          // as a filled button rather than a text link, so
+                          // "this costs money and here is how to pay" is one
+                          // glance, not two.
                           <Link
                             href={`/free/${ticket.id}`}
-                            className="text-xs font-medium text-accent hover:underline"
+                            className="inline-flex min-h-9 shrink-0 items-center rounded-control bg-accent px-3.5 text-sm font-semibold text-accent-ink transition-opacity hover:opacity-90"
                           >
-                            შეძენა
+                            ყიდვა
                           </Link>
                         ) : null}
-                      </>
+                      </div>
                     ) : locked ? (
                       <Link
                         href={`/free/${ticket.id}`}
