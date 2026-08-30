@@ -65,13 +65,13 @@ export type FeedTicket = PublicTicket & {
   authorDecided: number;
   authorProfitUnitsCenti: number | null;
   /**
-   * Only set on the paid feed: the ticket's own single-purchase price.
-   * Falls back to the author's tier plan price for paid bets posted before
-   * per-ticket pricing existed (shown per period in that case).
+   * Only set on the paid feed: the ticket's own single-purchase price. A
+   * paid ticket is its own product - the subscription price never appears
+   * on a ticket row. A paid bet without a price of its own (posted before
+   * per-ticket pricing) shows none and opens only via the subscription.
    */
   feedPriceMinor: number | null;
   priceCurrency: string | null;
-  priceBillingPeriod: 'MONTHLY' | 'QUARTERLY' | null;
 };
 
 /**
@@ -144,33 +144,8 @@ async function listTicketFeed(kind: 'FREE' | 'PAID', filter: TicketFilter) {
     recordByAuthor.set(row.authorId, bucket);
   }
 
-  // The unlock price per (author, tier), paid feed only.
-  const planRows =
-    kind === 'PAID' && authorIds.length
-      ? await prisma.subscriptionPlan.findMany({
-          where: {
-            analystProfileId: { in: authorIds },
-            isActive: true,
-            tier: { in: ['PREMIUM', 'VIP'] },
-          },
-          select: {
-            analystProfileId: true,
-            tier: true,
-            priceMinor: true,
-            currency: true,
-            billingPeriod: true,
-          },
-        })
-      : [];
-  const planByAuthorTier = new Map(
-    planRows.map((plan) => [`${plan.analystProfileId}:${plan.tier}`, plan]),
-  );
-
   const enriched: FeedTicket[] = rows.map((row) => {
     const record = row.author ? recordByAuthor.get(row.author.id) : undefined;
-    const plan = row.author
-      ? planByAuthorTier.get(`${row.author.id}:${row.visibility}`)
-      : undefined;
 
     return {
       ...row,
@@ -180,12 +155,8 @@ async function listTicketFeed(kind: 'FREE' | 'PAID', filter: TicketFilter) {
           : null,
       authorDecided: record?.decided ?? 0,
       authorProfitUnitsCenti: record ? record.profitUnitsCenti : null,
-      feedPriceMinor:
-        kind === 'PAID' ? (row.priceMinor ?? plan?.priceMinor ?? null) : null,
-      priceCurrency: plan?.currency ?? 'GEL',
-      // A per-ticket price is one-off; only a plan-price fallback has a period.
-      priceBillingPeriod:
-        row.priceMinor !== null ? null : (plan?.billingPeriod ?? null),
+      feedPriceMinor: kind === 'PAID' ? row.priceMinor : null,
+      priceCurrency: 'GEL',
     };
   });
 

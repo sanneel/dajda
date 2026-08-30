@@ -2,10 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Lock } from 'lucide-react';
 import type { FeedTicket } from '@/lib/queries/tickets';
-import {
-  BILLING_PERIOD_KA,
-  PREDICTION_VISIBILITY_KA,
-} from '@/lib/labels';
+import { PREDICTION_VISIBILITY_KA } from '@/lib/labels';
 import {
   formatDateTimeKa,
   formatMoney,
@@ -37,13 +34,9 @@ function priceTag(
   tickets: FeedTicket[],
   ticket: FeedTicket,
 ): 'cheap' | 'expensive' | null {
-  if (ticket.feedPriceMinor === null || ticket.priceBillingPeriod !== null) {
-    return null;
-  }
+  if (ticket.feedPriceMinor === null) return null;
   const prices = tickets
-    .filter(
-      (row) => row.feedPriceMinor !== null && row.priceBillingPeriod === null,
-    )
+    .filter((row) => row.feedPriceMinor !== null)
     .map((row) => row.feedPriceMinor as number)
     .sort((a, b) => a - b);
   if (prices.length < 3) return null;
@@ -170,11 +163,7 @@ export function TicketList({
                 ) : tag === 'expensive' ? (
                   <Badge tone="warn">ძვირი</Badge>
                 ) : null}
-                <span className="text-xs text-ink-faint">
-                  {ticket.priceBillingPeriod
-                    ? `გამოწერით / ${BILLING_PERIOD_KA[ticket.priceBillingPeriod]}`
-                    : 'ერთჯერადი'}
-                </span>
+                <span className="text-xs text-ink-faint">ერთჯერადი</span>
               </p>
             ) : null}
 
@@ -326,9 +315,7 @@ export function TicketList({
                           ) : null}
                         </span>
                         <div className="text-xs text-ink-faint">
-                          {ticket.priceBillingPeriod
-                            ? `გამოწერით / ${BILLING_PERIOD_KA[ticket.priceBillingPeriod]}`
-                            : 'ერთჯერადი'}
+                          ერთჯერადი
                         </div>
                         {locked ? (
                           <Link
