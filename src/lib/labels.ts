@@ -32,12 +32,16 @@ export const PREDICTION_STATUS_KA: Record<PredictionStatus, string> = {
   PUSH: 'დაბრუნებული',
 };
 
+/*
+ * The three access types a reader meets. There are no tiers here: PREMIUM and
+ * VIP are not cheap and expensive, they are "buyable on its own" and
+ * "subscription only", and the enum keeps its old names only because
+ * published rows already carry them.
+ */
 export const PREDICTION_VISIBILITY_KA: Record<PredictionVisibility, string> = {
-  PUBLIC: 'ღია',
-  // One paid tier as far as any reader is concerned; the enum keeps both
-  // values only because published rows already carry them.
+  PUBLIC: 'უფასო',
   PREMIUM: 'ფასიანი',
-  VIP: 'ფასიანი',
+  VIP: 'გამოწერა',
 };
 
 export const CONFIDENCE_KA: Record<ConfidenceLevel, string> = {

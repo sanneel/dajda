@@ -161,7 +161,6 @@ async function main() {
         t.pick,
         t.market,
         `კოეფიციენტი: ${t.odds.toFixed(2)}`,
-        'ფსონი: 1 ერთეული',
       ]);
 
       await prisma.prediction.create({

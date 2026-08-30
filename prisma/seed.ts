@@ -404,41 +404,29 @@ async function main() {
       },
     });
 
-    await prisma.subscriptionPlan.createMany({
-      data: [
-        {
-          analystProfileId: profile.id,
-          tier: 'PREMIUM',
-          nameKa: `${seed.name} · Premium`,
-          descriptionKa: 'ავტორის ყველა პროგნოზი და სრული აღწერა.',
-          featuresKa: [
-            'ავტორის ყველა პროგნოზი',
-            'სრული აღწერა თითოეულზე',
-            'შედეგების დეტალური ისტორია',
-          ],
-          priceMinor: 3000,
-          currency: 'GEL',
-          billingPeriod: 'MONTHLY',
-          isDemo: true,
-          sortOrder: 1,
-        },
-        {
-          analystProfileId: profile.id,
-          tier: 'VIP',
-          nameKa: `${seed.name} · VIP`,
-          descriptionKa: 'ყველაფერი Premium-იდან და კვირის შეჯამება.',
-          featuresKa: [
-            'ყველაფერი Premium-იდან',
-            'ავტორის კვირის შეჯამება',
-            'პრიორიტეტული პასუხი',
-          ],
-          priceMinor: 5000,
-          currency: 'GEL',
-          billingPeriod: 'MONTHLY',
-          isDemo: true,
-          sortOrder: 2,
-        },
-      ],
+    /*
+     * ONE subscription per author, not a ladder. Premium and VIP were two
+     * prices for the same thing dressed as tiers, which made a reader pick
+     * between them before they knew whether the author was any good; the
+     * product now sells access to an author, and that is one decision.
+     */
+    await prisma.subscriptionPlan.create({
+      data: {
+        analystProfileId: profile.id,
+        tier: 'PREMIUM',
+        nameKa: `${seed.name} · გამოწერა`,
+        descriptionKa: 'ავტორის ყველა პროგნოზი და სრული აღწერა.',
+        featuresKa: [
+          'ავტორის ყველა პროგნოზი',
+          'სრული აღწერა თითოეულზე',
+          'შეტყობინება ყოველ ახალ ბილეთზე',
+        ],
+        priceMinor: 3000,
+        currency: 'GEL',
+        billingPeriod: 'MONTHLY',
+        isDemo: true,
+        sortOrder: 1,
+      },
     });
 
     const random = makeRandom(seed.seed);
@@ -469,13 +457,16 @@ async function main() {
               : 'PREMIUM';
       if (visibility === 'PUBLIC') freeCount += 1;
 
-      // A paid bet is its own product, so it carries a single-purchase price;
-      // free bets have none. 10 or 15 GEL, alternating, in tetri.
+      /*
+       * Only the singly-buyable type carries a price: a free ticket has none,
+       * and a subscription-only one is not for sale on its own. 10 or 15 GEL,
+       * alternating, in tetri.
+       */
       const priceMinor =
-        visibility === 'PUBLIC' ? null : i % 2 === 0 ? 1000 : 1500;
+        visibility === 'PREMIUM' ? (i % 2 === 0 ? 1000 : 1500) : null;
 
       const screenshotPath = await makeSlip(
-        [pick, market, `კოეფიციენტი: ${odds.toFixed(2)}`, `ფსონი: 1 ერთეული`],
+        [pick, market, `კოეფიციენტი: ${odds.toFixed(2)}`],
         'bet',
       );
 

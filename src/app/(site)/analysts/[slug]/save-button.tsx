@@ -42,7 +42,7 @@ export function SaveAnalystButton({
         ) : (
           <UserPlus className="size-4" aria-hidden="true" />
         )}
-        {saved ? 'ფოლოუშია' : 'ფოლოუ'}
+        {saved ? 'Following' : 'Follow'}
       </button>
     </form>
   );

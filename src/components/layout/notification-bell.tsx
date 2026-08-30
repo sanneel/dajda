@@ -81,7 +81,7 @@ export async function NotificationBell({ userId }: { userId: string }) {
 
       <div className="absolute right-0 top-full z-50 mt-2 w-[19rem] overflow-hidden rounded-card border border-line bg-surface">
         <p className="border-b border-line px-4 py-2.5 text-xs font-medium text-ink-muted">
-          გაფოლოვებულების ღია ბილეთები
+          Follow-ში მყოფების ღია ბილეთები
         </p>
 
         <ul className="max-h-96 divide-y divide-line overflow-y-auto">

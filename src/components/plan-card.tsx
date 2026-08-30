@@ -4,11 +4,10 @@ import { useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check } from 'lucide-react';
 import type { PlanTier, BillingPeriod } from '@/generated/prisma/enums';
-import { BILLING_PERIOD_KA, PLAN_TIER_KA } from '@/lib/labels';
+import { BILLING_PERIOD_KA } from '@/lib/labels';
 import { formatMoney } from '@/lib/format';
 import { startCheckoutAction } from '@/actions/subscriptions';
 import { Alert } from './ui/feedback';
-import { Badge } from './ui/badge';
 
 export type PlanView = {
   id: string;
@@ -59,14 +58,12 @@ export function PlanCard({
       }`}
     >
       <div className="border-b border-line p-5">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-lg font-semibold tracking-tight text-ink">
-            {plan.nameKa}
-          </h3>
-          <Badge tone={featured ? 'accent' : 'neutral'}>
-            {PLAN_TIER_KA[plan.tier]}
-          </Badge>
-        </div>
+        {/* No tier badge: there are no tiers. An author sells access to
+            themselves, at one price, and stamping "გამოწერა" next to a card
+            already named "… · გამოწერა" only repeated the word. */}
+        <h3 className="text-lg font-semibold tracking-tight text-ink">
+          {plan.nameKa}
+        </h3>
 
         <p className="mt-1.5 text-sm text-ink-muted">{plan.descriptionKa}</p>
 
