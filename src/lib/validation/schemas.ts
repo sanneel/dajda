@@ -127,11 +127,16 @@ export const createPredictionSchema = z.object({
   sportId: z.uuid('აირჩიეთ სპორტი.'),
   /** The bet slip. A bet with no evidence is not a record. */
   screenshotPath: uploadPathSchema,
+  /**
+   * Optional: the slip is the bet, and requiring a title only made authors
+   * narrate a picture the reader already has open. Left blank, the caller
+   * derives one from the sport and the odds (see `postBetAction`).
+   */
   titleKa: z
     .string()
     .trim()
-    .min(6, 'სათაური ძალიან მოკლეა.')
-    .max(160, 'სათაური ძალიან გრძელია.'),
+    .max(160, 'სახელი ძალიან გრძელია.')
+    .optional(),
   descriptionKa: z
     .string()
     .trim()

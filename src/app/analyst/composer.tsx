@@ -1,130 +1,22 @@
 'use client';
 
-import { useActionState, useRef, useState } from 'react';
-import { Megaphone, MessageSquare, Radio, Ticket } from 'lucide-react';
+import { useActionState, useRef } from 'react';
+import { Radio } from 'lucide-react';
 import { announceLiveAction, postNoteAction } from '@/actions/posts';
 import { Field, Input, Textarea } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
-import { PostBetForm } from './post-form';
-import { BroadcastForm } from './broadcast-form';
-
-type Mode = 'bet' | 'note' | 'live' | 'broadcast';
 
 /**
- * One composer, four things an analyst can publish.
+ * The two short composers that are not a bet.
  *
- * These used to be three cards stacked down the page plus a fourth nowhere,
- * which meant the page opened on whichever form happened to be first and the
- * rest were a scroll away. They are all the same gesture - write something,
- * publish it - and what actually differs between them is WHO it reaches, so
- * that is what the tab strip is sorted by: the bet goes on the public record,
- * a status is read by whoever visits, a live notice and a broadcast land in
- * other people's notifications.
- *
- * The two that interrupt people say so inside themselves rather than here, at
- * the moment of writing.
+ * These used to sit behind a four-way tab strip alongside the bet form and the
+ * broadcast, given equal weight on the workspace's main column. They are
+ * occasional actions, so they now open from the "more" menu into a drawer
+ * (see create-actions.tsx) and this file is just the forms.
  */
-export function AnalystComposer({
-  sports,
-  audienceSize,
-  broadcastsRemaining,
-  broadcastsPerDay,
-}: {
-  sports: { value: string; label: string }[];
-  audienceSize: number;
-  broadcastsRemaining: number;
-  broadcastsPerDay: number;
-}) {
-  const [mode, setMode] = useState<Mode>('bet');
 
-  return (
-    <div>
-      <div
-        role="tablist"
-        aria-label="რას ვაქვეყნებ"
-        className="flex flex-wrap gap-1 border-b border-line"
-      >
-        <ModeTab
-          selected={mode === 'bet'}
-          onSelect={() => setMode('bet')}
-          icon={<Ticket className="size-4" aria-hidden="true" />}
-          label="ახალი პროგნოზი"
-        />
-        <ModeTab
-          selected={mode === 'note'}
-          onSelect={() => setMode('note')}
-          icon={<MessageSquare className="size-4" aria-hidden="true" />}
-          label="სტატუსი"
-        />
-        <ModeTab
-          selected={mode === 'live'}
-          onSelect={() => setMode('live')}
-          icon={<Radio className="size-4" aria-hidden="true" />}
-          label="ლაივი"
-        />
-        <ModeTab
-          selected={mode === 'broadcast'}
-          onSelect={() => setMode('broadcast')}
-          icon={<Megaphone className="size-4" aria-hidden="true" />}
-          label="შეტყობინება"
-          badge={`${broadcastsRemaining}/${broadcastsPerDay}`}
-        />
-      </div>
-
-      <div className="pt-5">
-        {mode === 'bet' ? <PostBetForm sports={sports} /> : null}
-        {mode === 'note' ? <NoteForm /> : null}
-        {mode === 'live' ? <LiveForm /> : null}
-        {mode === 'broadcast' ? (
-          <BroadcastForm
-            audienceSize={audienceSize}
-            remaining={broadcastsRemaining}
-            perDay={broadcastsPerDay}
-          />
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function ModeTab({
-  selected,
-  onSelect,
-  label,
-  icon,
-  badge,
-}: {
-  selected: boolean;
-  onSelect: () => void;
-  label: string;
-  icon: React.ReactNode;
-  badge?: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={selected}
-      onClick={onSelect}
-      className={`-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm transition-colors ${
-        selected
-          ? 'border-ink font-semibold text-ink'
-          : 'border-transparent text-ink-muted hover:text-ink'
-      }`}
-    >
-      {icon}
-      {label}
-      {badge ? (
-        <span className="tabular rounded-full bg-elevated px-1.5 text-xs text-ink-faint">
-          {badge}
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
-function NoteForm() {
+export function NoteForm() {
   const [state, action, pending] = useActionState(postNoteAction, null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -144,14 +36,12 @@ function NoteForm() {
         <Alert tone="error">{state.error.message}</Alert>
       ) : null}
 
-      <Field
-        label="რას წერთ"
-        htmlFor="note-body"
-        required
-        error={errorFor('bodyKa')}
-        hint="ჩანს თქვენს ფიდზე. შეტყობინება არავის მიდის."
-      >
-        <Textarea id="note-body" name="bodyKa" rows={3} maxLength={1200} required />
+      {state?.ok ? (
+        <Alert tone="success">გამოქვეყნდა თქვენს ფიდზე.</Alert>
+      ) : null}
+
+      <Field label="რას წერთ" htmlFor="note-body" required error={errorFor('bodyKa')}>
+        <Textarea id="note-body" name="bodyKa" rows={5} maxLength={1200} required />
       </Field>
 
       <Button type="submit" disabled={pending}>
@@ -161,9 +51,8 @@ function NoteForm() {
   );
 }
 
-function LiveForm() {
+export function LiveForm() {
   const [state, action, pending] = useActionState(announceLiveAction, null);
-  const formRef = useRef<HTMLFormElement>(null);
 
   const errorFor = (field: string) =>
     state && !state.ok ? state.error.fieldErrors?.[field]?.[0] : undefined;
@@ -176,11 +65,7 @@ function LiveForm() {
           <span className="tabular">{state.data.queued}</span> მიმღებისთვის.
           ახლა შეგიძლიათ დაიწყოთ ლაივ პოსტების დამატება.
         </Alert>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => window.location.reload()}
-        >
+        <Button type="button" onClick={() => window.location.reload()}>
           განახლება
         </Button>
       </div>
@@ -188,15 +73,13 @@ function LiveForm() {
   }
 
   return (
-    <form ref={formRef} action={action} className="space-y-4">
+    <form action={action} className="space-y-4">
       {state && !state.ok && !state.error.fieldErrors ? (
         <Alert tone="error">{state.error.message}</Alert>
       ) : null}
 
-      {/*
-       * Stated before the fields, not after the send. This and the broadcast
-       * are the only actions that write into other people's notifications.
-       */}
+      {/* Stated before the fields, not after the send: this is one of the two
+          actions that write into other people's notifications. */}
       <p className="flex items-start gap-2 rounded-card border border-line bg-canvas px-3.5 py-3 text-sm text-ink-muted">
         <Radio className="mt-0.5 size-4 shrink-0 text-signal" aria-hidden="true" />
         გამომწერებსა და შემნახველებს მიუვათ შეტყობინება.
@@ -221,13 +104,8 @@ function LiveForm() {
         <Input id="live-at" name="liveAt" type="datetime-local" required />
       </Field>
 
-      <Field
-        label="რას წერთ"
-        htmlFor="live-body"
-        required
-        error={errorFor('bodyKa')}
-      >
-        <Textarea id="live-body" name="bodyKa" rows={3} maxLength={1200} required />
+      <Field label="რას წერთ" htmlFor="live-body" required error={errorFor('bodyKa')}>
+        <Textarea id="live-body" name="bodyKa" rows={4} maxLength={1200} required />
       </Field>
 
       <Button type="submit" disabled={pending}>

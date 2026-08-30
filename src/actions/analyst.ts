@@ -128,7 +128,9 @@ export async function postBetAction(
     const parsed = createPredictionSchema.safeParse({
       sportId: formData.get('sportId'),
       screenshotPath: stored.urlPath,
-      titleKa: formData.get('titleKa'),
+      // Blank means "no name given", not an empty title: the service derives
+      // one from the sport and the odds.
+      titleKa: formData.get('titleKa') || undefined,
       descriptionKa: formData.get('descriptionKa') || undefined,
       odds: formData.get('odds'),
       stakeUnits: formData.get('stakeUnits') || 1,

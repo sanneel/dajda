@@ -2,55 +2,74 @@
 
 import { useActionState, useRef, useState } from 'react';
 import Image from 'next/image';
+import { ImagePlus, Repeat2 } from 'lucide-react';
 import { postBetAction } from '@/actions/analyst';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 
 /**
- * Post a bet.
+ * Post a bet, screenshot first.
  *
- * The screenshot is the first field and the only required one beyond a title,
- * because it is what the bet actually is. Everything else exists so the public
- * record can compute profit in units, which an image cannot supply.
+ * The slip IS the bet: an analyst arriving here already has it in their camera
+ * roll, and everything else on this form exists only because an image cannot
+ * tell the record what to compute. So the upload is the first field and the
+ * largest - a tap target that shows the picture back - and the numbers follow
+ * in one tight grid rather than as a column of equals.
  *
- * The preview is read locally with an object URL: no upload happens until the
- * form is submitted, so an author can change their mind without leaving a file
- * on the server.
+ * A name and a comment are optional. Requiring a title made every analyst
+ * write a sentence describing a picture that was already open in front of the
+ * reader; when it is left blank the server derives one from the sport and the
+ * odds.
+ *
+ * The preview is a local object URL: nothing uploads until submit, so changing
+ * your mind leaves nothing behind on the server.
  */
 export function PostBetForm({
   sports,
+  onPosted,
 }: {
   sports: { value: string; label: string }[];
+  /** Lets the drawer close itself once the bet is up. */
+  onPosted?: () => void;
 }) {
   const [state, action, pending] = useActionState(postBetAction, null);
   const [preview, setPreview] = useState<string | null>(null);
   const [visibility, setVisibility] = useState('PREMIUM');
   const [price, setPrice] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   const errorFor = (field: string) =>
     state && !state.ok ? state.error.fieldErrors?.[field]?.[0] : undefined;
 
+  const screenshotError = errorFor('screenshot') ?? errorFor('screenshotPath');
+
   if (state?.ok) {
     return (
       <div className="space-y-4">
-        <Alert tone="success" title="ფსონი გამოქვეყნდა">
+        <Alert tone="success" title="ბილეთი გამოქვეყნდა">
           ჩანაწერი დაემატა თქვენს საჯარო ისტორიას. მატჩის დასრულების შემდეგ
           მონიშნეთ დასრულებულად.
         </Alert>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => {
-            setPreview(null);
-            formRef.current?.reset();
-            // A fresh mount clears the action state.
-            window.location.reload();
-          }}
-        >
-          კიდევ ერთის დამატება
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="button"
+            onClick={() => {
+              if (onPosted) onPosted();
+              window.location.reload();
+            }}
+          >
+            დასრულება
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => window.location.reload()}
+          >
+            კიდევ ერთის დამატება
+          </Button>
+        </div>
       </div>
     );
   }
@@ -60,7 +79,7 @@ export function PostBetForm({
       ref={formRef}
       action={action}
       className="space-y-5"
-      // Let the explicit success reset through; block React 19's automatic
+      // Let an explicit success reset through; block React 19's automatic
       // reset when the action failed, so an error never wipes the draft.
       onReset={(event) => {
         if (state && !state.ok) event.preventDefault();
@@ -70,51 +89,81 @@ export function PostBetForm({
         <Alert tone="error">{state.error.message}</Alert>
       ) : null}
 
-      <Field
-        label="ფსონის სკრინშოტი"
-        htmlFor="screenshot"
-        required
-        error={errorFor('screenshot') ?? errorFor('screenshotPath')}
-        hint="კუპონის ფოტო. JPG, PNG ან WebP, მაქსიმუმ 12MB."
-      >
+      {/* ----------------------------------------------------------------- */}
+      {/* 1. The slip                                                        */}
+      {/* ----------------------------------------------------------------- */}
+      <div>
         <input
+          ref={fileRef}
           id="screenshot"
           name="screenshot"
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           required
+          className="sr-only"
           onChange={(event) => {
             const file = event.target.files?.[0];
             setPreview(file ? URL.createObjectURL(file) : null);
           }}
-          className="w-full rounded-control border border-line bg-canvas px-3 py-2.5 text-sm text-ink file:mr-3 file:rounded file:border-0 file:bg-elevated file:px-3 file:py-1.5 file:text-sm file:text-ink"
         />
-      </Field>
 
-      {preview ? (
-        <div className="relative aspect-[4/3] w-full max-w-sm overflow-hidden rounded-card border border-line bg-canvas">
-          {/* Local object URL, so next/image optimisation is bypassed. */}
-          <Image
-            src={preview}
-            alt="ატვირთული სკრინშოტის გადახედვა"
-            fill
-            unoptimized
-            className="object-contain"
-          />
-        </div>
-      ) : null}
+        {preview ? (
+          <div className="space-y-2">
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card border border-line bg-canvas">
+              {/* Local object URL, so next/image optimisation is bypassed. */}
+              <Image
+                src={preview}
+                alt="ატვირთული კუპონის გადახედვა"
+                fill
+                unoptimized
+                className="object-contain"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="inline-flex min-h-9 items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+            >
+              <Repeat2 className="size-4" aria-hidden="true" />
+              სხვა ფოტოს არჩევა
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            aria-describedby="screenshot-help"
+            className={`flex w-full flex-col items-center justify-center gap-2 rounded-card border-2 border-dashed px-6 py-10 text-center transition-colors ${
+              screenshotError
+                ? 'border-loss/60 bg-loss/5'
+                : 'border-line-strong bg-canvas hover:border-accent hover:bg-elevated'
+            }`}
+          >
+            <ImagePlus className="size-8 text-ink-faint" aria-hidden="true" />
+            <span className="text-base font-semibold text-ink">
+              კუპონის სკრინშოტი
+            </span>
+            <span className="text-sm text-ink-muted">
+              დააჭირეთ ფოტოს ასარჩევად
+            </span>
+          </button>
+        )}
 
-      <Field
-        label="სათაური"
-        htmlFor="titleKa"
-        required
-        error={errorFor('titleKa')}
-        hint="მაგ: დინამო თბილისი vs საბურთალო, ჯამური 2.5-ზე მეტი"
-      >
-        <Input id="titleKa" name="titleKa" required maxLength={160} />
-      </Field>
+        {screenshotError ? (
+          <p className="mt-1.5 text-xs text-loss" role="alert">
+            {screenshotError}
+          </p>
+        ) : (
+          <p id="screenshot-help" className="mt-1.5 text-xs text-ink-muted">
+            JPG, PNG, HEIC ან WebP, მაქსიმუმ 12MB.
+          </p>
+        )}
+      </div>
 
-      <div className="grid gap-5 sm:grid-cols-3">
+      {/* ----------------------------------------------------------------- */}
+      {/* 2. What the record needs                                           */}
+      {/* ----------------------------------------------------------------- */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="კოეფიციენტი"
           htmlFor="odds"
@@ -128,11 +177,18 @@ export function PostBetForm({
             step="0.01"
             min="1.01"
             inputMode="decimal"
+            placeholder="1.85"
             required
+            error={Boolean(errorFor('odds'))}
           />
         </Field>
 
-        <Field label="ერთეული" htmlFor="stakeUnits" error={errorFor('stakeUnits')}>
+        <Field
+          label="ერთეული"
+          htmlFor="stakeUnits"
+          required
+          error={errorFor('stakeUnits')}
+        >
           <Input
             id="stakeUnits"
             name="stakeUnits"
@@ -142,6 +198,8 @@ export function PostBetForm({
             max="10"
             defaultValue="1"
             inputMode="decimal"
+            required
+            error={Boolean(errorFor('stakeUnits'))}
           />
         </Field>
 
@@ -154,25 +212,59 @@ export function PostBetForm({
             ))}
           </Select>
         </Field>
+
+        <Field
+          label="პირველი მატჩის დაწყება"
+          htmlFor="eventAt"
+          required
+          error={errorFor('eventAt')}
+        >
+          <Input
+            id="eventAt"
+            name="eventAt"
+            type="datetime-local"
+            required
+            error={Boolean(errorFor('eventAt'))}
+          />
+        </Field>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field
-          label="ხელმისაწვდომობა"
-          htmlFor="visibility"
-          error={errorFor('visibility')}
-          hint="უფასო ჩანს ყველასთვის. ფასიანი იყიდება ცალკე, შენს ფასად - და შენი გამომწერებისთვის ისედაც ღიაა."
-        >
-          <Select
-            id="visibility"
-            name="visibility"
-            value={visibility}
-            onChange={(event) => setVisibility(event.target.value)}
-          >
-            <option value="PUBLIC">უფასო</option>
-            <option value="PREMIUM">ფასიანი</option>
-          </Select>
-        </Field>
+      {/* ----------------------------------------------------------------- */}
+      {/* 3. Free or for sale                                                */}
+      {/* ----------------------------------------------------------------- */}
+      <div className="space-y-4 rounded-card border border-line bg-canvas p-4">
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-ink">
+            ხელმისაწვდომობა
+          </legend>
+          {/* Two states, so a segmented control rather than a dropdown: the
+              choice changes what the rest of this box asks for. */}
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: 'PUBLIC', label: 'უფასო' },
+              { value: 'PREMIUM', label: 'ფასიანი' },
+            ].map((option) => (
+              <label
+                key={option.value}
+                className={`flex min-h-11 cursor-pointer items-center justify-center rounded-control border px-4 text-sm font-medium transition-colors ${
+                  visibility === option.value
+                    ? 'border-accent bg-accent/10 text-accent'
+                    : 'border-line text-ink-muted hover:border-ink-faint hover:text-ink'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="visibility"
+                  value={option.value}
+                  checked={visibility === option.value}
+                  onChange={(event) => setVisibility(event.target.value)}
+                  className="sr-only"
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         {visibility !== 'PUBLIC' ? (
           <Field
@@ -180,7 +272,7 @@ export function PostBetForm({
             htmlFor="price"
             required
             error={errorFor('price')}
-            hint="ამ ერთი ბილეთის ფასი. მყიდველი გამოწერის გარეშე იხდის; შენ 85% გერიცხება."
+            hint="მყიდველი გამოწერის გარეშე იხდის; თქვენ 85% გერიცხებათ."
           >
             <div className="space-y-2">
               <Input
@@ -216,27 +308,51 @@ export function PostBetForm({
             </div>
           </Field>
         ) : null}
-
-        <Field
-          label="პირველი პოზიციის დაწყება"
-          htmlFor="eventAt"
-          error={errorFor('eventAt')}
-          hint="როდის იწყება პროგნოზის პირველი მატჩი. ფასიან პროგნოზზე მყიდველი ამას შეძენამდე ხედავს."
-        >
-          <Input id="eventAt" name="eventAt" type="datetime-local" />
-        </Field>
       </div>
 
-      <Field
-        label="აღწერა"
-        htmlFor="descriptionKa"
-        error={errorFor('descriptionKa')}
-        hint="არასავალდებულო. გამომწერები ხედავენ სრულად."
-      >
-        <Textarea id="descriptionKa" name="descriptionKa" rows={5} maxLength={4000} />
-      </Field>
+      {/* ----------------------------------------------------------------- */}
+      {/* 4. Optional words                                                  */}
+      {/* ----------------------------------------------------------------- */}
+      <details className="group rounded-card border border-line">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-medium text-ink marker:content-none">
+          სახელი და კომენტარი
+          <span className="text-xs font-normal text-ink-faint">
+            არასავალდებულო
+          </span>
+        </summary>
+        <div className="space-y-4 border-t border-line p-4">
+          <Field
+            label="ბილეთის სახელი"
+            htmlFor="titleKa"
+            error={errorFor('titleKa')}
+            hint="ცარიელი თუ დატოვეთ, ავტომატურად შეივსება სპორტითა და კოეფიციენტით."
+          >
+            <Input
+              id="titleKa"
+              name="titleKa"
+              maxLength={160}
+              placeholder="მაგ: დინამო vs საბურთალო, ჯამური 2.5+"
+              error={Boolean(errorFor('titleKa'))}
+            />
+          </Field>
 
-      <div className="flex flex-wrap gap-3 border-t border-line pt-4">
+          <Field
+            label="კომენტარი"
+            htmlFor="descriptionKa"
+            error={errorFor('descriptionKa')}
+            hint="რატომ ფიქრობთ ასე. მყიდველები სრულად ხედავენ."
+          >
+            <Textarea
+              id="descriptionKa"
+              name="descriptionKa"
+              rows={4}
+              maxLength={4000}
+            />
+          </Field>
+        </div>
+      </details>
+
+      <div className="flex flex-wrap gap-3">
         <Button type="submit" size="lg" disabled={pending}>
           {pending ? 'ქვეყნდება…' : 'გამოქვეყნება'}
         </Button>

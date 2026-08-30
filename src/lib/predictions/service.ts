@@ -45,11 +45,24 @@ export async function createPrediction(
 ) {
   const sport = await prisma.sport.findUnique({
     where: { id: input.sportId },
-    select: { id: true, isActive: true },
+    select: { id: true, isActive: true, nameKa: true },
   });
   if (!sport || !sport.isActive) {
     throw new AppError(ERROR_CODES.NOT_FOUND, 'სპორტი ვერ მოიძებნა.');
   }
+
+  /*
+   * A name is optional on the form - the slip is the bet, and requiring a
+   * title only made authors narrate a picture the reader already has open.
+   * The column is not nullable and the string is what every list, feed and
+   * audit line prints, so a blank one is filled here rather than at the call
+   * site: that way a draft, an edit and any future caller all get the same
+   * treatment instead of one of them writing an empty title.
+   */
+  const titleKa =
+    input.titleKa && input.titleKa.length > 0
+      ? input.titleKa
+      : `${sport.nameKa} · კოეფ. ${(input.odds / 1000).toFixed(2)}`;
 
   const publishedAt = input.publishNow ? new Date() : null;
 
@@ -60,7 +73,7 @@ export async function createPrediction(
       postedById: actor.userId,
       sportId: sport.id,
       screenshotPath: input.screenshotPath,
-      titleKa: input.titleKa,
+      titleKa,
       descriptionKa: input.descriptionKa ?? null,
       // Already scaled by the schema: oddsSchema returns milli, stakeUnitsSchema
       // returns centi. Multiplying again here would store 1.85 as 1850.00.
@@ -82,8 +95,8 @@ export async function createPrediction(
     entityType: 'Prediction',
     entityId: prediction.id,
     summary: publishedAt
-      ? `ფსონი გამოქვეყნდა: ${input.titleKa}`
-      : `ფსონის მონახაზი: ${input.titleKa}`,
+      ? `ფსონი გამოქვეყნდა: ${titleKa}`
+      : `ფსონის მონახაზი: ${titleKa}`,
     actorId: actor.userId,
     actorRole: actor.role,
   });
