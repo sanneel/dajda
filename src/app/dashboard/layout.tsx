@@ -70,15 +70,16 @@ export default async function DashboardLayout({
                 <Link
                   href="/apply"
                   className="inline-flex min-h-11 items-center whitespace-nowrap rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+                  title="ანალიტიკოსის განაცხადი განიხილება"
                 >
-                  განაცხადი განიხილება
+                  განაცხადი…
                 </Link>
               ) : (
                 <Link
                   href="/apply"
                   className="inline-flex min-h-11 items-center whitespace-nowrap rounded-control px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
                 >
-                  ანალიტიკოსად რეგისტრაცია
+                  ანალიტიკოსობა
                 </Link>
               )}
             </li>
