@@ -111,10 +111,10 @@ async function main() {
   });
 
   if (analysts.length === 0) {
-    console.error(
-      'No demo analysts found. Seed demo content first (npm run db:seed:demo).',
-    );
-    process.exit(1);
+    // Not an error worth failing a build over: a structure-only deployment
+    // simply has no demo analysts to attach demo tickets to.
+    console.info('No demo analysts found; nothing to top up.');
+    return;
   }
 
   const now = Date.now();
@@ -182,7 +182,9 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error(error);
-    process.exit(1);
+    // Never fail the caller (this runs inside the Vercel build): a demo
+    // top-up that could not run must not block a production deploy. Log it
+    // loudly and exit clean.
+    console.error('add-demo-paid-tickets failed (non-fatal):', error);
   })
   .finally(() => prisma.$disconnect());
