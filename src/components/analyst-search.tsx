@@ -19,7 +19,11 @@ export function AnalystSearch({ initialQuery }: { initialQuery: string }) {
   useEffect(() => {
     if (open && !opened.current) {
       opened.current = true;
-      if (initialQuery === '') inputRef.current?.focus();
+      // `preventScroll` is the whole point: a plain focus() on a phone yanks
+      // the page up to bring the input into view (and the keyboard shoves it
+      // further), so opening search "bounced" the reader to the top. The band
+      // is already on screen where they tapped - keep them there.
+      if (initialQuery === '') inputRef.current?.focus({ preventScroll: true });
     }
     if (!open) opened.current = false;
   }, [open, initialQuery]);
@@ -45,7 +49,11 @@ export function AnalystSearch({ initialQuery }: { initialQuery: string }) {
   }
 
   return (
-    <div className="order-first w-full">
+    // Full width, but NOT reordered to the top: the icon lives at the end of
+    // the band, so the field it opens into belongs at the end too - appearing
+    // right where the finger just tapped, with the keyboard rising under it,
+    // instead of materialising in a different corner of the form.
+    <div className="w-full">
       <label htmlFor="filter-q" className="sr-only">
         ანალიტიკოსის ძებნა
       </label>
