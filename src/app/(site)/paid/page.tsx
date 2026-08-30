@@ -86,9 +86,9 @@ export default async function PaidTicketsPage({
           basePath="/paid"
           showPrice
           state={{
-            odds: filter.odds === '1',
+            odds: filter.odds,
             acc: filter.acc === '1',
-            price: filter.price === '1',
+            price: filter.price,
             soon: filter.soon === '1',
           }}
         />

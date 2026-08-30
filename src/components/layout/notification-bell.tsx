@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { Bell, Send } from 'lucide-react';
 import { prisma } from '@/lib/db';
-import { formatDateTimeKa } from '@/lib/format';
 import { ClosableDetails } from '@/components/ui/closable-details';
 
 /**
@@ -25,13 +24,10 @@ export async function NotificationBell({ userId }: { userId: string }) {
         author: { savedBy: { some: { userId } } },
       },
       orderBy: { publishedAt: 'desc' },
-      take: 12,
+      take: 60,
       select: {
         id: true,
-        titleKa: true,
         visibility: true,
-        eventAt: true,
-        sport: { select: { nameKa: true } },
         author: { select: { displayName: true, slug: true } },
       },
     }),
@@ -41,8 +37,32 @@ export async function NotificationBell({ userId }: { userId: string }) {
     }),
   ]);
 
+  /*
+   * One line per author-and-kind, not one per ticket: the bell answers
+   * "who has something open for me", and "+3" says how much without three
+   * rows saying the same name. An entry vanishes as its tickets settle.
+   */
+  const groups = new Map<
+    string,
+    { name: string; slug: string; paid: boolean; count: number }
+  >();
+  for (const ticket of tickets) {
+    if (!ticket.author) continue;
+    const paid = ticket.visibility !== 'PUBLIC';
+    const key = `${ticket.author.slug}:${paid ? 'paid' : 'free'}`;
+    const group = groups.get(key) ?? {
+      name: ticket.author.displayName,
+      slug: ticket.author.slug,
+      paid,
+      count: 0,
+    };
+    group.count += 1;
+    groups.set(key, group);
+  }
+  const entries = [...groups.values()];
+
   const needsTelegram = me?.telegramChatId === null;
-  const count = tickets.length + (needsTelegram ? 1 : 0);
+  const count = entries.length + (needsTelegram ? 1 : 0);
 
   return (
     <ClosableDetails className="relative">
@@ -84,31 +104,27 @@ export async function NotificationBell({ userId }: { userId: string }) {
             </li>
           ) : null}
 
-          {tickets.map((ticket) => (
-            <li key={ticket.id}>
+          {entries.map((entry) => (
+            <li key={`${entry.slug}:${entry.paid}`}>
               <Link
-                href={`/free/${ticket.id}`}
-                className="block px-4 py-3 transition-colors hover:bg-elevated"
+                href={`/analysts/${entry.slug}?tab=${entry.paid ? 'paid' : 'free'}`}
+                className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-elevated"
               >
-                <span className="block text-sm font-medium text-ink">
-                  {ticket.author?.displayName}
-                </span>
-                <span className="mt-0.5 block truncate text-xs text-ink-muted">
-                  {/* A paid pick's title is the merchandise; never here. */}
-                  {ticket.visibility === 'PUBLIC'
-                    ? ticket.titleKa
-                    : `ფასიანი პროგნოზი · ${ticket.sport.nameKa}`}
-                </span>
-                {ticket.eventAt ? (
-                  <span className="tabular mt-0.5 block text-xs text-ink-faint">
-                    იწყება: {formatDateTimeKa(ticket.eventAt)}
+                <span className="min-w-0 text-sm">
+                  <span className="font-medium text-ink">{entry.name}</span>
+                  <span className="text-ink-muted">
+                    {' '}
+                    · {entry.paid ? 'ფასიანი ბილეთი' : 'უფასო ბილეთი'}
                   </span>
-                ) : null}
+                </span>
+                <span className="tabular shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent">
+                  +{entry.count}
+                </span>
               </Link>
             </li>
           ))}
 
-          {tickets.length === 0 && !needsTelegram ? (
+          {entries.length === 0 && !needsTelegram ? (
             <li className="px-4 py-6 text-center text-sm text-ink-muted">
               ღია ბილეთი არ არის. გააფოლოვეთ ანალიტიკოსი და ახალი ბილეთები
               აქ გამოჩნდება.

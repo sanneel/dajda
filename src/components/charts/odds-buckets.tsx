@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import type { OddsBucket } from '@/lib/stats/performance';
 import {
+  formatGelSigned,
   formatPercentBps,
   formatPercentBpsSigned,
-  formatUnitsSigned,
 } from '@/lib/format';
 
 /**
@@ -61,7 +61,7 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
                 {bucket.decided}
               </span>
               <span
-                className={`w-full rounded-t-sm ${isActive ? 'bg-accent' : 'bg-accent/70'}`}
+                className={`w-full rounded-t-md ${isActive ? 'bg-accent' : 'bg-accent/60'}`}
                 style={{ height: `${heightPct}%` }}
               />
             </button>
@@ -99,7 +99,7 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
                 მოგების %
               </th>
               <th scope="col" className="tabular py-1.5 pr-2 text-right font-medium text-ink-muted">
-                პროფიტი
+                მოგება
               </th>
               <th scope="col" className="tabular py-1.5 text-right font-medium text-ink-muted">
                 ROI
@@ -140,7 +140,7 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
                     }`}
                   >
                     {bucket.decided > 0
-                      ? formatUnitsSigned(bucket.profitUnitsCenti)
+                      ? formatGelSigned(bucket.profitUnitsCenti)
                       : '·'}
                   </td>
                   <td

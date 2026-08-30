@@ -88,12 +88,19 @@ export type FeedTicket = PublicTicket & {
  * than keeping that view honest.
  */
 async function listTicketFeed(kind: 'FREE' | 'PAID', filter: TicketFilter) {
+  /*
+   * The feeds are shops, not archives: a ticket leaves the moment its first
+   * position kicks off (or it settles). The full history stays on the
+   * author's profile, where the record lives.
+   */
   const where: Prisma.PredictionWhereInput = {
     publishedAt: { not: null },
     supersededAt: null,
+    status: 'PENDING',
+    finishedAt: null,
+    OR: [{ eventAt: null }, { eventAt: { gt: new Date() } }],
     visibility: kind === 'FREE' ? 'PUBLIC' : { in: ['PREMIUM', 'VIP'] },
     ...(filter.sport ? { sport: { code: filter.sport } } : {}),
-    ...(filter.status ? { status: filter.status } : {}),
   };
 
   const rows = await prisma.prediction.findMany({
@@ -200,12 +207,12 @@ function sortFeed(items: FeedTicket[], filter: TicketFilter, now = Date.now()) {
    */
   const keys: ((a: FeedTicket, b: FeedTicket) => number)[] = [];
 
-  // One direction per tick: the end nobody asked to invert. Highest odds,
-  // highest accuracy, cheapest price.
-  if (filter.odds === '1') {
-    keys.push((a, b) => b.oddsMilli - a.oddsMilli);
+  if (filter.odds) {
+    const sign = filter.odds === 'high' ? -1 : 1;
+    keys.push((a, b) => sign * (a.oddsMilli - b.oddsMilli));
   }
 
+  // Accuracy has one direction: nobody asks for the least accurate first.
   if (filter.acc === '1') {
     keys.push((a, b) => {
       const ha = a.authorHitRateBps;
@@ -216,14 +223,15 @@ function sortFeed(items: FeedTicket[], filter: TicketFilter, now = Date.now()) {
     });
   }
 
-  if (filter.price === '1') {
+  if (filter.price) {
+    const sign = filter.price === 'high' ? -1 : 1;
     keys.push((a, b) => {
       const pa = a.feedPriceMinor;
       const pb = b.feedPriceMinor;
-      // Unpriced rows sink: no price is not a price.
+      // Unpriced rows sink whatever the direction: no price is not a price.
       if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
       if (pa === null || pb === null) return 0;
-      return pa - pb;
+      return sign * (pa - pb);
     });
   }
 

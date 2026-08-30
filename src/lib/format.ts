@@ -25,6 +25,17 @@ export function formatUnits(unitsCenti: number): string {
 }
 
 /** 250 -> "+2.50", -250 -> "-2.50", 0 -> "0.00" */
+/**
+ * Profit expressed in GEL under the site's stated convention: every ticket
+ * is counted as a flat 100 GEL stake. One unit is exactly that stake, so
+ * profitUnitsCenti (hundredths of a unit) IS the lari figure.
+ */
+export function formatGelSigned(profitUnitsCenti: number): string {
+  const lari = Math.round(profitUnitsCenti);
+  const sign = lari > 0 ? '+' : lari < 0 ? '−' : '';
+  return `${sign}${Math.abs(lari).toLocaleString('ka-GE')} ₾`;
+}
+
 export function formatUnitsSigned(unitsCenti: number): string {
   const formatted = formatUnits(Math.abs(unitsCenti));
   if (unitsCenti > 0) return `+${formatted}`;

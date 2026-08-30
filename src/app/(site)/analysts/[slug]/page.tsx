@@ -20,8 +20,6 @@ import {
 import { Badge, DemoBadge, StatusBadge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Alert } from '@/components/ui/feedback';
-import { analystFeed } from '@/lib/queries/feed';
-import { Feed } from '@/components/feed';
 import { RecordTabs } from './record-tabs';
 import { ReportForm } from '@/components/report-form';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
@@ -83,7 +81,7 @@ export default async function AnalystProfilePage({
   const { profile, predictions, allTime, freeAllTime, paidAllTime } = data;
   const actor = await getCurrentUser();
 
-  const [saved, subscriptions, feed, grants, purchased] = await Promise.all([
+  const [saved, subscriptions, grants, purchased] = await Promise.all([
     actor
       ? prisma.savedAnalyst.count({
           where: { userId: actor.userId, analystProfileId: profile.id },
@@ -99,7 +97,6 @@ export default async function AnalystProfilePage({
           select: { planId: true, status: true },
         })
       : Promise.resolve([]),
-    analystFeed(profile.id, 50),
     activePlanGrants(actor?.userId),
     purchasedTicketIds(actor?.userId),
   ]);
@@ -240,30 +237,6 @@ export default async function AnalystProfilePage({
           isAuthenticated={Boolean(actor)}
           initialTab={requestedTab}
         />
-      </section>
-
-      {/* ------------------------------------------------------------- */}
-      {/* Feed: what the author says, next to what they bet               */}
-      {/* ------------------------------------------------------------- */}
-      <section className="mt-10" aria-labelledby="feed-heading">
-        <h2
-          id="feed-heading"
-          className="text-2xl font-semibold tracking-tight text-ink"
-        >
-          ფიდი
-        </h2>
-        <p className="mt-1.5 text-sm text-ink-muted">
-          სტატუსები, ლაივები და ფსონები ერთ ქრონოლოგიაში. მხოლოდ ფსონები
-          ითვლება ზემოთ მოცემულ სტატისტიკაში.
-        </p>
-
-        <div className="mt-4">
-          <Feed
-            entries={feed}
-            emptyText="ავტორს ჯერ არაფერი დაუპოსტავს."
-            lockedBetIds={lockedBetIds}
-          />
-        </div>
       </section>
 
       {/* ------------------------------------------------------------- */}

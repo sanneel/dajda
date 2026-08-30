@@ -1,19 +1,20 @@
 import { prisma } from '@/lib/db';
 import {
+  PERIOD_DAYS,
   sortAnalysts,
   type AnalystListItem,
+  type AnalystPeriod,
   type AnalystSort,
 } from '@/lib/stats/ranking';
 import {
   isLowSample,
-  rankingScore,
   summarizePerformance,
   withinDays,
   type PerformanceRecord,
 } from '@/lib/stats/performance';
 
-export { sortAnalysts };
-export type { AnalystListItem, AnalystSort };
+export { sortAnalysts, PERIOD_DAYS };
+export type { AnalystListItem, AnalystPeriod, AnalystSort };
 
 /**
  * Read models for analyst listing and profile pages.
@@ -54,6 +55,8 @@ function toRecords(
 export async function listAnalysts(options?: {
   sportCode?: string;
   sort?: AnalystSort;
+  /** How far back the displayed record reaches. Default: all time. */
+  period?: AnalystPeriod;
   /** Case-insensitive name search, from the list's search box. */
   query?: string;
 }): Promise<AnalystListItem[]> {
@@ -120,10 +123,27 @@ export async function listAnalysts(options?: {
     byAuthor.set(prediction.authorId, bucket);
   }
 
+  const period = options?.period ?? 'all';
+  const periodDays = period === 'all' ? null : PERIOD_DAYS[period];
+  const now = Date.now();
+
   const items: AnalystListItem[] = profiles.map((profile) => {
-    const records = toRecords(byAuthor.get(profile.id) ?? []);
-    const allTime = summarizePerformance(records);
-    const last30Days = summarizePerformance(withinDays(records, 30));
+    const allRecords = toRecords(byAuthor.get(profile.id) ?? []);
+    const records =
+      periodDays === null ? allRecords : withinDays(allRecords, periodDays);
+    const stats = summarizePerformance(records);
+
+    /*
+     * Tickets per week over the selected period. With no period selected the
+     * denominator runs from the analyst's first published bet, so a veteran
+     * and a newcomer are both measured against their own active span.
+     */
+    const firstAt = allRecords.length
+      ? Math.min(...allRecords.map((record) => record.publishedAt.getTime()))
+      : now;
+    const spanDays =
+      periodDays ?? Math.max(7, (now - firstAt) / (24 * 60 * 60 * 1000));
+    const avgPerWeek = stats.total / (spanDays / 7);
 
     return {
       id: profile.id,
@@ -132,10 +152,9 @@ export async function listAnalysts(options?: {
       headline: profile.headline,
       isDemo: profile.isDemo,
       sports: profile.sports.map((entry) => entry.sport),
-      allTime,
-      last30Days,
-      lowSample: isLowSample(allTime),
-      score: rankingScore(allTime),
+      stats,
+      avgPerWeek,
+      lowSample: isLowSample(stats),
       /*
        * "Active tips": published, not yet finished by the author and not yet
        * settled. It is what a buyer is actually getting access to right now,
@@ -148,7 +167,7 @@ export async function listAnalysts(options?: {
     };
   });
 
-  return sortAnalysts(items, options?.sort ?? 'score');
+  return sortAnalysts(items, options?.sort ?? 'profit');
 }
 
 

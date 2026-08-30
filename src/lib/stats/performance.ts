@@ -256,10 +256,11 @@ export type OddsBucket = {
  * exclusive; the last range is open-ended.
  */
 const ODDS_BUCKETS: { label: string; minMilli: number; maxMilli: number | null }[] = [
-  { label: '1–2', minMilli: 0, maxMilli: 2000 },
-  { label: '2–6', minMilli: 2000, maxMilli: 6000 },
-  { label: '6–10', minMilli: 6000, maxMilli: 10_000 },
-  { label: '10+', minMilli: 10_000, maxMilli: null },
+  { label: '1–1.5', minMilli: 0, maxMilli: 1500 },
+  { label: '1.5–2', minMilli: 1500, maxMilli: 2000 },
+  { label: '2–3', minMilli: 2000, maxMilli: 3000 },
+  { label: '3–5', minMilli: 3000, maxMilli: 5000 },
+  { label: '5+', minMilli: 5000, maxMilli: null },
 ];
 
 /** Profit per odds range. PENDING rows are excluded; VOID/PUSH add 0. */

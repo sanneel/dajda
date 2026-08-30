@@ -69,8 +69,9 @@ export default async function FreeTicketsPage({
           უფასო პროგნოზები
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-muted">
-          პროგნოზებს აქვეყნებენ ანალიტიკოსები. ავტორის სვეტში ჩანს ვისი
-          პროგნოზია და როგორი ჩანაწერი უდგას უკან.
+          ანალიტიკოსების უფასო პროგნოზები მომავალ მატჩებზე. სრული პროგნოზი
+          იხსნება შესვლის შემდეგ, გადახდის გარეშე - აქ ჩანს ავტორი,
+          კოეფიციენტი და დაწყების დრო.
         </p>
       </header>
 
@@ -122,7 +123,7 @@ export default async function FreeTicketsPage({
         <SortTicks
           basePath="/free"
           state={{
-            odds: filter.odds === '1',
+            odds: filter.odds,
             acc: filter.acc === '1',
             soon: filter.soon === '1',
           }}
@@ -141,6 +142,7 @@ export default async function FreeTicketsPage({
       ) : (
         <TicketList
           tickets={items}
+          maskPicks
           lockedIds={
             new Set(
               items

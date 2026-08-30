@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { sortAnalysts, type AnalystListItem } from '@/lib/stats/ranking';
 import {
   summarizePerformance,
-  rankingScore,
   isLowSample,
   type PerformanceRecord,
 } from '@/lib/stats/performance';
@@ -49,11 +48,10 @@ function analyst(
     headline: null,
     isDemo: true,
     sports: [],
-    allTime: summary,
-    last30Days: summary,
+    stats: summary,
+    avgPerWeek: 0,
     activeBets: 0,
     lowSample: isLowSample(summary),
-    score: rankingScore(summary),
     cheapestPlan: null,
   };
 }
@@ -68,20 +66,20 @@ describe('analyst ordering', () => {
     expect(hotStreak.lowSample).toBe(true);
     expect(established.lowSample).toBe(false);
     const perUnit = (a: typeof hotStreak) =>
-      a.allTime.profitUnitsCenti / a.allTime.stakedUnitsCenti;
+      a.stats.profitUnitsCenti / a.stats.stakedUnitsCenti;
     expect(perUnit(hotStreak)).toBeGreaterThan(perUnit(established));
 
-    const sorted = sortAnalysts([hotStreak, established], 'score');
+    const sorted = sortAnalysts([hotStreak, established], 'accuracy');
     expect(sorted[0]?.displayName).toBe('long record');
     // Still listed, not hidden.
     expect(sorted).toHaveLength(2);
   });
 
-  it('orders adequately-sampled analysts among themselves by score', () => {
+  it('orders adequately-sampled analysts among themselves by accuracy', () => {
     const better = analyst('better', 40, 20);
     const worse = analyst('worse', 30, 30);
 
-    const sorted = sortAnalysts([worse, better], 'score');
+    const sorted = sortAnalysts([worse, better], 'accuracy');
     expect(sorted.map((entry) => entry.displayName)).toEqual([
       'better',
       'worse',
@@ -92,7 +90,7 @@ describe('analyst ordering', () => {
     const strong = analyst('strong', 8, 1);
     const weak = analyst('weak', 1, 8);
 
-    const sorted = sortAnalysts([weak, strong], 'score');
+    const sorted = sortAnalysts([weak, strong], 'accuracy');
     expect(sorted.map((entry) => entry.displayName)).toEqual([
       'strong',
       'weak',
@@ -105,8 +103,8 @@ describe('analyst ordering', () => {
     const bigProfit = analyst('big profit', 9, 0, 4000);
     const steady = analyst('steady', 30, 25);
 
-    expect(bigProfit.allTime.profitUnitsCenti).toBeGreaterThan(
-      steady.allTime.profitUnitsCenti,
+    expect(bigProfit.stats.profitUnitsCenti).toBeGreaterThan(
+      steady.stats.profitUnitsCenti,
     );
     const sorted = sortAnalysts([steady, bigProfit], 'profit');
     expect(sorted[0]?.displayName).toBe('big profit');
@@ -122,7 +120,7 @@ describe('analyst ordering', () => {
   it('does not mutate the input array', () => {
     const input = [analyst('a', 30, 10), analyst('b', 40, 10)];
     const snapshot = input.map((entry) => entry.displayName);
-    sortAnalysts(input, 'score');
+    sortAnalysts(input, 'profit');
     expect(input.map((entry) => entry.displayName)).toEqual(snapshot);
   });
 });

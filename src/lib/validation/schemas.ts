@@ -81,15 +81,15 @@ export const ticketFilterSchema = z.object({
   sport: z.string().trim().min(1).max(40).optional(),
   status: z.enum(PredictionStatus).optional(),
   /**
-   * Tick-style, combinable orderings - plain flags, one direction each.
-   * A tick means "the good end first": highest odds, highest accuracy,
-   * cheapest price. They stack in that order, then kickoff. With nothing
-   * ticked the feed falls back to "what starts soonest".
+   * Tick-style, combinable orderings. Odds and price carry a direction
+   * (მაღალი/დაბალი); accuracy is a plain tick (highest first) and "soon"
+   * is a plain tick (nearest kickoff first). They stack in display order;
+   * with nothing ticked the feed falls back to "what starts soonest".
    */
-  odds: z.literal('1').optional(),
+  odds: z.enum(['high', 'low']).optional(),
   acc: z.literal('1').optional(),
-  /** Paid feed only: cheapest first. */
-  price: z.literal('1').optional(),
+  /** Paid feed only. */
+  price: z.enum(['high', 'low']).optional(),
   soon: z.literal('1').optional(),
   page: z.coerce.number().int().min(1).max(500).default(1),
 });

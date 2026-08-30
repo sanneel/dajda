@@ -293,30 +293,33 @@ describe('withinDays', () => {
 describe('oddsBucketPerformance', () => {
   it('routes each decided bet into its odds range and sums units', () => {
     const buckets = oddsBucketPerformance([
+      record({ status: 'WON', oddsMilli: 1400, profitUnitsCenti: 40 }),
       record({ status: 'WON', oddsMilli: 1850, profitUnitsCenti: 85 }),
-      record({ status: 'LOST', oddsMilli: 3200, profitUnitsCenti: -100 }),
+      record({ status: 'LOST', oddsMilli: 2500, profitUnitsCenti: -100 }),
+      record({ status: 'WON', oddsMilli: 3200, profitUnitsCenti: 220 }),
       record({ status: 'WON', oddsMilli: 7000, profitUnitsCenti: 600 }),
-      record({ status: 'WON', oddsMilli: 12_000, profitUnitsCenti: 1100 }),
       // PENDING never counts, whatever the odds.
       record({ status: 'PENDING', oddsMilli: 2500, profitUnitsCenti: null }),
     ]);
 
     expect(buckets.map((bucket) => bucket.label)).toEqual([
-      '1–2',
-      '2–6',
-      '6–10',
-      '10+',
+      '1–1.5',
+      '1.5–2',
+      '2–3',
+      '3–5',
+      '5+',
     ]);
-    expect(buckets[0]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 85, stakedUnitsCenti: 100 });
-    expect(buckets[1]).toMatchObject({ won: 0, lost: 1, profitUnitsCenti: -100, stakedUnitsCenti: 100 });
-    expect(buckets[2]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 600, stakedUnitsCenti: 100 });
-    expect(buckets[3]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 1100, stakedUnitsCenti: 100 });
+    expect(buckets[0]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 40, stakedUnitsCenti: 100 });
+    expect(buckets[1]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 85, stakedUnitsCenti: 100 });
+    expect(buckets[2]).toMatchObject({ won: 0, lost: 1, profitUnitsCenti: -100, stakedUnitsCenti: 100 });
+    expect(buckets[3]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 220, stakedUnitsCenti: 100 });
+    expect(buckets[4]).toMatchObject({ won: 1, lost: 0, profitUnitsCenti: 600, stakedUnitsCenti: 100 });
   });
 
   it('adds a VOID stake-return as zero profit without touching the hit rate', () => {
     const buckets = oddsBucketPerformance([
       record({ status: 'VOID', oddsMilli: 2500, profitUnitsCenti: 0 }),
     ]);
-    expect(buckets[1]).toMatchObject({ won: 0, lost: 0, decided: 0, profitUnitsCenti: 0, stakedUnitsCenti: 0 });
+    expect(buckets[2]).toMatchObject({ won: 0, lost: 0, decided: 0, profitUnitsCenti: 0, stakedUnitsCenti: 0 });
   });
 });

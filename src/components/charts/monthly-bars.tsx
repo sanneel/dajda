@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { MonthlyBucket } from '@/lib/stats/performance';
-import { formatMonthKa, formatUnitsSigned } from '@/lib/format';
+import { formatGelSigned, formatMonthKa } from '@/lib/format';
 
 /**
  * Month-by-month profit in units, drawn from a zero baseline so losing months
@@ -49,7 +49,7 @@ export function MonthlyBars({ buckets }: { buckets: MonthlyBucket[] }) {
               type="button"
               onClick={() => setActive(index)}
               aria-pressed={isActive}
-              title={`${formatMonthKa(bucket.month)}: ${formatUnitsSigned(bucket.profitUnitsCenti)} ერთეული (${bucket.won}-${bucket.lost})`}
+              title={`${formatMonthKa(bucket.month)}: ${formatGelSigned(bucket.profitUnitsCenti)} (${bucket.won}-${bucket.lost})`}
               className={`flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-center rounded-sm transition-colors ${
                 isActive ? 'bg-elevated' : 'hover:bg-elevated/60'
               }`}
@@ -58,7 +58,7 @@ export function MonthlyBars({ buckets }: { buckets: MonthlyBucket[] }) {
               <span className="flex w-full flex-1 items-end justify-center">
                 {positive ? (
                   <span
-                    className={`w-full rounded-t-sm ${isActive ? 'bg-win' : 'bg-win/70'}`}
+                    className={`w-full rounded-t-md ${isActive ? 'bg-win' : 'bg-win/70'}`}
                     style={{ height: `${heightPct * 2}%` }}
                   />
                 ) : null}
@@ -67,7 +67,7 @@ export function MonthlyBars({ buckets }: { buckets: MonthlyBucket[] }) {
               <span className="flex w-full flex-1 items-start justify-center">
                 {!positive ? (
                   <span
-                    className={`w-full rounded-b-sm ${isActive ? 'bg-loss' : 'bg-loss/70'}`}
+                    className={`w-full rounded-b-md ${isActive ? 'bg-loss' : 'bg-loss/70'}`}
                     style={{ height: `${heightPct * 2}%` }}
                   />
                 ) : null}
@@ -108,7 +108,7 @@ export function MonthlyBars({ buckets }: { buckets: MonthlyBucket[] }) {
                     : 'text-ink-muted'
               }`}
             >
-              {formatUnitsSigned(selected.profitUnitsCenti)} ერთ.
+              {formatGelSigned(selected.profitUnitsCenti)}
             </span>
             {` · ${selected.won} მოგებული, ${selected.lost} წაგებული`}
           </>
@@ -125,7 +125,7 @@ export function MonthlyBars({ buckets }: { buckets: MonthlyBucket[] }) {
             <th scope="col">თვე</th>
             <th scope="col">მოგებული</th>
             <th scope="col">წაგებული</th>
-            <th scope="col">ერთეული</th>
+            <th scope="col">მოგება (₾)</th>
           </tr>
         </thead>
         <tbody>
@@ -134,7 +134,7 @@ export function MonthlyBars({ buckets }: { buckets: MonthlyBucket[] }) {
               <th scope="row">{formatMonthKa(bucket.month)}</th>
               <td>{bucket.won}</td>
               <td>{bucket.lost}</td>
-              <td>{formatUnitsSigned(bucket.profitUnitsCenti)}</td>
+              <td>{formatGelSigned(bucket.profitUnitsCenti)}</td>
             </tr>
           ))}
         </tbody>

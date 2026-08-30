@@ -4,7 +4,7 @@ import {
   formatMoney,
   formatOdds,
   formatPercentBps,
-  formatUnitsSigned,
+  formatGelSigned,
 } from '@/lib/format';
 import { BILLING_PERIOD_KA } from '@/lib/labels';
 import { DemoBadge } from './ui/badge';
@@ -22,26 +22,30 @@ import { Avatar } from './ui/avatar';
  * separator between rows belongs to the list, not to the row.
  */
 export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
-  const { allTime, cheapestPlan } = analyst;
-  const settled = allTime.decided > 0;
+  const { stats, cheapestPlan } = analyst;
+  const settled = stats.decided > 0;
 
   const metrics: { label: string; value: string; tone?: 'win' | 'loss' }[] = [
     {
       label: 'საშ. კოეფ.',
-      value: settled ? formatOdds(allTime.avgOddsMilli) : '·',
+      value: settled ? formatOdds(stats.avgOddsMilli) : '·',
     },
-    { label: 'ჩანაწერი', value: `${allTime.won}-${allTime.lost}` },
+    {
+      label: 'ბილეთი/კვირა',
+      value:
+        stats.total > 0 ? analyst.avgPerWeek.toFixed(1) : '·',
+    },
     {
       label: 'სიზუსტე',
-      value: settled ? formatPercentBps(allTime.hitRateBps) : '·',
+      value: settled ? formatPercentBps(stats.hitRateBps) : '·',
     },
     {
-      label: 'ერთეულები',
-      value: settled ? formatUnitsSigned(allTime.profitUnitsCenti) : '·',
+      label: 'მოგება',
+      value: settled ? formatGelSigned(stats.profitUnitsCenti) : '·',
       ...(settled
         ? {
             tone:
-              allTime.profitUnitsCenti < 0
+              stats.profitUnitsCenti < 0
                 ? ('loss' as const)
                 : ('win' as const),
           }
@@ -184,8 +188,8 @@ export function AnalystList({ analysts }: { analysts: AnalystListItem[] }) {
         ))}
       </ul>
       <p className="mt-2.5 text-xs text-ink-faint">
-        სიზუსტე და ერთეულები ასახავს წარსულ შედეგებს და არ არის მომავლის
-        გარანტია.
+        მოგება ითვლება პირობითად: თითო ბილეთზე 100 ლარის დადებით. სიზუსტე და
+        მოგება ასახავს წარსულ შედეგებს და არ არის მომავლის გარანტია.
       </p>
     </div>
   );

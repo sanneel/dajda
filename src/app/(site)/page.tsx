@@ -2,7 +2,11 @@ import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { ButtonLink } from '@/components/ui/button';
-import { listAnalysts, type AnalystSort } from '@/lib/queries/analysts';
+import {
+  listAnalysts,
+  type AnalystPeriod,
+  type AnalystSort,
+} from '@/lib/queries/analysts';
 import { listSports } from '@/lib/queries/tickets';
 import { AnalystList } from '@/components/analyst-list';
 import { EmptyState } from '@/components/ui/feedback';
@@ -14,12 +18,17 @@ export const dynamic = 'force-dynamic';
 // description defined in the root layout.
 
 const SORTS: { value: AnalystSort; label: string }[] = [
-  { value: 'score', label: 'DAJDA რეიტინგი' },
+  { value: 'profit', label: 'მოგება' },
   { value: 'accuracy', label: 'სიზუსტე' },
-  { value: 'profit', label: 'პროფიტი' },
   { value: 'odds-high', label: 'საშუალო კუში' },
-  { value: 'recent', label: 'ბოლო 30 დღე' },
   { value: 'volume', label: 'ფსონების რაოდენობა' },
+];
+
+const PERIODS: { value: AnalystPeriod; label: string }[] = [
+  { value: 'all', label: 'სულ' },
+  { value: '30', label: 'ბოლო 30 დღე' },
+  { value: '90', label: 'ბოლო 3 თვე' },
+  { value: '180', label: 'ბოლო 6 თვე' },
 ];
 
 /**
@@ -40,10 +49,15 @@ export default async function HomePage({
 }) {
   const raw = await searchParams;
 
-  const sortParam = typeof raw.sort === 'string' ? raw.sort : 'score';
+  const sortParam = typeof raw.sort === 'string' ? raw.sort : 'profit';
   const sort = (
-    SORTS.some((option) => option.value === sortParam) ? sortParam : 'score'
+    SORTS.some((option) => option.value === sortParam) ? sortParam : 'profit'
   ) as AnalystSort;
+
+  const periodParam = typeof raw.period === 'string' ? raw.period : 'all';
+  const period = (
+    PERIODS.some((option) => option.value === periodParam) ? periodParam : 'all'
+  ) as AnalystPeriod;
 
   const sportParam = typeof raw.sport === 'string' ? raw.sport : undefined;
   const queryParam =
@@ -52,7 +66,7 @@ export default async function HomePage({
       : undefined;
 
   const [analysts, sports, actor] = await Promise.all([
-    listAnalysts({ sort, sportCode: sportParam, query: queryParam }),
+    listAnalysts({ sort, period, sportCode: sportParam, query: queryParam }),
     listSports(),
     getCurrentUser(),
   ]);
@@ -112,7 +126,7 @@ export default async function HomePage({
         className="mb-5 rounded-panel bg-band p-4 sm:p-5"
         aria-label="ანალიტიკოსების ფილტრი"
       >
-        <div className="grid gap-4 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <div className="grid gap-4 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
           <div className="min-w-0">
             <label
               htmlFor="filter-q"
@@ -144,6 +158,27 @@ export default async function HomePage({
               className={selectClass}
             >
               {SORTS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="min-w-0">
+            <label
+              htmlFor="filter-period"
+              className="rule-label mb-2 block text-on-band/75"
+            >
+              პერიოდი
+            </label>
+            <select
+              id="filter-period"
+              name="period"
+              defaultValue={period}
+              className={selectClass}
+            >
+              {PERIODS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>

@@ -9,7 +9,7 @@ import {
   formatOdds,
   formatPercentBps,
 } from '@/lib/format';
-import { Badge, StatusBadge } from './ui/badge';
+import { Badge } from './ui/badge';
 
 /**
  * The ticket feed as a ruled table, one bet per row. The free and the paid
@@ -57,6 +57,7 @@ export function TicketList({
   tickets,
   lockedIds,
   showPrice = false,
+  maskPicks = false,
   profileTab = 'free',
 }: {
   tickets: FeedTicket[];
@@ -64,6 +65,12 @@ export function TicketList({
   lockedIds?: ReadonlySet<string>;
   /** Paid feed only: the unlock price per row. */
   showPrice?: boolean;
+  /**
+   * Free feed: the pick never prints in the LIST for anyone - the list
+   * advertises that a prognosis exists, the detail page shows it. Not the
+   * same as locked: the reader may be fully entitled one click away.
+   */
+  maskPicks?: boolean;
   /**
    * Which panel an author link opens on their profile. A reader comparing
    * free tickets wants the free record; one browsing paid tickets wants the
@@ -79,6 +86,7 @@ export function TicketList({
     <ul className="space-y-3 lg:hidden">
       {tickets.map((ticket) => {
         const locked = lockedIds?.has(ticket.id) ?? false;
+        const hidden = locked || maskPicks;
         const tag = showPrice ? priceTag(tickets, ticket) : null;
 
         return (
@@ -87,7 +95,7 @@ export function TicketList({
             className="rounded-card border border-line bg-surface p-4"
           >
             <div className="flex items-start gap-3">
-              {locked ? (
+              {hidden ? (
                 <span className="flex size-14 shrink-0 items-center justify-center rounded-md border border-line bg-elevated">
                   <Lock className="size-5 text-ink-faint" aria-hidden="true" />
                 </span>
@@ -105,14 +113,16 @@ export function TicketList({
 
               <div className="min-w-0 flex-1">
                 <p className="font-medium leading-snug text-ink">
-                  {locked ? 'დახურული პროგნოზი' : ticket.titleKa}
+                  {locked
+                    ? 'დახურული პროგნოზი'
+                    : hidden
+                      ? 'უფასო პროგნოზი'
+                      : ticket.titleKa}
                 </p>
                 <p className="mt-0.5 text-sm text-accent">
                   {ticket.sport.nameKa}
                 </p>
               </div>
-
-              <StatusBadge status={ticket.status} />
             </div>
 
             <dl className="mt-4 grid grid-cols-3 gap-2 text-sm">
@@ -171,7 +181,11 @@ export function TicketList({
               href={`/free/${ticket.id}`}
               className="mt-3 flex min-h-11 items-center justify-between rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-ink-faint"
             >
-              დეტალურად ნახვა
+              {showPrice && locked && ticket.feedPriceMinor !== null
+                ? `ყიდვა · ${formatMoney(ticket.feedPriceMinor, ticket.priceCurrency ?? 'GEL')}`
+                : maskPicks
+                  ? 'პროგნოზის ნახვა'
+                  : 'დეტალურად ნახვა'}
               <span aria-hidden="true" className="text-ink-faint">›</span>
             </Link>
           </li>
@@ -196,9 +210,6 @@ export function TicketList({
             <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
               პირველი პოზიცია
             </th>
-            <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
-              სტატუსი
-            </th>
             {showPrice ? (
               <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
                 ფასი
@@ -215,6 +226,7 @@ export function TicketList({
         <tbody>
           {tickets.map((ticket) => {
             const locked = lockedIds?.has(ticket.id) ?? false;
+            const hidden = locked || maskPicks;
             const isPaid = ticket.visibility !== 'PUBLIC';
 
             return (
@@ -224,7 +236,7 @@ export function TicketList({
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    {locked ? (
+                    {hidden ? (
                       <span className="flex h-12 w-16 shrink-0 items-center justify-center rounded border border-line bg-elevated">
                         <Lock
                           className="size-4 text-ink-faint"
@@ -248,7 +260,11 @@ export function TicketList({
                         href={`/free/${ticket.id}`}
                         className="font-medium text-ink hover:text-accent"
                       >
-                        {locked ? 'დახურული პროგნოზი' : ticket.titleKa}
+                        {locked
+                          ? 'დახურული პროგნოზი'
+                          : hidden
+                            ? 'უფასო პროგნოზი · ნახვა'
+                            : ticket.titleKa}
                       </Link>
                       <div className="mt-0.5 flex items-center gap-2 text-xs text-ink-faint">
                         {ticket.sport.nameKa}
@@ -293,10 +309,6 @@ export function TicketList({
                   {ticket.eventAt ? formatDateTimeKa(ticket.eventAt) : '·'}
                 </td>
 
-                <td className="px-4 py-3">
-                  <StatusBadge status={ticket.status} />
-                </td>
-
                 {showPrice ? (
                   <td className="px-4 py-3">
                     {ticket.feedPriceMinor !== null ? (
@@ -326,12 +338,12 @@ export function TicketList({
                           </Link>
                         ) : null}
                       </>
-                    ) : locked && ticket.author ? (
+                    ) : locked ? (
                       <Link
-                        href={`/analysts/${ticket.author.slug}?tab=plans#plans-heading`}
+                        href={`/free/${ticket.id}`}
                         className="text-xs font-medium text-accent hover:underline"
                       >
-                        შეძენა გამოწერით
+                        ნახვა
                       </Link>
                     ) : (
                       <span className="text-ink-faint">·</span>

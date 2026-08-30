@@ -7,10 +7,7 @@ import type {
   OddsBucket,
   PerformanceSummary,
 } from '@/lib/stats/performance';
-import {
-  formatPercentBps,
-  formatUnitsSigned,
-} from '@/lib/format';
+import { formatGelSigned, formatPercentBps } from '@/lib/format';
 import { Card, CardBody } from '@/components/ui/card';
 import { Stat, RecordBar } from '@/components/ui/stat';
 import { PlanCard, type PlanView } from '@/components/plan-card';
@@ -197,8 +194,8 @@ function RecordStats({ summary }: { summary: PerformanceSummary }) {
           size="lg"
         />
         <Stat
-          label="პროფიტი"
-          value={settled ? formatUnitsSigned(summary.profitUnitsCenti) : '·'}
+          label="მოგება"
+          value={settled ? formatGelSigned(summary.profitUnitsCenti) : '·'}
           tone={
             summary.profitUnitsCenti > 0
               ? 'positive'
@@ -206,7 +203,7 @@ function RecordStats({ summary }: { summary: PerformanceSummary }) {
                 ? 'negative'
                 : 'default'
           }
-          hint={settled ? 'ერთეული' : undefined}
+          hint={settled ? '100 ₾ / ბილეთზე' : undefined}
           size="lg"
         />
       </div>

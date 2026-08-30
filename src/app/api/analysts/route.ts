@@ -5,7 +5,7 @@ import { formatPercentBps, formatUnits } from '@/lib/format';
 /** Public analyst leaderboard. Sample size travels with every rate. */
 export const dynamic = 'force-dynamic';
 
-const SORTS: AnalystSort[] = ['score', 'profit', 'volume', 'recent'];
+const SORTS: AnalystSort[] = ['profit', 'accuracy', 'odds-high', 'volume'];
 
 export async function GET(request: Request) {
   try {
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const sortParam = url.searchParams.get('sort');
     const sort: AnalystSort = SORTS.includes(sortParam as AnalystSort)
       ? (sortParam as AnalystSort)
-      : 'score';
+      : 'profit';
 
     const analysts = await listAnalysts({
       sort,
@@ -28,18 +28,18 @@ export async function GET(request: Request) {
         sports: analyst.sports.map((sport) => sport.code),
         isDemo: analyst.isDemo,
         record: {
-          total: analyst.allTime.total,
-          won: analyst.allTime.won,
-          lost: analyst.allTime.lost,
-          pending: analyst.allTime.pending,
-          decided: analyst.allTime.decided,
+          total: analyst.stats.total,
+          won: analyst.stats.won,
+          lost: analyst.stats.lost,
+          pending: analyst.stats.pending,
+          decided: analyst.stats.decided,
         },
         hitRate:
-          analyst.allTime.decided === 0
+          analyst.stats.decided === 0
             ? null
-            : formatPercentBps(analyst.allTime.hitRateBps),
-        units: formatUnits(analyst.allTime.profitUnitsCenti),
-        currentStreak: analyst.allTime.currentStreak,
+            : formatPercentBps(analyst.stats.hitRateBps),
+        units: formatUnits(analyst.stats.profitUnitsCenti),
+        currentStreak: analyst.stats.currentStreak,
         // Consumers must be able to see that a rate is thin before quoting it.
         lowSample: analyst.lowSample,
       })),
