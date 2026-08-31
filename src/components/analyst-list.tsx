@@ -25,24 +25,38 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
   const { stats, cheapestPlan } = analyst;
   const settled = stats.decided > 0;
 
+  /*
+   * Accuracy and profit are withheld until the record is long enough to mean
+   * anything. A brand-new author with one settled tip reads "100%" otherwise,
+   * which is the exact impression the responsible-use page promises not to
+   * create - and no reader can tell it apart from a real hit rate.
+   */
+  const judgeable = settled && !analyst.lowSample;
+
   const metrics: { label: string; value: string; tone?: 'win' | 'loss' }[] = [
     {
       label: 'საშ. კოეფ.',
       value: settled ? formatOdds(stats.avgOddsMilli) : '·',
     },
     {
-      label: 'ბილეთი/კვირა',
+      /*
+       * The author's DECLARED monthly floor (terms 6.4), not a measured
+       * average. It has to be visible before a subscription is bought, and
+       * a rate computed from three weeks of history was neither a promise
+       * nor a number anybody could hold them to.
+       */
+      label: 'პროგნოზი/თვე',
       value:
-        stats.total > 0 ? analyst.avgPerWeek.toFixed(1) : '·',
+        analyst.monthlyMinimum !== null ? `${analyst.monthlyMinimum}+` : '·',
     },
     {
       label: 'სიზუსტე',
-      value: settled ? formatPercentBps(stats.hitRateBps) : '·',
+      value: judgeable ? formatPercentBps(stats.hitRateBps) : '·',
     },
     {
       label: 'მოგება',
-      value: settled ? formatGelSigned(stats.profitUnitsCenti) : '·',
-      ...(settled
+      value: judgeable ? formatGelSigned(stats.profitUnitsCenti) : '·',
+      ...(judgeable
         ? {
             tone:
               stats.profitUnitsCenti < 0
@@ -75,6 +89,16 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
                 </Link>
               </h3>
               {analyst.isDemo ? <DemoBadge /> : null}
+              {/*
+               * Said plainly, next to the name, because the dashes in the
+               * strip below need a reason. Without it a new author just looks
+               * like one with no results.
+               */}
+              {!analyst.isDemo && analyst.lowSample ? (
+                <span className="shrink-0 rounded-full border border-line-strong px-2 py-0.5 text-xs text-ink-muted">
+                  ახალი ავტორი
+                </span>
+              ) : null}
             </div>
 
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">

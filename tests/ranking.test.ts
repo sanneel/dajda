@@ -47,6 +47,7 @@ function analyst(
     displayName,
     headline: null,
     isDemo: true,
+    monthlyMinimum: null,
     sports: [],
     stats: summary,
     avgPerWeek: 0,

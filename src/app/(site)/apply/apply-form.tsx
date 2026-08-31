@@ -114,6 +114,27 @@ export function AnalystApplyForm({ sports }: { sports: SportOption[] }) {
       </Field>
 
       <Field
+        label="თვეში მინიმუმ რამდენ პროგნოზს გამოაქვეყნებთ"
+        htmlFor="monthlyMinimum"
+        required
+        hint="მინიმუმ 8. ეს რიცხვი საჯაროდ ჩანს თქვენს გვერდზე და გამომწერის წინაშე ვალდებულებაა (წესები, 6.4)."
+        error={errorFor('monthlyMinimum')}
+      >
+        <Input
+          id="monthlyMinimum"
+          name="monthlyMinimum"
+          type="number"
+          min="8"
+          max="200"
+          step="1"
+          inputMode="numeric"
+          defaultValue="8"
+          required
+          error={Boolean(errorFor('monthlyMinimum'))}
+        />
+      </Field>
+
+      <Field
         label="მოკლე წარწერა"
         htmlFor="headline"
         hint="ერთი ხაზი პროფილის თავში. არასავალდებულო."

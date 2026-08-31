@@ -273,6 +273,7 @@ export default async function AnalystProfilePage({
             currentStatus: statusByPlan.get(plan.id),
           }))}
           isAuthenticated={Boolean(actor)}
+          monthlyMinimum={profile.monthlyMinimum}
           initialTab={requestedTab}
         />
       </section>

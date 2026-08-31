@@ -32,10 +32,17 @@ export function PlanCard({
   featured = false,
   isAuthenticated,
   currentStatus,
+  monthlyMinimum,
 }: {
   plan: PlanView;
   featured?: boolean;
   isAuthenticated: boolean;
+  /**
+   * The author's declared monthly floor (terms 6.4). Stated on the card
+   * because the rule requires it to be visible BEFORE the subscription is
+   * bought, and this card is where that decision is made.
+   */
+  monthlyMinimum?: number | null;
   /** Set when the viewer already holds this plan. */
   currentStatus?: 'ACTIVE' | 'PENDING';
 }) {
@@ -77,6 +84,16 @@ export function PlanCard({
             </span>
           ) : null}
         </p>
+
+        {monthlyMinimum ? (
+          <p className="mt-3 rounded-card border border-line bg-canvas px-3 py-2 text-sm text-ink-muted">
+            ავტორი იღებს ვალდებულებას{' '}
+            <span className="tabular font-semibold text-ink">
+              თვეში მინიმუმ {monthlyMinimum} პროგნოზზე
+            </span>
+            .
+          </p>
+        ) : null}
       </div>
 
       <div className="flex-1 p-5">

@@ -31,7 +31,13 @@ function substitute(text) {
 
 function parse(path) {
   const raw = substitute(readFileSync(path, 'utf8'));
-  const lines = raw.split('\n');
+  /*
+   * Normalise line endings before splitting. These files are edited on
+   * Windows, so a CRLF source left a literal carriage return at the end of
+   * every paragraph in the generated data - an invisible control character
+   * sitting inside legal text that the page then rendered.
+   */
+  const lines = raw.replace(/\r\n?/g, '\n').split('\n');
 
   let title = '';
   let updated = '';

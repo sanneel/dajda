@@ -374,6 +374,12 @@ model AnalystProfile {
 
   /// The sport the applicant said they would mainly cover. AnalystSport still
   /// records the full set; this is the one they lead with.
+  /// Clause 6.4: the smallest number of predictions this author commits to
+  /// publishing per calendar month, declared when they apply and shown on
+  /// their page before a subscription is bought. Never below 8. Null on
+  /// profiles approved before the rule existed.
+  monthlyMinimum Int?
+
   primarySportId String? @db.Uuid
   primarySport   Sport?  @relation("AnalystPrimarySport", fields: [primarySportId], references: [id], onDelete: SetNull)
 

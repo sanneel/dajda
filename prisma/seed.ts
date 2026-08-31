@@ -399,6 +399,8 @@ async function main() {
         status: 'APPROVED',
         approvedAt: new Date(),
         approvedById: admin.id,
+        // Clause 6.4: every author declares a monthly floor, never under 8.
+        monthlyMinimum: 12,
         isDemo: true,
         sports: { create: { sportId: seed.sportId } },
       },

@@ -81,6 +81,7 @@ export async function listAnalysts(options?: {
       displayName: true,
       headline: true,
       isDemo: true,
+      monthlyMinimum: true,
       createdAt: true,
       sports: { select: { sport: { select: { code: true, nameKa: true } } } },
       plans: {
@@ -154,6 +155,8 @@ export async function listAnalysts(options?: {
       sports: profile.sports.map((entry) => entry.sport),
       stats,
       avgPerWeek,
+      /* Clause 6.4: the floor this author committed to, shown before purchase. */
+      monthlyMinimum: profile.monthlyMinimum,
       lowSample: isLowSample(stats),
       /*
        * "Active tips": published, not yet finished by the author and not yet
@@ -186,6 +189,7 @@ export async function getAnalystBySlug(slug: string) {
       bio: true,
       status: true,
       isDemo: true,
+      monthlyMinimum: true,
       createdAt: true,
       sports: { select: { sport: { select: { code: true, nameKa: true } } } },
       plans: {

@@ -358,6 +358,16 @@ export const analystApplicationSchema = z.object({
     .min(2, 'მიუთითეთ, ვისი რეკომენდაციით ან საიდან მოხვდით პლატფორმაზე.')
     .max(200),
   primarySportId: z.uuid('აირჩიეთ ძირითადი მიმართულება.'),
+  /**
+   * Clause 6.4: the author declares their own monthly floor here, and the
+   * platform's floor under it is 8. It is published on their page, so it is
+   * a promise to buyers rather than a preference.
+   */
+  monthlyMinimum: z.coerce
+    .number('მიუთითეთ პროგნოზების რაოდენობა.')
+    .int('რაოდენობა მთელი რიცხვი უნდა იყოს.')
+    .min(8, 'თვეში მინიმუმ 8 პროგნოზია საჭირო.')
+    .max(200, 'რაოდენობა ძალიან დიდია.'),
   headline: z.string().trim().max(120).optional(),
   bio: z.string().trim().min(40, 'აღწერა ძალიან მოკლეა.').max(2000),
   acceptTerms: z.literal(true, {

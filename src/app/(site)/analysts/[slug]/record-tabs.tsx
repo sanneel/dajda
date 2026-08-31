@@ -46,6 +46,7 @@ export function RecordTabs({
   paidCharts,
   plans,
   isAuthenticated,
+  monthlyMinimum,
   initialTab = 'FREE',
 }: {
   free: PerformanceSummary;
@@ -54,6 +55,8 @@ export function RecordTabs({
   paidCharts: TabCharts;
   plans: PanelPlan[];
   isAuthenticated: boolean;
+  /** The author's declared monthly floor, printed on the plan card. */
+  monthlyMinimum: number | null;
   /** Chosen by the page from ?tab=, so a deep link opens the right panel. */
   initialTab?: Tab;
 }) {
@@ -117,7 +120,11 @@ export function RecordTabs({
             <RecordStats summary={paid} />
             <ChartPair tab={tab} charts={paidCharts} />
             <div className="border-t border-line pt-6">
-              <Plans plans={sellable} isAuthenticated={isAuthenticated} />
+              <Plans
+                plans={sellable}
+                isAuthenticated={isAuthenticated}
+                monthlyMinimum={monthlyMinimum}
+              />
             </div>
           </div>
         ) : (
@@ -239,9 +246,11 @@ function ChartPair({ tab, charts }: { tab: Tab; charts: TabCharts }) {
 function Plans({
   plans,
   isAuthenticated,
+  monthlyMinimum,
 }: {
   plans: PanelPlan[];
   isAuthenticated: boolean;
+  monthlyMinimum: number | null;
 }) {
   return (
     <div>
@@ -253,6 +262,7 @@ function Plans({
             featured={plan.tier === 'PREMIUM'}
             isAuthenticated={isAuthenticated}
             currentStatus={plan.currentStatus}
+            monthlyMinimum={monthlyMinimum}
           />
         ))}
       </div>

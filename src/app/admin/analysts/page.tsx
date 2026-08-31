@@ -34,6 +34,7 @@ export default async function AdminAnalystsPage() {
       firstName: true,
       lastName: true,
       referralSource: true,
+      monthlyMinimum: true,
       termsAcceptedAt: true,
       identityDocumentId: true,
       bio: true,
@@ -117,6 +118,18 @@ export default async function AdminAnalystsPage() {
                       <dt className="text-xs text-ink-muted">რეფერალი</dt>
                       <dd className="text-ink">
                         {profile.referralSource ?? 'მითითებული არაა'}
+                      </dd>
+                    </div>
+                    <div>
+                      {/* The floor they committed to under clause 6.4 - what
+                          suspension is later measured against. */}
+                      <dt className="text-xs text-ink-muted">
+                        დეკლარირებული / თვე
+                      </dt>
+                      <dd className="tabular text-ink">
+                        {profile.monthlyMinimum !== null
+                          ? `${profile.monthlyMinimum} პროგნოზი`
+                          : 'მითითებული არაა'}
                       </dd>
                     </div>
                     <div>
