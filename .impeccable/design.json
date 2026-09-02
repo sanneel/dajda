@@ -1,0 +1,537 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-02T13:10:07.633Z",
+  "title": "Design System: DAJDA",
+  "extensions": {
+    "colorMeta": {
+      "night-ink": {
+        "role": "neutral",
+        "displayName": "Night Ink",
+        "canonical": "oklch(17.0% 0.017 252.7)",
+        "hex": "#0a1017",
+        "purpose": "Page ground, dark theme.",
+        "tonalRamp": [
+          "oklch(15.0% 0.017 252.7)",
+          "oklch(25.0% 0.017 252.7)",
+          "oklch(37.0% 0.017 252.7)",
+          "oklch(50.0% 0.017 252.7)",
+          "oklch(62.0% 0.017 252.7)",
+          "oklch(74.0% 0.017 252.7)",
+          "oklch(86.0% 0.017 252.7)",
+          "oklch(95.0% 0.017 252.7)"
+        ]
+      },
+      "slate-surface": {
+        "role": "neutral",
+        "displayName": "Slate Surface",
+        "canonical": "oklch(21.5% 0.023 254.3)",
+        "hex": "#121a24",
+        "purpose": "Cards, header, inputs, footer.",
+        "tonalRamp": [
+          "oklch(15.0% 0.023 254.3)",
+          "oklch(25.0% 0.023 254.3)",
+          "oklch(37.0% 0.023 254.3)",
+          "oklch(50.0% 0.023 254.3)",
+          "oklch(62.0% 0.023 254.3)",
+          "oklch(74.0% 0.023 254.3)",
+          "oklch(86.0% 0.023 254.3)",
+          "oklch(95.0% 0.023 254.3)"
+        ]
+      },
+      "lifted-slate": {
+        "role": "neutral",
+        "displayName": "Lifted Slate",
+        "canonical": "oklch(25.6% 0.025 251.2)",
+        "hex": "#1a242f",
+        "purpose": "One step above a surface: selected tabs, selects, the controls band.",
+        "tonalRamp": [
+          "oklch(15.0% 0.025 251.2)",
+          "oklch(25.0% 0.025 251.2)",
+          "oklch(37.0% 0.025 251.2)",
+          "oklch(50.0% 0.025 251.2)",
+          "oklch(62.0% 0.025 251.2)",
+          "oklch(74.0% 0.025 251.2)",
+          "oklch(86.0% 0.025 251.2)",
+          "oklch(95.0% 0.025 251.2)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(30.4% 0.029 250.8)",
+        "hex": "#24303d",
+        "purpose": "Every divider and default border.",
+        "tonalRamp": [
+          "oklch(15.0% 0.029 250.8)",
+          "oklch(25.0% 0.029 250.8)",
+          "oklch(37.0% 0.029 250.8)",
+          "oklch(50.0% 0.029 250.8)",
+          "oklch(62.0% 0.029 250.8)",
+          "oklch(74.0% 0.029 250.8)",
+          "oklch(86.0% 0.029 250.8)",
+          "oklch(95.0% 0.029 250.8)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "oklch(40.1% 0.033 247.0)",
+        "hex": "#3a4a59",
+        "purpose": "Stronger border on inputs; dashed for provisional.",
+        "tonalRamp": [
+          "oklch(15.0% 0.033 247.0)",
+          "oklch(25.0% 0.033 247.0)",
+          "oklch(37.0% 0.033 247.0)",
+          "oklch(50.0% 0.033 247.0)",
+          "oklch(62.0% 0.033 247.0)",
+          "oklch(74.0% 0.033 247.0)",
+          "oklch(86.0% 0.033 247.0)",
+          "oklch(95.0% 0.033 247.0)"
+        ]
+      },
+      "chalk": {
+        "role": "neutral",
+        "displayName": "Chalk",
+        "canonical": "oklch(95.2% 0.010 247.9)",
+        "hex": "#eaf0f6",
+        "purpose": "Text, and the primary button fill, in the dark theme.",
+        "tonalRamp": [
+          "oklch(15.0% 0.010 247.9)",
+          "oklch(25.0% 0.010 247.9)",
+          "oklch(37.0% 0.010 247.9)",
+          "oklch(50.0% 0.010 247.9)",
+          "oklch(62.0% 0.010 247.9)",
+          "oklch(74.0% 0.010 247.9)",
+          "oklch(86.0% 0.010 247.9)",
+          "oklch(95.0% 0.010 247.9)"
+        ]
+      },
+      "chalk-muted": {
+        "role": "neutral",
+        "displayName": "Chalk Muted",
+        "canonical": "oklch(77.2% 0.028 246.4)",
+        "hex": "#a7b7c6",
+        "purpose": "Secondary text.",
+        "tonalRamp": [
+          "oklch(15.0% 0.028 246.4)",
+          "oklch(25.0% 0.028 246.4)",
+          "oklch(37.0% 0.028 246.4)",
+          "oklch(50.0% 0.028 246.4)",
+          "oklch(62.0% 0.028 246.4)",
+          "oklch(74.0% 0.028 246.4)",
+          "oklch(86.0% 0.028 246.4)",
+          "oklch(95.0% 0.028 246.4)"
+        ]
+      },
+      "chalk-faint": {
+        "role": "neutral",
+        "displayName": "Chalk Faint",
+        "canonical": "oklch(69.5% 0.034 242.6)",
+        "hex": "#8ba0b1",
+        "purpose": "Tertiary text, labels; AA on Lifted Slate.",
+        "tonalRamp": [
+          "oklch(15.0% 0.034 242.6)",
+          "oklch(25.0% 0.034 242.6)",
+          "oklch(37.0% 0.034 242.6)",
+          "oklch(50.0% 0.034 242.6)",
+          "oklch(62.0% 0.034 242.6)",
+          "oklch(74.0% 0.034 242.6)",
+          "oklch(86.0% 0.034 242.6)",
+          "oklch(95.0% 0.034 242.6)"
+        ]
+      },
+      "press-blue": {
+        "role": "primary",
+        "displayName": "Press Blue",
+        "canonical": "oklch(75.1% 0.100 250.6)",
+        "hex": "#7db3ec",
+        "purpose": "The one accent: links, current item, selected chip, focus ring.",
+        "tonalRamp": [
+          "oklch(15.0% 0.100 250.6)",
+          "oklch(25.0% 0.100 250.6)",
+          "oklch(37.0% 0.100 250.6)",
+          "oklch(50.0% 0.100 250.6)",
+          "oklch(62.0% 0.100 250.6)",
+          "oklch(74.0% 0.100 250.6)",
+          "oklch(86.0% 0.100 250.6)",
+          "oklch(95.0% 0.100 250.6)"
+        ]
+      },
+      "ember": {
+        "role": "secondary",
+        "displayName": "Ember",
+        "canonical": "oklch(72.6% 0.178 43.2)",
+        "hex": "#ff7a3d",
+        "purpose": "The active-bets count badge and nothing else.",
+        "tonalRamp": [
+          "oklch(15.0% 0.160 43.2)",
+          "oklch(25.0% 0.160 43.2)",
+          "oklch(37.0% 0.160 43.2)",
+          "oklch(50.0% 0.160 43.2)",
+          "oklch(62.0% 0.160 43.2)",
+          "oklch(74.0% 0.160 43.2)",
+          "oklch(86.0% 0.160 43.2)",
+          "oklch(95.0% 0.160 43.2)"
+        ]
+      },
+      "pitch-green": {
+        "role": "tertiary",
+        "displayName": "Pitch Green",
+        "canonical": "oklch(75.1% 0.141 158.8)",
+        "hex": "#4ec98d",
+        "purpose": "A won bet, positive units, success.",
+        "tonalRamp": [
+          "oklch(15.0% 0.141 158.8)",
+          "oklch(25.0% 0.141 158.8)",
+          "oklch(37.0% 0.141 158.8)",
+          "oklch(50.0% 0.141 158.8)",
+          "oklch(62.0% 0.141 158.8)",
+          "oklch(74.0% 0.141 158.8)",
+          "oklch(86.0% 0.141 158.8)",
+          "oklch(95.0% 0.141 158.8)"
+        ]
+      },
+      "brick-red": {
+        "role": "tertiary",
+        "displayName": "Brick Red",
+        "canonical": "oklch(76.1% 0.142 26.6)",
+        "hex": "#ff8b80",
+        "purpose": "A lost bet, negative units, errors, danger text.",
+        "tonalRamp": [
+          "oklch(15.0% 0.142 26.6)",
+          "oklch(25.0% 0.142 26.6)",
+          "oklch(37.0% 0.142 26.6)",
+          "oklch(50.0% 0.142 26.6)",
+          "oklch(62.0% 0.142 26.6)",
+          "oklch(74.0% 0.142 26.6)",
+          "oklch(86.0% 0.142 26.6)",
+          "oklch(95.0% 0.142 26.6)"
+        ]
+      },
+      "paper-cool": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "oklch(94.7% 0.010 252.8)",
+        "hex": "#e9eef4",
+        "purpose": "Page ground, light theme.",
+        "tonalRamp": [
+          "oklch(15.0% 0.010 252.8)",
+          "oklch(25.0% 0.010 252.8)",
+          "oklch(37.0% 0.010 252.8)",
+          "oklch(50.0% 0.010 252.8)",
+          "oklch(62.0% 0.010 252.8)",
+          "oklch(74.0% 0.010 252.8)",
+          "oklch(86.0% 0.010 252.8)",
+          "oklch(95.0% 0.010 252.8)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "oklch(98.3% 0.004 236.5)",
+        "hex": "#f7fafc",
+        "purpose": "Surfaces in the light theme; never pure white.",
+        "tonalRamp": [
+          "oklch(15.0% 0.004 236.5)",
+          "oklch(25.0% 0.004 236.5)",
+          "oklch(37.0% 0.004 236.5)",
+          "oklch(50.0% 0.004 236.5)",
+          "oklch(62.0% 0.004 236.5)",
+          "oklch(74.0% 0.004 236.5)",
+          "oklch(86.0% 0.004 236.5)",
+          "oklch(95.0% 0.004 236.5)"
+        ]
+      },
+      "navy-ink": {
+        "role": "neutral",
+        "displayName": "Navy Ink",
+        "canonical": "oklch(27.0% 0.060 248.4)",
+        "hex": "#0a2842",
+        "purpose": "Text and primary fill in the light theme; the controls band.",
+        "tonalRamp": [
+          "oklch(15.0% 0.060 248.4)",
+          "oklch(25.0% 0.060 248.4)",
+          "oklch(37.0% 0.060 248.4)",
+          "oklch(50.0% 0.060 248.4)",
+          "oklch(62.0% 0.060 248.4)",
+          "oklch(74.0% 0.060 248.4)",
+          "oklch(86.0% 0.060 248.4)",
+          "oklch(95.0% 0.060 248.4)"
+        ]
+      },
+      "press-blue-day": {
+        "role": "primary",
+        "displayName": "Press Blue, day",
+        "canonical": "oklch(42.3% 0.089 251.6)",
+        "hex": "#25507d",
+        "purpose": "The accent in the light theme.",
+        "tonalRamp": [
+          "oklch(15.0% 0.089 251.6)",
+          "oklch(25.0% 0.089 251.6)",
+          "oklch(37.0% 0.089 251.6)",
+          "oklch(50.0% 0.089 251.6)",
+          "oklch(62.0% 0.089 251.6)",
+          "oklch(74.0% 0.089 251.6)",
+          "oklch(86.0% 0.089 251.6)",
+          "oklch(95.0% 0.089 251.6)"
+        ]
+      },
+      "pitch-green-day": {
+        "role": "tertiary",
+        "displayName": "Pitch Green, day",
+        "canonical": "oklch(47.1% 0.096 159.0)",
+        "hex": "#1c6b47",
+        "purpose": "Won, light theme.",
+        "tonalRamp": [
+          "oklch(15.0% 0.096 159.0)",
+          "oklch(25.0% 0.096 159.0)",
+          "oklch(37.0% 0.096 159.0)",
+          "oklch(50.0% 0.096 159.0)",
+          "oklch(62.0% 0.096 159.0)",
+          "oklch(74.0% 0.096 159.0)",
+          "oklch(86.0% 0.096 159.0)",
+          "oklch(95.0% 0.096 159.0)"
+        ]
+      },
+      "brick-red-day": {
+        "role": "tertiary",
+        "displayName": "Brick Red, day",
+        "canonical": "oklch(50.1% 0.178 28.7)",
+        "hex": "#b3261e",
+        "purpose": "Lost, light theme.",
+        "tonalRamp": [
+          "oklch(15.0% 0.160 28.7)",
+          "oklch(25.0% 0.160 28.7)",
+          "oklch(37.0% 0.160 28.7)",
+          "oklch(50.0% 0.160 28.7)",
+          "oklch(62.0% 0.160 28.7)",
+          "oklch(74.0% 0.160 28.7)",
+          "oklch(86.0% 0.160 28.7)",
+          "oklch(95.0% 0.160 28.7)"
+        ]
+      },
+      "ember-day": {
+        "role": "secondary",
+        "displayName": "Ember, day",
+        "canonical": "oklch(56.7% 0.187 37.6)",
+        "hex": "#cc3e00",
+        "purpose": "The active count badge in the light theme.",
+        "tonalRamp": [
+          "oklch(15.0% 0.160 37.6)",
+          "oklch(25.0% 0.160 37.6)",
+          "oklch(37.0% 0.160 37.6)",
+          "oklch(50.0% 0.160 37.6)",
+          "oklch(62.0% 0.160 37.6)",
+          "oklch(74.0% 0.160 37.6)",
+          "oklch(86.0% 0.160 37.6)",
+          "oklch(95.0% 0.160 37.6)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The page headline on a profile or workspace. One per page."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "A page title in a task area, a queue heading."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "A card header or a section inside a page."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All reading text; never below 16px."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "The small label above a control or chip row. Not tracked, not uppercase."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Every odds, date, count, amount and percentage, with tabular numerals."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel",
+        "value": "0 1px 2px rgba(10, 40, 66, 0.05), 0 12px 32px -12px rgba(10, 40, 66, 0.14)",
+        "purpose": "A floating panel in the light theme: drawer, modal, menu."
+      },
+      {
+        "name": "panel-dark",
+        "value": "0 0 0 1px rgba(255, 255, 255, 0.04)",
+        "purpose": "The same role in the dark theme, a lifted edge rather than a glow."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state",
+        "value": "color, background-color, border-color 150ms",
+        "purpose": "Every hover, focus and press. Colour only; nothing moves."
+      },
+      {
+        "name": "reduced",
+        "value": "prefers-reduced-motion: reduce -> 0.01ms",
+        "purpose": "All animation and transition collapse when the reader asks."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      },
+      {
+        "name": "page",
+        "value": "96rem"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The committed action: filled with the text colour, Press Blue on hover and press.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">გამოქვეყნება</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:var(--radius-control,6px);font:600 0.9375rem/1 var(--font-sans, 'Google Sans', 'BPG Arial', 'Segoe UI', system-ui, sans-serif);border:1px solid transparent;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s;white-space:nowrap}.ds-btn:disabled{opacity:.45;pointer-events:none}.ds-btn:focus-visible{outline:2px solid var(--color-accent,#7db3ec);outline-offset:2px}.ds-btn-primary{background:var(--color-ink,#eaf0f6);color:var(--color-on-ink,#0a1017)}.ds-btn-primary:hover,.ds-btn-primary:active{background:var(--color-accent,#7db3ec);color:var(--color-accent-ink,#0a1017)}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Surface fill with a Rule border; hover lifts the ground one step.",
+      "html": "<button class=\"ds-btn ds-btn-secondary\">მონახაზად შენახვა</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:var(--radius-control,6px);font:600 0.9375rem/1 var(--font-sans, 'Google Sans', 'BPG Arial', 'Segoe UI', system-ui, sans-serif);border:1px solid transparent;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s;white-space:nowrap}.ds-btn:disabled{opacity:.45;pointer-events:none}.ds-btn:focus-visible{outline:2px solid var(--color-accent,#7db3ec);outline-offset:2px}.ds-btn-secondary{font-weight:500;background:var(--color-surface,#121a24);color:var(--color-ink,#eaf0f6);border-color:var(--color-line-strong,#3a4a59)}.ds-btn-secondary:hover{background:var(--color-elevated,#1a242f);border-color:var(--color-ink-faint,#8ba0b1)}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Refuse, suspend, reject: Brick text and border, no fill until hover.",
+      "html": "<button class=\"ds-btn ds-btn-danger\">უარყოფა</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:var(--radius-control,6px);font:600 0.9375rem/1 var(--font-sans, 'Google Sans', 'BPG Arial', 'Segoe UI', system-ui, sans-serif);border:1px solid transparent;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s;white-space:nowrap}.ds-btn:disabled{opacity:.45;pointer-events:none}.ds-btn:focus-visible{outline:2px solid var(--color-accent,#7db3ec);outline-offset:2px}.ds-btn-danger{font-weight:500;background:var(--color-surface,#121a24);color:var(--color-loss,#ff8b80);border-color:color-mix(in srgb,var(--color-loss,#ff8b80) 35%,transparent)}.ds-btn-danger:hover{border-color:var(--color-loss,#ff8b80);background:color-mix(in srgb,var(--color-loss,#ff8b80) 5%,var(--color-surface,#121a24))}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labelled field with a Rule border; Press Blue on focus, Brick when invalid.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-label\" for=\"ds-odds\">კოეფიციენტი <span class=\"ds-req\" aria-hidden=\"true\">*</span></label><input id=\"ds-odds\" class=\"ds-input\" placeholder=\"1.85\" inputmode=\"decimal\"><p class=\"ds-hint\">თბილისის დროით.</p></div>",
+      "css": ".ds-field{display:block;max-width:20rem;font-family:var(--font-sans, 'Google Sans', 'BPG Arial', 'Segoe UI', system-ui, sans-serif)}.ds-label{display:block;margin-bottom:6px;font-size:.875rem;font-weight:500;color:var(--color-ink,#eaf0f6)}.ds-req{margin-left:4px;color:var(--color-loss,#ff8b80)}.ds-input{width:100%;min-height:44px;padding:8px 12px;border-radius:var(--radius-control,6px);border:1px solid var(--color-line-strong,#3a4a59);background:var(--color-surface,#121a24);color:var(--color-ink,#eaf0f6);font:400 1rem/1.4 var(--font-sans, 'Google Sans', 'BPG Arial', 'Segoe UI', system-ui, sans-serif);transition:border-color .15s}.ds-input::placeholder{color:var(--color-ink-faint,#8ba0b1)}.ds-input:hover{border-color:var(--color-ink-faint,#8ba0b1)}.ds-input:focus{border-color:var(--color-accent,#7db3ec);outline:none}.ds-input:focus-visible{outline:2px solid var(--color-accent,#7db3ec);outline-offset:1px}.ds-input[aria-invalid=true]{border-color:var(--color-loss,#ff8b80)}.ds-hint{margin:6px 0 0;font-size:.75rem;color:var(--color-ink-muted,#a7b7c6)}"
+    },
+    {
+      "name": "Sort Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Feed sort tick: a word until ticked, then a Press Blue outline with a check.",
+      "html": "<div class=\"ds-chips\"><a class=\"ds-chip ds-chip-on\" href=\"#\" aria-pressed=\"true\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"/></svg>კოეფიციენტი <small>↓ მაღალი</small></a><a class=\"ds-chip\" href=\"#\" aria-pressed=\"false\">სიზუსტე</a><a class=\"ds-chip\" href=\"#\" aria-pressed=\"false\">მალე იწყება</a></div>",
+      "css": ".ds-chips{display:flex;gap:8px;font-family:var(--font-sans, 'Google Sans', 'BPG Arial', 'Segoe UI', system-ui, sans-serif)}.ds-chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:9999px;border:1px solid var(--color-line,#24303d);background:var(--color-surface,#121a24);color:var(--color-ink-muted,#a7b7c6);font-size:.875rem;text-decoration:none;white-space:nowrap;transition:color .15s,border-color .15s,background-color .15s}.ds-chip small{font-size:.75rem;font-weight:500}.ds-chip:hover{border-color:var(--color-ink-faint,#8ba0b1);color:var(--color-ink,#eaf0f6)}.ds-chip:focus-visible{outline:2px solid var(--color-accent,#7db3ec);outline-offset:2px}.ds-chip-on{border-color:var(--color-accent,#7db3ec);background:color-mix(in srgb,var(--color-accent,#7db3ec) 10%,var(--color-surface,#121a24));color:var(--color-accent,#7db3ec);font-weight:500}"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-neutral",
+      "description": "A result chip: a 6px dot plus the Georgian label, so the verdict survives greyscale.",
+      "html": "<div class=\"ds-badges\"><span class=\"ds-badge ds-badge-win\"><i></i>დაჯდა</span><span class=\"ds-badge ds-badge-loss\"><i></i>ვერ დაჯდა</span><span class=\"ds-badge ds-badge-pending\"><i></i>მოლოდინში</span><span class=\"ds-badge ds-badge-warn\">დემო</span></div>",
+      "css": ".ds-badges{display:flex;gap:8px;flex-wrap:wrap;font-family:var(--font-sans, 'Google Sans', 'BPG Arial', 'Segoe UI', system-ui, sans-serif)}.ds-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:9999px;border:1px solid var(--color-line,#24303d);background:var(--color-elevated,#1a242f);color:var(--color-ink-muted,#a7b7c6);font-size:.75rem;font-weight:500;line-height:1.4}.ds-badge i{width:6px;height:6px;border-radius:9999px;background:var(--color-ink-faint,#8ba0b1)}.ds-badge-win{border-color:color-mix(in srgb,var(--color-win,#4ec98d) 30%,transparent);background:color-mix(in srgb,var(--color-win,#4ec98d) 8%,transparent);color:var(--color-win,#4ec98d)}.ds-badge-win i{background:var(--color-win,#4ec98d)}.ds-badge-loss{border-color:color-mix(in srgb,var(--color-loss,#ff8b80) 30%,transparent);background:color-mix(in srgb,var(--color-loss,#ff8b80) 8%,transparent);color:var(--color-loss,#ff8b80)}.ds-badge-loss i{background:var(--color-loss,#ff8b80)}.ds-badge-pending{border-color:var(--color-line-strong,#3a4a59)}.ds-badge-warn{border-style:dashed;border-color:var(--color-line-strong,#3a4a59);background:transparent;color:var(--color-ink-faint,#8ba0b1)}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Near-square surface with a hairline; a header band, then a ruled list.",
+      "html": "<section class=\"ds-card\"><header class=\"ds-card-h\"><h3>დასათვლელი <span>8</span></h3><a href=\"#\">სრული სია</a></header><ul class=\"ds-card-list\"><li><b>ბრაითონი vs ვესტ ჰემი · ორმაგი შანსი</b><p>გიორგი ბერიძე · ფეხბურთი · კოეფ. <span class=\"ds-num\">3.04</span> · <span class=\"ds-num\">26 აგვ 2026, 11:52</span></p></li><li><b>ბაიერნი vs ალბა · ორივე გაიტანს</b><p>ლევან ჯაფარიძე · კალათბურთი · კოეფ. <span class=\"ds-num\">3.08</span></p></li></ul></section>",
+      "css": ".ds-card{max-width:32rem;border-radius:var(--radius-card,2px);border:1px solid var(--color-line,#24303d);background:var(--color-surface,#121a24);color:var(--color-ink,#eaf0f6);font-family:var(--font-sans, 'Google Sans', 'BPG Arial', 'Segoe UI', system-ui, sans-serif)}.ds-card-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--color-line,#24303d)}.ds-card-h h3{margin:0;font-size:1rem;font-weight:700;letter-spacing:-.015em}.ds-card-h h3 span{margin-left:8px;font-weight:400;color:var(--color-ink-muted,#a7b7c6);font-variant-numeric:tabular-nums}.ds-card-h a{font-size:.875rem;color:var(--color-accent,#7db3ec);text-decoration:none}.ds-card-h a:hover{text-decoration:underline}.ds-card-list{list-style:none;margin:0;padding:0 16px}.ds-card-list li{padding:14px 0;border-bottom:1px solid var(--color-line,#24303d)}.ds-card-list li:last-child{border-bottom:0}.ds-card-list b{display:block;font-weight:500}.ds-card-list p{margin:2px 0 0;font-size:.875rem;color:var(--color-ink-muted,#a7b7c6)}.ds-num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1}"
+    },
+    {
+      "name": "Section Tabs",
+      "kind": "nav",
+      "refersTo": "nav-tab-active",
+      "description": "Underline tabs on a surface bar; the current one is semibold with a 2px rule in the text colour.",
+      "html": "<nav class=\"ds-tabs\" aria-label=\"განყოფილებები\"><a href=\"#\" aria-current=\"page\">სამუშაო <span class=\"ds-count\">8</span></a><a href=\"#\">ავტორები</a><a href=\"#\">ფული</a><a href=\"#\">ჟურნალი</a></nav>",
+      "css": ".ds-tabs{display:flex;gap:4px;border-bottom:1px solid var(--color-line,#24303d);background:var(--color-surface,#121a24);font-family:var(--font-sans, 'Google Sans', 'BPG Arial', 'Segoe UI', system-ui, sans-serif)}.ds-tabs a{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 12px;margin-bottom:-1px;border-bottom:2px solid transparent;color:var(--color-ink-muted,#a7b7c6);font-size:.875rem;text-decoration:none;transition:color .15s}.ds-tabs a:hover{color:var(--color-ink,#eaf0f6)}.ds-tabs a:focus-visible{outline:2px solid var(--color-accent,#7db3ec);outline-offset:-2px}.ds-tabs a[aria-current]{border-bottom-color:var(--color-ink,#eaf0f6);color:var(--color-ink,#eaf0f6);font-weight:600}.ds-count{padding:0 6px;border-radius:9999px;background:var(--color-ink,#eaf0f6);color:var(--color-on-ink,#0a1017);font-size:.75rem;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Record Stat",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "The metric block: figure first in tabular numerals, label under it, verdict colour only on profit.",
+      "html": "<dl class=\"ds-stats\"><div><dt>მიმდინარე</dt><dd>39</dd><dd class=\"ds-hint\">2 ადმინთან</dd></div><div><dt>მოგებების %</dt><dd>56.1%</dd><dd class=\"ds-hint\">41 დათვლილი</dd></div><div><dt>პროფიტი</dt><dd class=\"ds-win\">+7.95</dd><dd class=\"ds-hint\">დათვლილიდან</dd></div><div><dt>აუდიტორია</dt><dd>1</dd><dd class=\"ds-hint\">0 Telegram-ში</dd></div></dl>",
+      "css": ".ds-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:0;padding:20px 0 0;border-top:1px solid var(--color-line,#24303d);font-family:var(--font-sans, 'Google Sans', 'BPG Arial', 'Segoe UI', system-ui, sans-serif);color:var(--color-ink,#eaf0f6)}.ds-stats dt{font-size:.75rem;color:var(--color-ink-muted,#a7b7c6)}.ds-stats dd{margin:2px 0 0;font-size:1.5rem;font-weight:600;letter-spacing:-.015em;font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1}.ds-stats dd.ds-hint{font-size:.75rem;font-weight:400;color:var(--color-ink-faint,#8ba0b1)}.ds-stats dd.ds-win{color:var(--color-win,#4ec98d)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Settled Ledger",
+    "overview": "DAJDA is a record book before it is a website. An author's bets are entries; the site is the ruled page a reader runs a finger down to see how they did. Everything in the system serves that reading: rows separated by hairlines rather than boxed in cards, figures set on a fixed pitch so a column of odds lines up on the decimal, dates written out to the minute, and colour held back until there is a result to write. A win is entered in green and a loss in brick, in the same weight as the text around them. Nothing is celebrated, because the ledger's whole value is that it records the losses too.\n\nThe mood is quiet and dense: a lot of information per screen and very little noise around it. Surfaces step up from the ground by a small change in value, not by shadow or glow. One accent, a press blue, marks what can be pressed and what is current, and it is never used on a result, so a reader can never mistake \"clickable\" for \"won\". The interface opens dark, a navy-grey night rather than black, with a light \"paper\" theme available by choice; both share one set of token names, and every rule below holds in both.\n\nThe confirmed anti-reference is the neon accent on black that every bookmaker and casino on the Georgian market wears. DAJDA is not one and its chrome must not resemble one: no glow, no hot gradient, no saturated fill on an inactive control, and colour that means an outcome rather than a mood.",
+    "keyCharacteristics": [
+      "Ruled, not boxed: lists divided by hairlines; a card is a page, not a tile.",
+      "Colour is a verdict: green and brick only ever mean won and lost.",
+      "One accent for the pressable; one hot ember for the single urgent count.",
+      "One typeface for words and figures, with tabular numerals doing the work a monospace face used to.",
+      "Radius carries meaning: near-square for records, rounder for controls, roundest for panels that sit on the page.",
+      "Dark by default, light by choice, same rules in both."
+    ],
+    "rules": [
+      {
+        "name": "The Verdict Rule",
+        "body": "Green and brick mean won and lost and nothing else. A component that needs emphasis uses weight, size or the accent; it never borrows a result colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Ember Rule",
+        "body": "Ember appears on the active-bets count and nowhere else. A second use would make the first one ordinary.",
+        "section": "colors"
+      },
+      {
+        "name": "The Worst Ground Rule",
+        "body": "Every text colour is checked for AA contrast against the darkest surface it can sit on, not against the page ground. This is how Chalk Faint got its value.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Any number that could sit in a column is set with tabular numerals in the text face. A monospace face is never introduced for \"technical\" feel.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Face Rule",
+        "body": "No second family, for headings or anything else. Hierarchy comes from size, weight and tracking.",
+        "section": "typography"
+      },
+      {
+        "name": "The Floats-Only Rule",
+        "body": "Cards, rows and headers never carry a shadow at rest. If something has a shadow, it is because a reader can dismiss it.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do separate rows with a 1px Hairline and vertical padding; box them only when they are a panel a reader can dismiss.",
+      "Do set every number in `.tabular` so columns align on the decimal.",
+      "Do use Press Blue only on things that can be pressed or are current, and always as a link, border, tint or outline rather than a large fill.",
+      "Do carry a Georgian label next to every status colour, so the result survives greyscale.",
+      "Do fill the primary action with the text colour and swap to Press Blue on hover and press.",
+      "Do keep every control at least 44px tall and give it hover, focus-visible, active and disabled states.",
+      "Do define every colour in the light block of `globals.css` and only redefine it in the dark block; a token that exists in one theme only disappears in the other.",
+      "Do check contrast against Lifted Slate or Paper Shade, the worst ground a colour lands on."
+    ],
+    "donts": [
+      "Don't use a neon or saturated accent on a black ground, a glow, or a hot gradient anywhere. That is the bookmaker look the product exists to not be.",
+      "Don't paint a win in the brand accent or use green and brick for anything but a result.",
+      "Don't add a second typeface, a monospace face for figures, a condensed cut, or tracked uppercase labels.",
+      "Don't put a shadow on a card or row at rest, or nest a card inside a card.",
+      "Don't give avatars, sections or authors identity colours; initials on Lifted Slate are the whole treatment.",
+      "Don't use pure white as a surface, in either theme.",
+      "Don't use a padlock as the placeholder for a withheld pick; the sport glyph tile is the placeholder."
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/app/analyst/post-form.tsx"
+        ],
+        "createdAt": "2026-09-02T10:07:49.604Z",
+        "reason": "Claude: src is a runtime blob URL from URL.createObjectURL for a local file preview, never empty or a placeholder"
+      }
+    ]
+  }
+}
