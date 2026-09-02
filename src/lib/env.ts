@@ -152,6 +152,14 @@ const envSchema = z
     CRON_SECRET: z.string().min(16).optional(),
 
     /**
+     * Key material for the card number a payout is sent to, which is held
+     * sealed only while the request is open (see lib/payouts/card-vault).
+     * Optional: unset, the key is derived from AUTH_SECRET. Set it so a
+     * leaked session secret alone cannot read a card out of a database dump.
+     */
+    PAYOUT_CARD_KEY: z.string().min(32).optional(),
+
+    /**
      * "Sign in with Google". Both from a Google Cloud OAuth client (web
      * application type) whose authorized redirect URI is
      * `${APP_URL}/api/auth/google/callback`. Unset, the Google button simply

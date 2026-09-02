@@ -20,6 +20,11 @@ export const AUDIT_ACTIONS = {
   USER_ROLE_CHANGED: 'user.role_changed',
   /** The owner closed their own account; distinct from an admin suspension. */
   USER_CLOSED_ACCOUNT: 'user.closed_account',
+  /**
+   * A Google identity was attached to an existing password account. Changes
+   * who can open the account, so it is logged like a password change.
+   */
+  USER_GOOGLE_LINKED: 'user.google_linked',
 
   ANALYST_APPLIED: 'analyst.applied',
   ANALYST_APPROVED: 'analyst.approved',

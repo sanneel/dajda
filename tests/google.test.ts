@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetEnvCache } from '@/lib/env';
 import {
+  decideGoogleLink,
   googleAuthUrl,
   googleConfigured,
   openGoogleProfile,
@@ -104,6 +105,34 @@ describe('sealed profile', () => {
     const sealed = sealGoogleProfile(profile);
     setEnv({ ...BASE, AUTH_SECRET: 'y'.repeat(32) });
     expect(openGoogleProfile(sealed)).toBeNull();
+  });
+});
+
+describe('linking to an existing password account', () => {
+  const verified = new Date('2026-01-01T00:00:00Z');
+
+  it('links only when the account has proved it owns the mailbox', () => {
+    expect(
+      decideGoogleLink({ googleId: null, emailVerifiedAt: verified }),
+    ).toBe('LINK');
+  });
+
+  it('refuses an unverified account: anyone can register any address', () => {
+    // The pre-hijack: attacker registers victim@example.com with a password,
+    // victim later signs in with Google. Linking would put the victim inside
+    // the attacker's account.
+    expect(decideGoogleLink({ googleId: null, emailVerifiedAt: null })).toBe(
+      'UNVERIFIED',
+    );
+  });
+
+  it('refuses an address already bound to another google subject', () => {
+    expect(
+      decideGoogleLink({ googleId: 'g-other', emailVerifiedAt: verified }),
+    ).toBe('TAKEN');
+    expect(
+      decideGoogleLink({ googleId: 'g-other', emailVerifiedAt: null }),
+    ).toBe('TAKEN');
   });
 });
 

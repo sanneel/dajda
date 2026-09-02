@@ -96,21 +96,19 @@ export async function decidePayoutAction(
         input.reason ?? 'მიზეზი მითითებული არაა',
         { userId: admin.userId },
       );
-      revalidatePath('/admin/payouts');
+      revalidatePath('/admin', 'layout');
       return ok({ status: 'REJECTED' });
     }
 
-    if (!input.cardNumber) {
-      return fail(ERROR_CODES.VALIDATION_ERROR, undefined, {
-        cardNumber: ['გასატანად შეიყვანეთ ბარათის ნომერი.'],
-      });
-    }
+    // The number normally comes sealed with the request; a typed one is the
+    // fallback for requests that carry none, and is checked against the mask.
+    const result = await approvePayout(
+      input.payoutId,
+      { userId: admin.userId },
+      input.cardNumber,
+    );
 
-    const result = await approvePayout(input.payoutId, input.cardNumber, {
-      userId: admin.userId,
-    });
-
-    revalidatePath('/admin/payouts');
+    revalidatePath('/admin', 'layout');
     return ok({ status: result.status });
   } catch (error) {
     return toActionFailure(error);

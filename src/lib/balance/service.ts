@@ -16,8 +16,12 @@ import { getPaymentProvider } from '@/lib/payments';
 
 /** 1 GEL. Anything smaller costs more in provider fees than it deposits. */
 export const TOPUP_MIN_MINOR = 100;
-/** 5000 GEL. A wallet ceiling, not a business plan. */
-export const TOPUP_MAX_MINOR = 500_000;
+/**
+ * 500 GEL. Flitt's single-transaction ceiling for the merchant account (their
+ * activation terms, 2026-09-02); a larger top-up would be declined at the
+ * gateway after the payment row was already created.
+ */
+export const TOPUP_MAX_MINOR = 50_000;
 
 export const BALANCE_CURRENCY = 'GEL';
 
@@ -34,7 +38,7 @@ export async function startBalanceTopUp(
   ) {
     throw new AppError(
       ERROR_CODES.VALIDATION_ERROR,
-      'შევსების თანხა უნდა იყოს 1-დან 5000 ლარამდე.',
+      'შევსების თანხა უნდა იყოს 1-დან 500 ლარამდე.',
     );
   }
 

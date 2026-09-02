@@ -140,6 +140,33 @@ export async function exchangeGoogleCode(
   };
 }
 
+/**
+ * What the callback may do with an EXISTING password account whose address
+ * matches the Google profile.
+ *
+ *   LINK        the account proved it owns the mailbox (verified), so the
+ *               Google identity is attached and the person signs in.
+ *   UNVERIFIED  nobody has ever proved the mailbox belongs to that account.
+ *               Registration takes any address without checking it, so
+ *               linking here would hand the account - and everything bought
+ *               on it afterwards - to whoever typed the address first. The
+ *               password holder must sign in and verify before Google can be
+ *               attached.
+ *   TAKEN       the address is already bound to a different Google subject.
+ *
+ * Pure, so the rule that decides an account takeover is pinned by a test.
+ */
+export type GoogleLinkDecision = 'LINK' | 'UNVERIFIED' | 'TAKEN';
+
+export function decideGoogleLink(existing: {
+  googleId: string | null;
+  emailVerifiedAt: Date | null;
+}): GoogleLinkDecision {
+  if (existing.googleId) return 'TAKEN';
+  if (!existing.emailVerifiedAt) return 'UNVERIFIED';
+  return 'LINK';
+}
+
 /*
  * The confirm-step handoff.
  *

@@ -83,6 +83,7 @@ Seeded accounts, all with password `DemoPass2026`:
 | `user@dajda.ge` | მომხმარებელი |
 
 Every seeded row carries `isDemo: true` and renders with a **დემო** badge.
+Before a deployment takes real users, `npm run demo:purge` lists every demo row and `npm run demo:purge -- --yes` removes them in one transaction (demo users, authors, their bets, plans and posts, plus any test subscription to a demo author) and nothing else.
 
 ---
 
@@ -100,6 +101,7 @@ Every seeded row carries `isDemo: true` and renders with a **დემო** badg
 | `npm run dev:db` | In-process PostgreSQL for local development |
 | `npm run prisma:migrate` | `prisma migrate deploy` |
 | `npm run db:seed` | Load Georgian demo data |
+| `npm run demo:purge` | Remove demo rows from a real database (dry run; `-- --yes` to delete) |
 | `npm run verify:migrations` | Apply migrations to a throwaway Postgres and assert the constraints actually bite |
 | `npm run verify:payments` | End-to-end webhook checks against a running app |
 
@@ -284,6 +286,7 @@ adapter in `src/lib/db.ts`.
 | `DATABASE_URL` | yes | PostgreSQL connection string |
 | `AUTH_SECRET` | yes | ≥32 chars; signs session material |
 | `APP_URL` | yes | Public origin; cookie scope, return URLs, callback URL |
+| `PAYOUT_CARD_KEY` | no | Seals the card number a payout goes to while the request is open; derived from `AUTH_SECRET` when unset |
 | `PAYMENT_PROVIDER` | yes | `mock` or `flitt` |
 | `MOCK_PAYMENT_SECRET` | mock only | Signs simulated webhooks |
 | `FLITT_MERCHANT_ID` | flitt only | Merchant id |
@@ -422,9 +425,6 @@ relationships the status colours rely on.
 8. **Settlement is manual.** An admin records the outcome and a mandatory
    source. `evaluateOutcome` can suggest a result from match data but never
    settles automatically, and returns `null` rather than guessing.
-#   d a j d a 
- 
- 
 
 ## Deploying a demo
 
@@ -444,7 +444,7 @@ Environment for a demo deployment:
 | --- | --- |
 | `DATABASE_URL` | your Postgres connection string |
 | `AUTH_SECRET` | 32+ chars, `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `APP_URL` | the public `https://` origin, no trailing slash |
+| `APP_URL` | the public `https://` origin, no trailing slash. Its host is the ONLY host the site answers on: the `www.` twin is 308-redirected to it by `src/proxy.ts`, because the session cookie is per host and a buyer who signed in on the other spelling would come back from the bank to a page with no session. Point both DNS names at the deployment; do not set a cookie domain. |
 | `DEMO_MODE` | `true` |
 | `PAYMENT_PROVIDER` | `mock` |
 

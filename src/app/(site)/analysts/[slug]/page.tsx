@@ -423,7 +423,15 @@ export default async function AnalystProfilePage({
               )
               .map((prediction) => ({
                 id: prediction.id,
-                titleKa: prediction.titleKa,
+                /*
+                 * Withheld HERE, on the server. AnalystHistory is a client
+                 * component, so anything placed on this object reaches the
+                 * browser whether or not it is rendered - and an open paid
+                 * pick's title is the merchandise.
+                 */
+                titleKa: lockedBetIds.has(prediction.id)
+                  ? null
+                  : prediction.titleKa,
                 oddsMilli: prediction.oddsMilli,
                 visibility: prediction.visibility,
                 priceMinor: prediction.priceMinor,
@@ -431,7 +439,6 @@ export default async function AnalystProfilePage({
                 publishedAt:
                   prediction.publishedAt?.toISOString() ?? null,
                 sportNameKa: prediction.sport.nameKa,
-                locked: lockedBetIds.has(prediction.id),
               }))}
           />
         </div>

@@ -3,6 +3,10 @@ import type { Prisma } from '@/generated/prisma/client';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { analystShareMinor, applyEarningsMovement } from '@/lib/balance/ledger';
 import { getEnv } from '@/lib/env';
+// Every amount in this file is in minor units. Audit summaries are read by a
+// person, so they go through the formatter: "+1615 GEL" is a different
+// number from "+16.15 ₾", and the audit log once said the first.
+import { formatMoney } from '@/lib/format';
 import type { PaymentSnapshot, WebhookPort } from './webhook';
 
 /** Prisma unique-constraint violation. */
@@ -355,7 +359,7 @@ export const prismaWebhookPort: WebhookPort = {
             action: AUDIT_ACTIONS.BALANCE_CREDITED,
             entityType: 'AnalystProfile',
             entityId: input.analystProfileId,
-            summary: `ანალიტიკოსს დაერიცხა: +${share} ${input.currency}`,
+            summary: `ანალიტიკოსს დაერიცხა: +${formatMoney(share, input.currency)}`,
             metadata: {
               account: 'EARNINGS',
               paymentId: input.paymentId,
@@ -395,7 +399,7 @@ export const prismaWebhookPort: WebhookPort = {
             action: AUDIT_ACTIONS.BALANCE_DEBITED,
             entityType: 'User',
             entityId: input.analystUserId,
-            summary: `ანალიტიკოსს ჩამოეჭრა დაბრუნებული გადახდის წილი: ${share} ${input.currency}`,
+            summary: `ანალიტიკოსს ჩამოეჭრა დაბრუნებული გადახდის წილი: ${formatMoney(share, input.currency)}`,
             metadata: {
               account: 'EARNINGS',
               paymentId: input.paymentId,
@@ -438,7 +442,7 @@ export const prismaWebhookPort: WebhookPort = {
             action: AUDIT_ACTIONS.BALANCE_CREDITED,
             entityType: 'User',
             entityId: input.userId,
-            summary: `ბალანსი შეივსო: +${input.amountMinor} ${input.currency}`,
+            summary: `ბალანსი შეივსო: +${formatMoney(input.amountMinor, input.currency)}`,
             actorId: input.userId,
             metadata: { paymentId: input.paymentId },
           },
@@ -481,7 +485,7 @@ export const prismaWebhookPort: WebhookPort = {
             action: AUDIT_ACTIONS.BALANCE_DEBITED,
             entityType: 'User',
             entityId: input.userId,
-            summary: `ბალანსიდან ჩამოიჭრა დაბრუნებული შევსება: -${input.amountMinor} ${input.currency}`,
+            summary: `ბალანსიდან ჩამოიჭრა დაბრუნებული შევსება: -${formatMoney(input.amountMinor, input.currency)}`,
             metadata: { paymentId: input.paymentId, reason: input.reason },
           },
           tx,

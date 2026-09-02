@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { canonicalRedirect } from '@/lib/canonical-host';
 
 /**
- * Per-request Content-Security-Policy with a fresh nonce.
+ * Two jobs, in order: send the `www.` twin of the public host to the one
+ * host the session cookie lives on, then stamp a per-request
+ * Content-Security-Policy with a fresh nonce.
  *
  * Next reads the nonce from the incoming `x-nonce` header and stamps it onto
  * the scripts it injects, so `strict-dynamic` can be used without allowing
@@ -15,6 +18,25 @@ import { NextResponse, type NextRequest } from 'next/server';
  * re-checks the session server-side via requireUser()/requireAdmin().
  */
 export function proxy(request: NextRequest) {
+  /*
+   * Read straight from process.env rather than through getEnv(): this runs
+   * on every request before anything else, and a missing APP_URL must mean
+   * "no redirect", not a crash in front of the whole site. Behind the
+   * platform's proxy the browser's host arrives in X-Forwarded-Host.
+   *
+   * 308 rather than 301 so a form POST or a Server Action that somehow lands
+   * on the wrong host is replayed as a POST on the right one, not downgraded
+   * to a GET.
+   */
+  const target = canonicalRedirect({
+    requestHost:
+      request.headers.get('x-forwarded-host') ?? request.headers.get('host'),
+    pathname: request.nextUrl.pathname,
+    search: request.nextUrl.search,
+    appUrl: process.env.APP_URL ?? '',
+  });
+  if (target) return NextResponse.redirect(target, 308);
+
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const isDev = process.env.NODE_ENV === 'development';
 

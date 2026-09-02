@@ -32,7 +32,7 @@ export function TopUpForm() {
           type="number"
           inputMode="decimal"
           min={1}
-          max={5000}
+          max={500}
           step="0.01"
           required
           placeholder="თანხა, ₾"

@@ -2,13 +2,18 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import {
+  decideGoogleLink,
   exchangeGoogleCode,
   googleConfigured,
   sealGoogleProfile,
   GOOGLE_PROFILE_COOKIE,
   GOOGLE_STATE_COOKIE,
 } from '@/lib/auth/google';
-import { createSession, setSessionCookie } from '@/lib/auth/session';
+import {
+  createSession,
+  revokeAllSessionsForUser,
+  setSessionCookie,
+} from '@/lib/auth/session';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { getEnv } from '@/lib/env';
 
@@ -54,8 +59,9 @@ export async function GET(request: Request) {
   }
   const profile = outcome.profile;
 
-  // First key: the stable subject id. Second: a verified matching mailbox on
-  // an existing account, which links the two ways of signing in.
+  // First key: the stable subject id. Second: a matching mailbox on an
+  // existing account that has itself been VERIFIED, which links the two ways
+  // of signing in. See decideGoogleLink for why verification is the gate.
   let user = await prisma.user.findUnique({
     where: { googleId: profile.sub },
     select: { id: true, role: true, status: true },
@@ -64,18 +70,59 @@ export async function GET(request: Request) {
   if (!user) {
     const byEmail = await prisma.user.findUnique({
       where: { email: profile.email },
-      select: { id: true, role: true, status: true, googleId: true },
+      select: {
+        id: true,
+        role: true,
+        status: true,
+        googleId: true,
+        emailVerifiedAt: true,
+      },
     });
-    if (byEmail && !byEmail.googleId) {
-      await prisma.user.update({
-        where: { id: byEmail.id },
-        data: {
-          googleId: profile.sub,
-          // Google vouched for the mailbox; a pending verification mail
-          // becomes moot.
-          emailVerifiedAt: new Date(),
-        },
+    if (byEmail) {
+      const decision = decideGoogleLink(byEmail);
+
+      /*
+       * An unverified password account on this address is NOT linked. Anyone
+       * can register any address without proving it, so attaching Google
+       * here would sign the real mailbox owner into an account somebody else
+       * holds the password to. They are sent to sign in with that password
+       * instead; if it is not theirs, the reset flow reaches the mailbox
+       * Google just vouched for.
+       */
+      if (decision === 'UNVERIFIED') {
+        console.error(
+          '[dajda] google callback: address belongs to an unverified account, refusing to link',
+        );
+        redirect('/login?error=google-unverified');
+      }
+      if (decision === 'TAKEN') {
+        console.error(
+          '[dajda] google callback: address already bound to another google subject',
+        );
+        redirect('/login?error=google');
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: byEmail.id },
+          data: { googleId: profile.sub },
+        });
+        await writeAuditLog(
+          {
+            action: AUDIT_ACTIONS.USER_GOOGLE_LINKED,
+            entityType: 'User',
+            entityId: byEmail.id,
+            summary: 'Google-ის ანგარიში მიება არსებულ ანგარიშს',
+            actorId: byEmail.id,
+            actorRole: byEmail.role,
+          },
+          tx,
+        );
       });
+
+      // Linking changes who can open this account. Sessions opened before
+      // it, with the password alone, do not carry over.
+      await revokeAllSessionsForUser(byEmail.id);
       user = byEmail;
     }
   }

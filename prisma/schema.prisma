@@ -895,9 +895,15 @@ model AnalystPayout {
   currency    String       @default("GEL")
   status      PayoutStatus @default(REQUESTED)
 
-  /// Only ever the masked form. The number the analyst types is passed to the
-  /// provider for the one credit call and never written down.
+  /// The masked form, kept for good: what the analyst and the admin see.
   maskedCard String
+
+  /// The full number, sealed with AES-256-GCM under the payout card key, and
+  /// held ONLY while the request is open. It is what the provider is given
+  /// when an admin releases the payout, so the admin never has to obtain the
+  /// number a second time through some other channel. Cleared to null the
+  /// moment the request is decided - paid, failed or refused.
+  cardCipher String?
 
   /// Our identifier for the payout, sent as the provider's order_id.
   providerOrderId  String  @unique

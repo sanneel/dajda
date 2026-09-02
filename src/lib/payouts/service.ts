@@ -4,7 +4,9 @@ import { getEnv } from '@/lib/env';
 import { AppError, ERROR_CODES } from '@/lib/errors';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { applyEarningsMovement } from '@/lib/balance/ledger';
+import { formatMoney } from '@/lib/format';
 import { getPaymentProvider } from '@/lib/payments';
+import { deriveCardKey, openCard, sealCard } from './card-vault';
 import {
   checkWithdrawal,
   maskCardNumber,
@@ -28,9 +30,17 @@ import {
  *      approves or refuses. A refusal or a provider failure puts the earnings
  *      straight back.
  *
- * The card number is used for exactly one provider call and never written
- * down. Only its masked form is stored.
+ * The card number is typed once, by the analyst. It travels to the
+ * administrator's approval sealed (see ./card-vault) and is wiped from the
+ * row the moment the request is decided, whichever way. What stays for good
+ * is the mask.
  */
+
+/** The key the open requests' card numbers are sealed under right now. */
+function payoutCardKey(): Buffer {
+  const env = getEnv();
+  return deriveCardKey(env.PAYOUT_CARD_KEY ?? env.AUTH_SECRET);
+}
 
 export type WithdrawalRequest = {
   amountMinor: number;
@@ -98,6 +108,10 @@ export async function requestWithdrawal(
   });
 
   const maskedCard = maskCardNumber(input.cardNumber);
+  const cardCipher = sealCard(
+    normaliseCardNumber(input.cardNumber),
+    payoutCardKey(),
+  );
 
   return prisma.$transaction(async (tx) => {
     // Conditional decrement, so two requests racing cannot both take the
@@ -121,6 +135,7 @@ export async function requestWithdrawal(
         currency: 'GEL',
         status: 'REQUESTED',
         maskedCard,
+        cardCipher,
         providerOrderId: `dajda-payout-${randomUUID()}`,
         periodStart: period.start,
         periodEnd: period.end,
@@ -155,7 +170,7 @@ export async function requestWithdrawal(
         action: AUDIT_ACTIONS.PAYOUT_REQUESTED,
         entityType: 'AnalystPayout',
         entityId: payout.id,
-        summary: `გატანის მოთხოვნა: ${input.amountMinor} GEL`,
+        summary: `გატანის მოთხოვნა: ${formatMoney(input.amountMinor, 'GEL')}`,
         actorId: actor.userId,
         actorRole: actor.role,
         metadata: {
@@ -211,11 +226,13 @@ export async function rejectPayout(
     throw new AppError(ERROR_CODES.CONFLICT, 'მოთხოვნა უკვე დამუშავებულია.');
   }
 
-  // Guarded by status so a double click decides once.
+  // Guarded by status so a double click decides once. Decided means the
+  // sealed card number has no reader left, so it goes with the decision.
   const claimed = await prisma.analystPayout.updateMany({
     where: { id: payout.id, status: 'REQUESTED' },
     data: {
       status: 'REJECTED',
+      cardCipher: null,
       failureReason: reason,
       decidedAt: new Date(),
       decidedById: admin.userId,
@@ -243,15 +260,17 @@ export async function rejectPayout(
 /**
  * Release a request to the provider.
  *
- * The card number is supplied again by the administrator at approval time
- * rather than read from a stored value, because the number was never stored.
- * It is checked against the mask recorded at request time so an approval
- * cannot quietly redirect the money to a different card.
+ * The card number comes from the sealed copy the analyst's request carries.
+ * An administrator may still type one - it is the only way to release a
+ * request made before sealing existed, or one sealed under a key that has
+ * since been rotated - and anything typed is checked against the mask taken
+ * at request time, so an approval cannot quietly redirect the money to a
+ * different card.
  */
 export async function approvePayout(
   payoutId: string,
-  cardNumber: string,
   admin: { userId: string },
+  typedCardNumber?: string,
 ): Promise<{ status: 'PAID' | 'APPROVED' | 'FAILED'; message?: string }> {
   const payout = await prisma.analystPayout.findUnique({
     where: { id: payoutId },
@@ -262,6 +281,7 @@ export async function approvePayout(
       currency: true,
       status: true,
       maskedCard: true,
+      cardCipher: true,
       providerOrderId: true,
       analystProfile: { select: { displayName: true } },
     },
@@ -271,10 +291,24 @@ export async function approvePayout(
     throw new AppError(ERROR_CODES.CONFLICT, 'მოთხოვნა უკვე დამუშავებულია.');
   }
 
-  if (maskCardNumber(cardNumber) !== payout.maskedCard) {
+  let cardNumber: string | null = null;
+
+  if (typedCardNumber) {
+    if (maskCardNumber(typedCardNumber) !== payout.maskedCard) {
+      throw new AppError(
+        ERROR_CODES.VALIDATION_ERROR,
+        'ბარათი არ ემთხვევა მოთხოვნაში მითითებულს.',
+      );
+    }
+    cardNumber = normaliseCardNumber(typedCardNumber);
+  } else if (payout.cardCipher) {
+    cardNumber = openCard(payout.cardCipher, payoutCardKey());
+  }
+
+  if (!cardNumber) {
     throw new AppError(
       ERROR_CODES.VALIDATION_ERROR,
-      'ბარათი არ ემთხვევა მოთხოვნაში მითითებულს.',
+      'ამ მოთხოვნას ბარათის ნომერი აღარ ახლავს. შეიყვანეთ ნომერი ხელით, ან უარყავით და სთხოვეთ ავტორს მოთხოვნის ხელახლა შეტანა.',
     );
   }
 
@@ -300,13 +334,15 @@ export async function approvePayout(
       amountMinor: payout.amountMinor,
       currency: payout.currency,
       description: `DAJDA: ანაზღაურება ${payout.analystProfile.displayName}`,
-      receiverCardNumber: normaliseCardNumber(cardNumber),
+      receiverCardNumber: cardNumber,
     });
 
+    // The provider has the number now; the row does not need it any more.
     await prisma.analystPayout.update({
       where: { id: payout.id },
       data: {
         status: result.status === 'SUCCEEDED' ? 'PAID' : result.status === 'FAILED' ? 'FAILED' : 'APPROVED',
+        cardCipher: null,
         providerPayoutId: result.providerPaymentId,
         rawStatus: result.rawStatus,
         failureReason: result.status === 'FAILED' ? (result.message ?? null) : null,
@@ -354,7 +390,11 @@ export async function approvePayout(
 
     await prisma.analystPayout.update({
       where: { id: payout.id },
-      data: { status: 'FAILED', failureReason: detail.slice(0, 500) },
+      data: {
+        status: 'FAILED',
+        cardCipher: null,
+        failureReason: detail.slice(0, 500),
+      },
     });
     await returnEarnings(
       payout.id,

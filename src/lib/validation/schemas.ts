@@ -5,6 +5,24 @@ import {
   PredictionVisibility,
   ReportReason,
 } from '@/generated/prisma/enums';
+import { parseTbilisiLocal } from '@/lib/time';
+
+/**
+ * A moment typed into a `datetime-local` control.
+ *
+ * The control hands over "2026-09-03T20:00" with no zone, and the naive
+ * `z.coerce.date()` read that in the server's zone - UTC when hosted - so a
+ * 20:00 kickoff was stored four hours late and printed as the next day. The
+ * author typed Tbilisi time; this reads it as Tbilisi time. A Date, or a
+ * string that already carries a zone, passes through unchanged.
+ */
+function wallClockSchema(message: string) {
+  return z.preprocess(
+    (value) =>
+      typeof value === 'string' ? (parseTbilisiLocal(value) ?? value) : value,
+    z.date({ error: message }),
+  );
+}
 
 /**
  * Every externally supplied value enters the system through one of these.
@@ -154,9 +172,9 @@ export const createPredictionSchema = z.object({
    * subscription), VIP is subscription-only.
    */
   visibility: z.enum(PredictionVisibility).default('PUBLIC'),
-  eventAt: z.coerce.date().optional(),
+  eventAt: wallClockSchema('მიუთითეთ პირველი მატჩის დრო.').optional(),
   /** When the last leg starts, on a ticket that spans several matches. */
-  eventEndAt: z.coerce.date().optional(),
+  eventEndAt: wallClockSchema('მიუთითეთ ბოლო მატჩის დრო.').optional(),
   publishNow: z.coerce.boolean().default(false),
   /**
    * The single-purchase price of a paid bet, entered in GEL and stored in
@@ -243,7 +261,7 @@ export const notePostSchema = z.object({ bodyKa: postBodySchema });
  */
 export const liveNoticeSchema = z.object({
   bodyKa: postBodySchema,
-  liveAt: z.coerce.date({ error: 'მიუთითეთ ლაივის დრო.' }),
+  liveAt: wallClockSchema('მიუთითეთ ლაივის დრო.'),
   liveLabelKa: z
     .string()
     .trim()
@@ -396,7 +414,7 @@ export const topUpSchema = z.object({
   amountGel: z.coerce
     .number('შეიყვანეთ თანხა.')
     .min(1, 'მინიმუმ 1 ლარი.')
-    .max(5000, 'მაქსიმუმ 5000 ლარი ერთ შევსებაზე.'),
+    .max(500, 'მაქსიმუმ 500 ლარი ერთ შევსებაზე.'),
 });
 
 export const withdrawalSchema = z.object({

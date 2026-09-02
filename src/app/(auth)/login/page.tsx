@@ -21,9 +21,16 @@ export default async function LoginPage({
   // Already signed in - no reason to show the form again.
   if (await getCurrentUser()) redirect('/dashboard');
 
-  // The Google callback funnels every failure here with one flag; the
-  // distinctions live in the server log, where they are actionable.
-  const googleFailed = (await searchParams).error === 'google';
+  /*
+   * The Google callback funnels almost every failure here with one flag; the
+   * distinctions live in the server log, where they are actionable. The one
+   * exception is the person who CAN act on it: the address already has a
+   * password account that never verified its mailbox, and they need to be
+   * told which door to use.
+   */
+  const googleError = (await searchParams).error;
+  const googleFailed = googleError === 'google';
+  const googleUnverified = googleError === 'google-unverified';
 
   return (
     <div className="rounded-md border border-line bg-surface p-6 sm:p-8">
@@ -32,6 +39,15 @@ export default async function LoginPage({
         <div className="mt-4">
           <Alert tone="error">
             Google-ით შესვლა ვერ შედგა. სცადეთ თავიდან, ან შედით ელფოსტით.
+          </Alert>
+        </div>
+      ) : null}
+      {googleUnverified ? (
+        <div className="mt-4">
+          <Alert tone="error">
+            ამ მისამართით ანგარიში უკვე არსებობს, მაგრამ ელფოსტა დადასტურებული
+            არ არის. შედით პაროლით და დაადასტურეთ ელფოსტა, ან თუ პაროლი არ
+            გახსოვთ, აღადგინეთ იგი.
           </Alert>
         </div>
       ) : null}

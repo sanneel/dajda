@@ -21,15 +21,18 @@ import { ShowMoreList } from '@/components/ui/show-more';
 
 export type HistoryEntry = {
   id: string;
-  titleKa: string;
+  /**
+   * Null when the pick is withheld from this viewer. The server decides and
+   * strips it before the entry is serialised - this component never holds a
+   * title it is not allowed to print, so there is nothing here to leak.
+   */
+  titleKa: string | null;
   oddsMilli: number;
   visibility: 'PUBLIC' | 'PREMIUM' | 'VIP';
   priceMinor: number | null;
   status: 'PENDING' | 'WON' | 'LOST' | 'VOID' | 'PUSH';
   publishedAt: string | null;
   sportNameKa: string;
-  /** Withheld from this viewer: the pick is not printed. */
-  locked: boolean;
 };
 
 const TABS = [
@@ -99,7 +102,7 @@ export function AnalystHistory({ entries }: { entries: HistoryEntry[] }) {
                 href={`/free/${entry.id}`}
                 className="min-w-0 flex-1 font-medium text-ink hover:text-accent"
               >
-                {entry.locked ? 'დახურული პროგნოზი' : entry.titleKa}
+                {entry.titleKa ?? 'დახურული პროგნოზი'}
               </Link>
 
               {entry.visibility === 'PREMIUM' && entry.priceMinor !== null ? (
