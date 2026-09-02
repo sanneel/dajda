@@ -24,6 +24,8 @@ import { Alert, EmptyState } from '@/components/ui/feedback';
 import { ShowMoreList } from '@/components/ui/show-more';
 import { analystFeed } from '@/lib/queries/feed';
 import { Feed } from '@/components/feed';
+import { publishBetAction } from '@/actions/analyst';
+import { ActionButton } from '@/components/admin/action-button';
 import { PlanPriceForm } from './plan-price-form';
 import { FinishBetForm } from './finish-form';
 import { PinBetButton } from './pin-button';
@@ -63,6 +65,7 @@ export default async function AnalystPage() {
           displayName: true,
           slug: true,
           headline: true,
+          primarySportId: true,
           sports: { select: { sport: { select: { nameKa: true } } } },
         },
       }),
@@ -261,6 +264,17 @@ export default async function AnalystPage() {
 
               <CreateActions
                 sports={sportOptions}
+                // Their declared sport first; failing that, the first one
+                // they cover. An alphabetical default was "basketball" for a
+                // football author.
+                defaultSportId={
+                  profile.primarySportId ??
+                  sports.find((sport) =>
+                    profile.sports.some(
+                      (entry) => entry.sport.nameKa === sport.nameKa,
+                    ),
+                  )?.id
+                }
                 audienceSize={audience.length}
                 broadcastsRemaining={allowance.remaining}
                 broadcastsPerDay={BROADCASTS_PER_DAY}
@@ -454,29 +468,46 @@ function BetList({
 }
 
 function BetRow({ bet, showFinish }: { bet: Bet; showFinish: boolean }) {
+  /*
+   * A draft has no public page: /free/{id} only answers for published rows,
+   * so linking a draft there was a guaranteed 404. Its thumbnail and title
+   * stay plain, and the action it actually needs - publishing - sits below.
+   */
+  const isDraft = bet.publishedAt === null;
+  const thumbnail = (
+    <Image
+      src={bet.screenshotPath}
+      alt=""
+      fill
+      sizes="6rem"
+      className="object-cover"
+    />
+  );
+  const thumbnailClass =
+    'relative h-16 w-24 shrink-0 overflow-hidden rounded border border-line bg-surface';
+
   return (
     <li className="flex flex-wrap items-start gap-4 py-4 first:pt-0">
-      <Link
-        href={`/free/${bet.id}`}
-        className="relative h-16 w-24 shrink-0 overflow-hidden rounded border border-line bg-surface"
-      >
-        <Image
-          src={bet.screenshotPath}
-          alt=""
-          fill
-          sizes="6rem"
-          className="object-cover"
-        />
-      </Link>
+      {isDraft ? (
+        <div className={thumbnailClass}>{thumbnail}</div>
+      ) : (
+        <Link href={`/free/${bet.id}`} className={thumbnailClass}>
+          {thumbnail}
+        </Link>
+      )}
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/free/${bet.id}`}
-            className="font-medium text-ink hover:text-accent"
-          >
-            {bet.titleKa}
-          </Link>
+          {isDraft ? (
+            <span className="font-medium text-ink">{bet.titleKa}</span>
+          ) : (
+            <Link
+              href={`/free/${bet.id}`}
+              className="font-medium text-ink hover:text-accent"
+            >
+              {bet.titleKa}
+            </Link>
+          )}
           {bet.visibility === 'PUBLIC' ? (
             <Badge tone="accent">უფასო</Badge>
           ) : bet.priceMinor !== null ? (
@@ -524,14 +555,25 @@ function BetRow({ bet, showFinish }: { bet: Bet; showFinish: boolean }) {
           </div>
         ) : null}
 
-        {bet.publishedAt !== null ? (
+        {isDraft ? (
+          <div className="mt-3">
+            <ActionButton
+              action={publishBetAction}
+              fields={{ predictionId: bet.id }}
+              label="გამოქვეყნება"
+              pendingLabel="ქვეყნდება…"
+              tone="accent"
+              confirm="გამოვაქვეყნოთ? გამოქვეყნების შემდეგ ბილეთი საჯარო ჩანაწერის ნაწილია და აღარ იშლება."
+            />
+          </div>
+        ) : (
           <div className="mt-3">
             <PinBetButton
               predictionId={bet.id}
               pinned={bet.pinnedAt !== null}
             />
           </div>
-        ) : null}
+        )}
       </div>
     </li>
   );

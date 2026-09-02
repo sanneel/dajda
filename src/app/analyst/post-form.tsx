@@ -1,8 +1,7 @@
 'use client';
 
-import { useActionState, useRef, useState } from 'react';
-import Image from 'next/image';
-import { ImagePlus, Plus, X } from 'lucide-react';
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
+import { FileImage, ImagePlus, Plus, X } from 'lucide-react';
 import { postBetAction } from '@/actions/analyst';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
@@ -27,9 +26,12 @@ import { Alert } from '@/components/ui/feedback';
  */
 export function PostBetForm({
   sports,
+  defaultSportId,
   onPosted,
 }: {
   sports: { value: string; label: string }[];
+  /** The author's primary sport, so the select opens on what they cover. */
+  defaultSportId?: string;
   /** Lets the drawer close itself once the bet is up. */
   onPosted?: () => void;
 }) {
@@ -41,11 +43,20 @@ export function PostBetForm({
    * DataTransfer before submit, so the form still posts plain files.
    */
   const [files, setFiles] = useState<File[]>([]);
+  /*
+   * Checked HERE on submit, not with `required` on the hidden input. A
+   * required control the browser cannot focus (this one is sr-only) makes
+   * the browser refuse the submit and say nothing - the author pressed
+   * "publish" and watched nothing happen. Now the empty slot is marked and
+   * scrolled into view instead.
+   */
+  const [missingSlip, setMissingSlip] = useState(false);
   // Subscription is the default: it is what an author's page is FOR.
   const [visibility, setVisibility] = useState('VIP');
   const [price, setPrice] = useState('');
   const pickerRef = useRef<HTMLInputElement>(null);
   const fieldRef = useRef<HTMLInputElement>(null);
+  const dropRef = useRef<HTMLButtonElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   const MAX_SLIPS = 6;
@@ -53,23 +64,59 @@ export function PostBetForm({
   /** Mirror `files` into the real form input the action reads. */
   const syncField = (next: File[]) => {
     setFiles(next);
+    if (next.length > 0) setMissingSlip(false);
     const transfer = new DataTransfer();
     for (const file of next) transfer.items.add(file);
     if (fieldRef.current) fieldRef.current.files = transfer.files;
   };
 
+  /*
+   * One object URL per file, made once per selection and released when the
+   * selection changes or the form unmounts. Creating them inline in render
+   * minted a fresh blob URL on every keystroke elsewhere on the form.
+   *
+   * HEIC/HEIF is accepted (phones produce it, the server re-encodes it) but
+   * no browser draws it in an <img>, so those get a file card rather than an
+   * empty frame that looks like a failed upload.
+   */
+  const previews = useMemo(
+    () =>
+      files.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+        undrawable:
+          /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name),
+      })),
+    [files],
+  );
+  useEffect(
+    () => () => {
+      for (const preview of previews) URL.revokeObjectURL(preview.url);
+    },
+    [previews],
+  );
+
   const errorFor = (field: string) =>
     state && !state.ok ? state.error.fieldErrors?.[field]?.[0] : undefined;
 
-  const screenshotError = errorFor('screenshot') ?? errorFor('screenshotPath');
+  const screenshotError = missingSlip
+    ? 'ატვირთეთ ბილეთის სკრინშოტი.'
+    : (errorFor('screenshot') ?? errorFor('screenshotPath'));
 
   if (state?.ok) {
     return (
       <div className="space-y-4">
-        <Alert tone="success" title="ბილეთი გამოქვეყნდა">
-          ჩანაწერი დაემატა თქვენს საჯარო ისტორიას. მატჩის დასრულების შემდეგ
-          მონიშნეთ დასრულებულად.
-        </Alert>
+        {state.data.published ? (
+          <Alert tone="success" title="ბილეთი გამოქვეყნდა">
+            ჩანაწერი დაემატა თქვენს საჯარო ისტორიას. მატჩის დასრულების შემდეგ
+            მონიშნეთ დასრულებულად.
+          </Alert>
+        ) : (
+          <Alert tone="success" title="მონახაზი შენახულია">
+            ბილეთი ჯერ არ ჩანს საჯაროდ და ჩანაწერში არ ითვლება. გამოაქვეყნეთ
+            „მონახაზები“-დან, როცა მზად იქნებით.
+          </Alert>
+        )}
         <div className="flex flex-wrap gap-3">
           <Button
             type="button"
@@ -97,6 +144,13 @@ export function PostBetForm({
       ref={formRef}
       action={action}
       className="space-y-5"
+      onSubmit={(event) => {
+        if (files.length > 0) return;
+        event.preventDefault();
+        setMissingSlip(true);
+        dropRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        dropRef.current?.focus();
+      }}
       // Let an explicit success reset through; block React 19's automatic
       // reset when the action failed, so an error never wipes the draft.
       onReset={(event) => {
@@ -119,7 +173,6 @@ export function PostBetForm({
           type="file"
           multiple
           accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-          required
           className="sr-only"
           tabIndex={-1}
           onChange={() => {}}
@@ -145,6 +198,7 @@ export function PostBetForm({
 
         {files.length === 0 ? (
           <button
+            ref={dropRef}
             type="button"
             onClick={() => pickerRef.current?.click()}
             aria-describedby="screenshot-help"
@@ -164,19 +218,37 @@ export function PostBetForm({
           </button>
         ) : (
           <div className="grid grid-cols-2 gap-2.5">
-            {files.map((file, index) => (
+            {previews.map((preview, index) => (
               <div
-                key={`${file.name}-${file.lastModified}-${index}`}
+                key={`${preview.file.name}-${preview.file.lastModified}-${index}`}
                 className="relative aspect-[4/3] overflow-hidden rounded-card border border-line bg-canvas"
               >
-                {/* Local object URL, so next/image optimisation is bypassed. */}
-                <Image
-                  src={URL.createObjectURL(file)}
-                  alt={`ბილეთის ფოტო ${index + 1}`}
-                  fill
-                  unoptimized
-                  className="object-contain"
-                />
+                {preview.undrawable ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-1.5 px-3 text-center">
+                    <FileImage
+                      className="size-7 text-ink-faint"
+                      aria-hidden="true"
+                    />
+                    <span className="line-clamp-1 text-xs text-ink-muted">
+                      {preview.file.name}
+                    </span>
+                    <span className="text-xs text-ink-faint">
+                      HEIC მიღებულია, ბრაუზერი მას არ აჩვენებს
+                    </span>
+                  </div>
+                ) : (
+                  /*
+                   * A plain <img> on purpose. next/image exists to optimise
+                   * remote sources; a local blob URL gains nothing from it
+                   * and, with `fill`, was drawing an empty frame.
+                   */
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={preview.url}
+                    alt={`ბილეთის ფოტო ${index + 1}`}
+                    className="absolute inset-0 size-full object-contain"
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() =>
@@ -341,7 +413,14 @@ export function PostBetForm({
         </Field>
 
         <Field label="სპორტი" htmlFor="sportId" required error={errorFor('sportId')}>
-          <Select id="sportId" name="sportId" required>
+          {/* Opens on the author's own sport; the list is alphabetical, and
+              the first letter of the alphabet is nobody's default. */}
+          <Select
+            id="sportId"
+            name="sportId"
+            required
+            defaultValue={defaultSportId}
+          >
             {sports.map((sport) => (
               <option key={sport.value} value={sport.value}>
                 {sport.label}
@@ -355,6 +434,7 @@ export function PostBetForm({
           htmlFor="eventAt"
           required
           error={errorFor('eventAt')}
+          hint="თბილისის დროით."
         >
           <Input
             id="eventAt"
@@ -422,8 +502,20 @@ export function PostBetForm({
         </div>
       </details>
 
+      {/*
+       * The click runs BEFORE the browser's own required-field check, so an
+       * empty slip slot turns red at the same moment the odds field gets its
+       * bubble - every missing thing is marked at once, not one per attempt.
+       */}
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" size="lg" disabled={pending}>
+        <Button
+          type="submit"
+          size="lg"
+          disabled={pending}
+          onClick={() => {
+            if (files.length === 0) setMissingSlip(true);
+          }}
+        >
           {pending ? 'ქვეყნდება…' : 'გამოქვეყნება'}
         </Button>
         <Button
@@ -433,6 +525,9 @@ export function PostBetForm({
           variant="secondary"
           size="lg"
           disabled={pending}
+          onClick={() => {
+            if (files.length === 0) setMissingSlip(true);
+          }}
         >
           მონახაზად შენახვა
         </Button>

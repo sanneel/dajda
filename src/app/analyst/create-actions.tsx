@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { Megaphone, MessageSquare, Plus, Radio, MoreHorizontal } from 'lucide-react';
 import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,22 @@ import { NoteForm, LiveForm } from './composer';
 import { BroadcastForm } from './broadcast-form';
 
 type Sheet = 'ticket' | 'note' | 'live' | 'broadcast' | null;
+
+/**
+ * True once React has attached its handlers. Server HTML arrives with the
+ * button fully styled but inert until the bundle loads, and on a slow
+ * connection an author pressed it twice for nothing before the third worked.
+ * Rendering it disabled until hydration makes the wait visible instead of
+ * silent. The snapshot flips only on the client, which is the whole point.
+ */
+const subscribeToNothing = () => () => {};
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
+}
 
 /**
  * The workspace's action bar: one strong CTA, everything else behind a menu.
@@ -25,17 +41,20 @@ type Sheet = 'ticket' | 'note' | 'live' | 'broadcast' | null;
  */
 export function CreateActions({
   sports,
+  defaultSportId,
   audienceSize,
   broadcastsRemaining,
   broadcastsPerDay,
 }: {
   sports: { value: string; label: string }[];
+  defaultSportId?: string;
   audienceSize: number;
   broadcastsRemaining: number;
   broadcastsPerDay: number;
 }) {
   const [sheet, setSheet] = useState<Sheet>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const hydrated = useHydrated();
 
   const close = () => setSheet(null);
   const open = (next: Sheet) => {
@@ -46,7 +65,12 @@ export function CreateActions({
   return (
     <>
       <div className="flex items-center gap-2">
-        <Button type="button" onClick={() => open('ticket')}>
+        <Button
+          type="button"
+          onClick={() => open('ticket')}
+          disabled={!hydrated}
+          aria-busy={!hydrated || undefined}
+        >
           <Plus className="size-4" aria-hidden="true" />
           ბილეთის დამატება
         </Button>
@@ -108,7 +132,11 @@ export function CreateActions({
         title="ახალი ბილეთი"
         description="დაიწყეთ ბილეთის ფოტოთი."
       >
-        <PostBetForm sports={sports} onPosted={close} />
+        <PostBetForm
+          sports={sports}
+          defaultSportId={defaultSportId}
+          onPosted={close}
+        />
       </Drawer>
 
       <Drawer

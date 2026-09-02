@@ -63,17 +63,26 @@ export function Drawer({
       }}
       aria-label={title}
       className={[
-        // Phone: a sheet anchored to the bottom, capped so the page behind
-        // stays partly visible and the drawer never feels like a new page.
-        'fixed bottom-0 left-0 right-0 top-auto max-h-[88vh] w-full',
-        'rounded-t-panel border border-line bg-surface p-0 text-ink shadow-panel',
+        /*
+         * Phone: a sheet anchored to the bottom, capped so the page behind
+         * stays partly visible and the drawer never feels like a new page.
+         *
+         * The browser's own dialog styles fight this and have to be undone
+         * explicitly: `margin: auto` (would float the sheet), a max-width of
+         * "100% minus 2em" (left a 38px gap on the right edge), and a
+         * max-height in `vh`, which on iPhone Safari is the height BEHIND the
+         * toolbars, so a `vh`-sized sheet had its top pushed out of view.
+         * `dvh` is the height the reader actually sees.
+         */
+        'fixed inset-x-0 bottom-0 top-auto m-0 w-full max-w-none max-h-[88dvh]',
+        'overscroll-contain rounded-t-panel border border-line bg-surface p-0 text-ink shadow-panel',
         // Desktop: a full-height column on the right.
         'sm:bottom-0 sm:left-auto sm:right-0 sm:top-0 sm:h-full sm:max-h-none',
         'sm:w-[30rem] sm:max-w-[92vw] sm:rounded-none sm:rounded-l-panel',
         'backdrop:bg-ink/50',
       ].join(' ')}
     >
-      <div className="flex h-full max-h-[88vh] flex-col sm:max-h-none">
+      <div className="flex h-full max-h-[88dvh] flex-col sm:max-h-none">
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div className="min-w-0">
             <h2 className="font-display text-lg text-ink">{title}</h2>
