@@ -52,6 +52,12 @@ export type DrainOptions = {
    * exactly right.
    */
   broadcastId?: string;
+  /**
+   * Narrow to specific rows: the inline delivery of something just written,
+   * such as an administrator alert, where the caller knows exactly which rows
+   * it created and wants nothing else sent on its request.
+   */
+  ids?: string[];
 };
 
 /**
@@ -66,6 +72,7 @@ export async function drainOutbox({
   send,
   limit = 50,
   broadcastId,
+  ids,
 }: DrainOptions): Promise<{ sent: number; failed: number }> {
   const rows = await prisma.notification.findMany({
     where: {
@@ -74,6 +81,7 @@ export async function drainOutbox({
       destination: { not: null },
       attempts: { lt: MAX_ATTEMPTS },
       ...(broadcastId ? { broadcastId } : {}),
+      ...(ids ? { id: { in: ids } } : {}),
     },
     orderBy: { createdAt: 'asc' },
     take: limit,

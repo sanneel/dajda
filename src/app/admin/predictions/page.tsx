@@ -205,12 +205,19 @@ export default async function AdminPredictionsPage({
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <Link
-                          href={`/free/${prediction.id}`}
-                          className="font-medium text-ink hover:text-accent"
-                        >
-                          {prediction.titleKa}
-                        </Link>
+                        {/* A draft has no public page yet; the link would 404. */}
+                        {prediction.publishedAt === null ? (
+                          <span className="font-medium text-ink">
+                            {prediction.titleKa}
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/free/${prediction.id}`}
+                            className="font-medium text-ink hover:text-accent"
+                          >
+                            {prediction.titleKa}
+                          </Link>
+                        )}
                         <p className="mt-0.5 text-xs text-ink-muted">
                           {/* No author: a community free ticket. */}
                           {prediction.author ? (
@@ -261,59 +268,77 @@ export default async function AdminPredictionsPage({
                     </div>
 
                     {/*
-                     * Both screenshots side by side, which is the whole point
-                     * of the queue: the slip as posted, and the author's proof
-                     * that it landed. When the second is missing the gap says
-                     * so, rather than the row looking complete.
+                     * Both screenshots side by side while a decision is
+                     * pending: the slip as posted, and the author's proof that
+                     * it landed. When the second is missing the gap says so,
+                     * rather than the row looking complete. Everything else
+                     * (settled, draft, superseded) is history, and history
+                     * gets thumbnails: forty full-size figures in a list made
+                     * the one row that needed attention impossible to find.
                      */}
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      <figure>
-                        <figcaption className="rule-label mb-1.5">
-                          ფსონი
-                        </figcaption>
-                        <a
-                          href={prediction.screenshotPath}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="relative block aspect-[4/3] overflow-hidden rounded-card border border-line bg-surface"
-                        >
-                          <Image
-                            src={prediction.screenshotPath}
-                            alt={`ფსონის სკრინშოტი: ${prediction.titleKa}`}
-                            fill
-                            sizes="(min-width: 640px) 20rem, 90vw"
-                            className="object-contain"
-                          />
-                        </a>
-                      </figure>
-
-                      <figure>
-                        <figcaption className="rule-label mb-1.5">
-                          შედეგი
-                        </figcaption>
-                        {prediction.resultScreenshotPath ? (
+                    {awaiting ? (
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <figure>
+                          <figcaption className="rule-label mb-1.5">
+                            ფსონი
+                          </figcaption>
                           <a
-                            href={prediction.resultScreenshotPath}
+                            href={prediction.screenshotPath}
                             target="_blank"
                             rel="noreferrer"
                             className="relative block aspect-[4/3] overflow-hidden rounded-card border border-line bg-surface"
                           >
                             <Image
-                              src={prediction.resultScreenshotPath}
-                              alt="შედეგის სკრინშოტი"
+                              src={prediction.screenshotPath}
+                              alt={`ფსონის სკრინშოტი: ${prediction.titleKa}`}
                               fill
                               sizes="(min-width: 640px) 20rem, 90vw"
                               className="object-contain"
                             />
                           </a>
-                        ) : (
-                          <div className="flex aspect-[4/3] items-center justify-center rounded-card border border-dashed border-line-strong bg-surface px-4 text-center text-sm text-ink-faint">
-                            ავტორს შედეგის სკრინშოტი არ აუტვირთავს. შეამოწმეთ
-                            ხელით.
-                          </div>
-                        )}
-                      </figure>
-                    </div>
+                        </figure>
+
+                        <figure>
+                          <figcaption className="rule-label mb-1.5">
+                            შედეგი
+                          </figcaption>
+                          {prediction.resultScreenshotPath ? (
+                            <a
+                              href={prediction.resultScreenshotPath}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="relative block aspect-[4/3] overflow-hidden rounded-card border border-line bg-surface"
+                            >
+                              <Image
+                                src={prediction.resultScreenshotPath}
+                                alt="შედეგის სკრინშოტი"
+                                fill
+                                sizes="(min-width: 640px) 20rem, 90vw"
+                                className="object-contain"
+                              />
+                            </a>
+                          ) : (
+                            <div className="flex aspect-[4/3] items-center justify-center rounded-card border border-dashed border-line-strong bg-surface px-4 text-center text-sm text-ink-faint">
+                              ავტორს შედეგის სკრინშოტი არ აუტვირთავს. შეამოწმეთ
+                              ხელით.
+                            </div>
+                          )}
+                        </figure>
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex gap-2">
+                        <Thumb
+                          href={prediction.screenshotPath}
+                          label="ფსონი"
+                        />
+                        {prediction.resultScreenshotPath ? (
+                          <Thumb
+                            href={prediction.resultScreenshotPath}
+                            label="შედეგი"
+                          />
+                        ) : null}
+                      </div>
+                    )}
 
                     {prediction.finishedAt && prediction.status === 'PENDING' ? (
                       <p className="mt-2.5 text-xs text-ink-muted">
@@ -403,5 +428,23 @@ export default async function AdminPredictionsPage({
         </CardBody>
       </Card>
     </div>
+  );
+}
+
+/** A screenshot thumbnail that opens the full image in a new tab. */
+function Thumb({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`${label}: სრული ზომით`}
+      className="relative block h-16 w-24 overflow-hidden rounded-card border border-line bg-surface"
+    >
+      <Image src={href} alt="" fill sizes="6rem" className="object-cover" />
+      <span className="absolute bottom-0 left-0 rounded-tr bg-ink/70 px-1.5 py-0.5 text-xs leading-none text-on-ink">
+        {label}
+      </span>
+    </a>
   );
 }

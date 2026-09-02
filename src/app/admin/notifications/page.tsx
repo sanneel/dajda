@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@/generated/prisma/client';
 import { requireAdmin } from '@/lib/auth/authorization';
+import { getEnv } from '@/lib/env';
 import { formatDateTimeKa } from '@/lib/format';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,8 +30,10 @@ const STATUS_KA: Record<string, string> = {
  *
  * Nothing on this page sends anything, and there is deliberately no button
  * that would. It is a record of what the product decided to tell people and
- * where it intended to tell them, so that when a mail or Telegram sender is
- * configured, the backlog is visible rather than discovered.
+ * where it intended to tell them. The line under the title says which
+ * channels can actually deliver, read from the same configuration the
+ * senders use, so a backlog of PENDING rows is explained rather than
+ * discovered.
  *
  * SKIPPED is shown alongside PENDING rather than hidden: "we had no address
  * for this person" is a different fact from a delivery failure, and it is the
@@ -79,6 +82,18 @@ export default async function AdminNotificationsPage({
   ]);
 
   const counts = new Map(byStatus.map((row) => [row.status, row._count._all]));
+
+  const env = getEnv();
+  const telegramOn = Boolean(env.TELEGRAM_BOT_TOKEN);
+  const emailOn = env.EMAIL_PROVIDER !== 'log';
+  const channels = [
+    telegramOn
+      ? `Telegram: ჩართულია${env.TELEGRAM_BOT_USERNAME ? ` (@${env.TELEGRAM_BOT_USERNAME})` : ''}`
+      : 'Telegram: ბოტი არ არის კონფიგურირებული',
+    emailOn
+      ? `ელფოსტა: ${env.EMAIL_PROVIDER}`
+      : 'ელფოსტა: მხოლოდ სერვერის ლოგში',
+  ].join(' · ');
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const hrefFor = (patch: { status?: string; page?: string }) => {
@@ -102,12 +117,16 @@ export default async function AdminNotificationsPage({
         </p>
       </header>
 
-      <div className="mb-5">
-        <Alert tone="warning" title="გაგზავნა ჯერ არ არის ჩართული">
-          არც ერთი შეტყობინება არ იგზავნება. ჩანაწერები გროვდება, რომ SMTP-ისა
-          და Telegram-ის ბოტის დაყენების შემდეგ არაფერი დაიკარგოს.
-        </Alert>
-      </div>
+      {telegramOn && emailOn ? (
+        <p className="mb-5 text-sm text-ink-muted">{channels}</p>
+      ) : (
+        <div className="mb-5">
+          <Alert tone="warning" title="ზოგი არხი გამორთულია">
+            {channels}. გამორთულ არხზე ჩანაწერები რიგში რჩება და ჩართვისთანავე
+            გაიგზავნება.
+          </Alert>
+        </div>
+      )}
 
       <nav
         className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-line py-3 text-sm"

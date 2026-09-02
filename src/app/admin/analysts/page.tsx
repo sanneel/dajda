@@ -51,7 +51,7 @@ export default async function AdminAnalystsPage() {
   return (
     <div>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <h1 className="font-display text-2xl text-ink sm:text-3xl">
           ანალიტიკოსები
         </h1>
         <p className="mt-1.5 text-ink-muted">
@@ -60,15 +60,21 @@ export default async function AdminAnalystsPage() {
         </p>
       </header>
 
+      {/* The queue page is where applications get decided day to day; this
+          block exists for the full application text, so an empty one is a
+          line, not a card-sized hole above the list that was wanted. */}
+      {pending.length === 0 ? (
+        <p className="mb-5 text-sm text-ink-muted">
+          ახალი განაცხადი არ არის.
+        </p>
+      ) : (
       <Card>
         <CardHeader
           title={`დასამოწმებელი (${pending.length})`}
           description="ახალი განაცხადები."
         />
         <CardBody>
-          {pending.length === 0 ? (
-            <EmptyState title="ახალი განაცხადი არ არის" />
-          ) : (
+          {(
             <ul className="space-y-3">
               {pending.map((profile) => (
                 <li
@@ -192,8 +198,9 @@ export default async function AdminAnalystsPage() {
           )}
         </CardBody>
       </Card>
+      )}
 
-      <div className="mt-5">
+      <div className={pending.length === 0 ? '' : 'mt-5'}>
         <Card>
           <CardHeader title={`ყველა პროფილი (${rest.length})`} />
           <CardBody>
@@ -258,16 +265,26 @@ export default async function AdminAnalystsPage() {
                         </td>
                         <td className="py-3 text-right">
                           {profile.status === 'APPROVED' ? (
-                            <ActionButton
-                              action={decideAnalystAction}
-                              fields={{
-                                analystProfileId: profile.id,
-                                decision: 'SUSPENDED',
-                              }}
-                              label="შეჩერება"
-                              tone="danger"
-                              confirm={`შევაჩეროთ ${profile.displayName}?`}
-                            />
+                            <span className="inline-flex flex-wrap justify-end gap-2">
+                              {/* The public page exists only while approved:
+                                  everyone else's row would link to a 404. */}
+                              <Link
+                                href={`/analysts/${profile.slug}`}
+                                className="inline-flex min-h-11 items-center rounded-md border border-line px-3 text-sm text-ink-muted transition-colors hover:border-line-strong hover:text-ink"
+                              >
+                                გვერდი
+                              </Link>
+                              <ActionButton
+                                action={decideAnalystAction}
+                                fields={{
+                                  analystProfileId: profile.id,
+                                  decision: 'SUSPENDED',
+                                }}
+                                label="შეჩერება"
+                                tone="danger"
+                                confirm={`შევაჩეროთ ${profile.displayName}?`}
+                              />
+                            </span>
                           ) : (
                             <ActionButton
                               action={decideAnalystAction}

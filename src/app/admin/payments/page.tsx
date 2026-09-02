@@ -65,7 +65,7 @@ export default async function AdminPaymentsPage() {
   return (
     <div>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <h1 className="font-display text-2xl text-ink sm:text-3xl">
           გადახდები
         </h1>
         <p className="mt-1.5 text-ink-muted">

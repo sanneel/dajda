@@ -110,7 +110,7 @@ export async function decideAnalystAction(
       );
     });
 
-    revalidatePath('/admin/analysts');
+    revalidatePath('/admin', 'layout');
     revalidatePath('/');
     revalidatePath('/analysts', 'layout');
     return ok({ status: decision });
@@ -184,7 +184,7 @@ export async function setUserStatusAction(
     // Suspension must take effect immediately, not at next session expiry.
     if (status === 'SUSPENDED') await revokeAllSessionsForUser(userId);
 
-    revalidatePath('/admin/users');
+    revalidatePath('/admin', 'layout');
     return ok({ status });
   } catch (error) {
     return toActionFailure(error);
@@ -233,7 +233,7 @@ export async function createPredictionAction(
       role: 'ADMIN',
     });
 
-    revalidatePath('/admin/predictions');
+    revalidatePath('/admin', 'layout');
     revalidatePath('/free');
 
     return ok({ predictionId: prediction.id });
@@ -300,7 +300,7 @@ export async function settlePredictionAction(
       console.error('[dajda] settlement notification enqueue failed', error);
     }
 
-    revalidatePath('/admin/predictions');
+    revalidatePath('/admin', 'layout');
     revalidatePath('/free');
     return ok({ settled: true });
   } catch (error) {
@@ -336,7 +336,7 @@ export async function correctPredictionAction(
       role: 'ADMIN',
     });
 
-    revalidatePath('/admin/predictions');
+    revalidatePath('/admin', 'layout');
     revalidatePath('/free');
     return ok({ correctionId: correction.id });
   } catch (error) {
@@ -388,7 +388,7 @@ export async function resolveReportAction(
       );
     });
 
-    revalidatePath('/admin/reports');
+    revalidatePath('/admin', 'layout');
     return ok({ status });
   } catch (error) {
     return toActionFailure(error);

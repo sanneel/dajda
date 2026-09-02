@@ -17,6 +17,7 @@ import {
 import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
 import { storeIdentityDocument, storeScreenshot } from '@/lib/uploads';
 import { enqueueForAnalystAudience } from '@/lib/notifications/outbox';
+import { notifyAdminsBetFinished } from '@/lib/notifications/admin-alerts';
 import { formatOdds } from '@/lib/format';
 import {
   analystApplicationSchema,
@@ -97,10 +98,16 @@ async function notifyNewBet(
   }
 }
 
+export type PostBetResult = {
+  predictionId: string;
+  /** False when saved as a draft: the form says so instead of "published". */
+  published: boolean;
+};
+
 export async function postBetAction(
-  _previous: ActionResult<{ predictionId: string }> | null,
+  _previous: ActionResult<PostBetResult> | null,
   formData: FormData,
-): Promise<ActionResult<{ predictionId: string }>> {
+): Promise<ActionResult<PostBetResult>> {
   try {
     const analyst = await requireApprovedAnalyst();
 
@@ -180,7 +187,10 @@ export async function postBetAction(
     revalidatePath('/');
     revalidatePath('/analysts', 'layout');
 
-    return ok({ predictionId: prediction.id });
+    return ok({
+      predictionId: prediction.id,
+      published: prediction.publishedAt !== null,
+    });
   } catch (error) {
     return toActionFailure(error);
   }
@@ -249,6 +259,11 @@ export async function markBetFinishedAction(
       userId: analyst.userId,
       role: analyst.role,
     });
+
+    // The handoff is only useful if an administrator hears about it. Sent
+    // after the transaction so a slow bot cannot hold the author's request,
+    // and never allowed to fail it.
+    await notifyAdminsBetFinished(parsed.data.predictionId);
 
     revalidatePath('/analyst');
     revalidatePath('/admin/predictions');

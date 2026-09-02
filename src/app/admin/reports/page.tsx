@@ -4,11 +4,10 @@ import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth/authorization';
 import { formatDateTimeKa } from '@/lib/format';
 import { REPORT_REASON_KA, REPORT_STATUS_KA } from '@/lib/labels';
-import { resolveReportAction } from '@/actions/admin';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/feedback';
-import { ActionButton } from '@/components/admin/action-button';
+import { ReportDecisionForm } from './decide-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +41,7 @@ export default async function AdminReportsPage() {
   return (
     <div>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <h1 className="font-display text-2xl text-ink sm:text-3xl">
           საჩივრები
         </h1>
         <p className="mt-1.5 text-ink-muted">
@@ -123,23 +122,10 @@ export default async function AdminReportsPage() {
 
                   {report.status !== 'RESOLVED' &&
                   report.status !== 'DISMISSED' ? (
-                    <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
-                      <ActionButton
-                        action={resolveReportAction}
-                        fields={{ reportId: report.id, status: 'REVIEWING' }}
-                        label="განხილვაში"
-                      />
-                      <ActionButton
-                        action={resolveReportAction}
-                        fields={{ reportId: report.id, status: 'RESOLVED' }}
-                        label="დახურვა"
-                        tone="accent"
-                      />
-                      <ActionButton
-                        action={resolveReportAction}
-                        fields={{ reportId: report.id, status: 'DISMISSED' }}
-                        label="უარყოფა"
-                        tone="danger"
+                    <div className="mt-3 border-t border-line pt-3">
+                      <ReportDecisionForm
+                        reportId={report.id}
+                        status={report.status}
                       />
                     </div>
                   ) : report.resolutionNote ? (

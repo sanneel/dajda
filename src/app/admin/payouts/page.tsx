@@ -35,6 +35,9 @@ export default async function AdminPayoutsPage() {
       currency: true,
       status: true,
       maskedCard: true,
+      // Only its presence is read here; the sealed value never leaves the
+      // server, and the form is told just whether it needs a typed number.
+      cardCipher: true,
       periodStart: true,
       periodEnd: true,
       publicationsInPeriod: true,
@@ -58,7 +61,7 @@ export default async function AdminPayoutsPage() {
   return (
     <div>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <h1 className="font-display text-2xl text-ink sm:text-3xl">
           გატანები
         </h1>
         <p className="mt-1.5 text-ink-muted">
@@ -70,7 +73,7 @@ export default async function AdminPayoutsPage() {
       <Card>
         <CardHeader
           title={`განსახილველი (${open.length})`}
-          description="დადასტურებისთვის შეიყვანეთ ბარათის ნომერი, რომელიც ანალიტიკოსმა მიუთითა."
+          description="ბარათის ნომერი მოთხოვნას დაშიფრული ახლავს: დადასტურება ერთი დაჭერაა."
         />
         <CardBody>
           {open.length === 0 ? (
@@ -90,8 +93,14 @@ export default async function AdminPayoutsPage() {
                         </Link>
                       </p>
                       <p className="mt-0.5 text-sm text-ink-muted">
-                        {payout.analystProfile.firstName}{' '}
-                        {payout.analystProfile.lastName} · {payout.user.email}
+                        {[
+                          [payout.analystProfile.firstName, payout.analystProfile.lastName]
+                            .filter(Boolean)
+                            .join(' '),
+                          payout.user.email,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </p>
                       <p className="tabular mt-0.5 text-sm text-ink-faint">
                         {payout.maskedCard} ·{' '}
@@ -138,6 +147,8 @@ export default async function AdminPayoutsPage() {
                   <DecidePayoutForm
                     payoutId={payout.id}
                     maskedCard={payout.maskedCard}
+                    hasStoredCard={payout.cardCipher !== null}
+                    amountLabel={formatMoney(payout.amountMinor, payout.currency)}
                   />
                 </li>
               ))}
@@ -201,10 +212,11 @@ export default async function AdminPayoutsPage() {
       </div>
 
       <div className="mt-6">
-        <Alert tone="info" title="ბარათის ნომერი არსად ინახება">
-          მოთხოვნაში შენახულია მხოლოდ დაფარული სახე. დადასტურებისას შეყვანილი
-          ნომერი მოწმდება ამ ნიღბის მიხედვით, ერთხელ ეგზავნება პროვაიდერს და არ
-          იწერება.
+        <Alert tone="info" title="ბარათის ნომერი როგორ ინახება">
+          ავტორის შეყვანილი ნომერი მოთხოვნას დაშიფრული (AES-256-GCM) ახლავს
+          მხოლოდ განხილვის დასრულებამდე. დადასტურებისას ერთხელ ეგზავნება
+          პროვაიდერს და იმავე წამს იშლება; უარყოფისასაც იშლება. სამუდამოდ
+          რჩება მხოლოდ დაფარული სახე.
         </Alert>
       </div>
     </div>

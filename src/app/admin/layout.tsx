@@ -2,21 +2,21 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/authorization';
+import { prisma } from '@/lib/db';
 import { Logo } from '@/components/brand/logo';
 import { LogoutButton } from '@/components/logout-button';
+import { AdminNav } from './nav';
 
-const NAV = [
-  { href: '/admin', label: 'მიმოხილვა' },
-  { href: '/admin/users', label: 'მომხმარებლები' },
-  { href: '/admin/analysts', label: 'ანალიტიკოსები' },
-  { href: '/admin/predictions', label: 'ფსონები' },
-  { href: '/admin/reports', label: 'საჩივრები' },
-  { href: '/admin/notifications', label: 'შეტყობინებები' },
-  { href: '/admin/payments', label: 'გადახდები' },
-  { href: '/admin/payouts', label: 'გატანები' },
-  { href: '/admin/audit', label: 'აუდიტის ჟურნალი' },
-];
-
+/**
+ * The admin shell: a top bar, four sections, full-width content.
+ *
+ * It used to be a sixteen-rem sidebar with nine destinations and a content
+ * column beside it. The sidebar cost a fifth of every screen to list tables,
+ * and on a phone it stacked nine links above the page. Now the sections run
+ * across the top, the queue count sits on the first one, and the page gets
+ * the whole width - which the settlement queue, two screenshots side by side,
+ * actually needs.
+ */
 export default async function AdminLayout({
   children,
 }: {
@@ -27,62 +27,54 @@ export default async function AdminLayout({
   if (!actor) redirect('/login');
   if (actor.role !== 'ADMIN') redirect('/dashboard');
 
+  /*
+   * What is waiting on a person, summed for the nav. Four cheap counts on
+   * every admin request is the price of the number being right everywhere
+   * rather than only on the page that computes it.
+   */
+  const [awaitingBets, applications, payouts, reports] = await Promise.all([
+    prisma.prediction.count({
+      where: { finishedAt: { not: null }, status: 'PENDING', supersededAt: null },
+    }),
+    prisma.analystProfile.count({ where: { status: 'PENDING' } }),
+    prisma.analystPayout.count({ where: { status: 'REQUESTED' } }),
+    prisma.report.count({ where: { status: { in: ['OPEN', 'REVIEWING'] } } }),
+  ]);
+  const queueCount = awaitingBets + applications + payouts + reports;
+
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-50 border-b border-line bg-surface">
-        <div className="mx-auto flex h-16 max-w-page items-center gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-page items-center gap-3 px-4 sm:px-6">
           <Link href="/" aria-label="DAJDA: მთავარი გვერდი">
-            <Logo size={24} />
+            <Logo size={22} />
           </Link>
           <span className="rounded border border-accent/35 bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
             ადმინი
           </span>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-1 sm:gap-3">
             <span className="hidden text-sm text-ink-muted sm:inline">
               {actor.name}
             </span>
             <Link
               href="/dashboard"
-              className="inline-flex min-h-11 items-center rounded-md border border-line px-3 text-sm text-ink"
+              className="inline-flex min-h-9 items-center rounded-control px-2.5 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
             >
               პროფილი
             </Link>
+            <LogoutButton />
           </div>
         </div>
       </header>
 
+      <AdminNav queueCount={queueCount} />
+
       <main
         id="main"
-        className="mx-auto w-full max-w-page flex-1 px-4 py-8 sm:px-6"
+        className="mx-auto w-full max-w-page flex-1 px-4 py-6 sm:px-6 sm:py-8"
       >
-        <div className="grid gap-8 lg:grid-cols-[16rem_1fr]">
-          {/*
-            * A sidebar only where there is a column for it. Stacked, nine
-            * destinations plus a logout button filled a phone screen before
-            * any of the page they lead to, so below lg the same list is one
-            * scrollable row of chips.
-            */}
-          <nav aria-label="ადმინის ნავიგაცია" className="min-w-0">
-            <ul className="flex gap-1 overflow-x-auto pb-1 lg:sticky lg:top-24 lg:block lg:space-y-1 lg:overflow-x-visible lg:pb-0">
-              {NAV.map((item) => (
-                <li key={item.href} className="shrink-0">
-                  <Link
-                    href={item.href}
-                    className="flex min-h-11 items-center whitespace-nowrap rounded-md px-3 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-              <li className="shrink-0 lg:pt-2">
-                <LogoutButton />
-              </li>
-            </ul>
-          </nav>
-
-          <div className="min-w-0">{children}</div>
-        </div>
+        {children}
       </main>
     </div>
   );
