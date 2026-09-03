@@ -33,6 +33,14 @@ import type {
  *   4. join their values with "|", with the merchant payment key prepended
  *   5. SHA-1 the result, lowercase hex
  *
+ * That digest covers scalar parameters only, so a request that carries a
+ * nested object - a subscription's recurring_data - cannot be signed with
+ * it; the gateway answers 1014 "Invalid signature". Flitt's own SDK
+ * switches such requests to protocol 2.0: the whole order is JSON-encoded
+ * as {"order": {...}}, base64'd, and that one string is signed as
+ * sha1(secret + "|" + data). The envelope is {"version":"2.0","data":…,
+ * "signature":…} and the answer comes back in the same shape.
+ *
  * STATUS: written to the documented specification but never exercised against
  * a live merchant account, because no credentials exist in this environment.
  * The pure functions below are unit tested against the worked example in the
@@ -84,18 +92,60 @@ export function flittSignature(params: FlittParams, secretKey: string): string {
     .toLowerCase();
 }
 
+/** Protocol 2.0: the base64 payload is the only thing signed. */
+export function flittSignatureV2(data: string, secretKey: string): string {
+  return createHash('sha1')
+    .update(`${secretKey}|${data}`, 'utf8')
+    .digest('hex')
+    .toLowerCase();
+}
+
+export type FlittV2Envelope = { version: '2.0'; data: string; signature: string };
+
+/** Wrap an order for a protocol 2.0 request. */
+export function encodeV2Order(
+  order: FlittParams,
+  secretKey: string,
+): FlittV2Envelope {
+  const data = Buffer.from(JSON.stringify({ order }), 'utf8').toString('base64');
+  return { version: '2.0', data, signature: flittSignatureV2(data, secretKey) };
+}
+
+/** Unwrap a protocol 2.0 payload; throws on anything that is not one. */
+export function decodeV2Data(data: string): Record<string, unknown> {
+  const parsed = JSON.parse(Buffer.from(data, 'base64').toString('utf8')) as {
+    order?: Record<string, unknown>;
+  };
+  if (!parsed || typeof parsed !== 'object' || !parsed.order) {
+    throw new Error('protocol 2.0 payload has no order');
+  }
+  return parsed.order;
+}
+
+function isV2Envelope(value: unknown): value is FlittV2Envelope {
+  return (
+    Boolean(value) &&
+    typeof value === 'object' &&
+    (value as { version?: unknown }).version === '2.0' &&
+    typeof (value as { data?: unknown }).data === 'string'
+  );
+}
+
+function digestsEqual(expected: string, provided: string | null | undefined): boolean {
+  if (!provided) return false;
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(provided.trim().toLowerCase(), 'utf8');
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
 /** Constant-time comparison of two hex digests. */
 export function verifyFlittSignature(
   params: FlittParams,
   secretKey: string,
   provided: string | null | undefined,
 ): boolean {
-  if (!provided) return false;
-  const expected = flittSignature(params, secretKey);
-  const a = Buffer.from(expected, 'utf8');
-  const b = Buffer.from(provided.trim().toLowerCase(), 'utf8');
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  return digestsEqual(flittSignature(params, secretKey), provided);
 }
 
 /**
@@ -143,11 +193,12 @@ export class FlittPaymentProvider implements PaymentProvider {
     path: string,
     request: FlittParams,
     signingKey: string = this.config.secretKey,
+    protocol: '1.0' | '2.0' = '1.0',
   ): Promise<T> {
-    const signed = {
-      ...request,
-      signature: flittSignature(request, signingKey),
-    };
+    const signed =
+      protocol === '2.0'
+        ? encodeV2Order(request, signingKey)
+        : { ...request, signature: flittSignature(request, signingKey) };
 
     const response = await fetch(`${this.config.apiUrl}${path}`, {
       method: 'POST',
@@ -166,6 +217,17 @@ export class FlittPaymentProvider implements PaymentProvider {
       throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
         internalDetail: `Flitt ${path} returned an unexpected envelope`,
       });
+    }
+    // A 2.0 answer is wrapped the same way the request was; an error
+    // answer to a 2.0 request may still come back flat, so both are read.
+    if (isV2Envelope(body.response)) {
+      try {
+        return decodeV2Data(body.response.data) as T;
+      } catch {
+        throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
+          internalDetail: `Flitt ${path} returned an undecodable 2.0 payload`,
+        });
+      }
     }
     return body.response;
   }
@@ -200,7 +262,9 @@ export class FlittPaymentProvider implements PaymentProvider {
         every: input.subscription.every,
         period: input.subscription.period,
         amount: input.amountMinor,
-        start_time: input.subscription.startDate,
+        // Documented format is "YYYY-MM-DD HH24:MI:SS"; a bare date gets
+        // midnight appended. Absent means "from the initial payment".
+        start_time: withMidnight(input.subscription.startDate),
         // The customer pays what the plan costs; the hosted page must not
         // let them edit the schedule.
         state: 'Y',
@@ -214,7 +278,13 @@ export class FlittPaymentProvider implements PaymentProvider {
       payment_id?: number | string;
       error_message?: string;
       error_code?: number;
-    }>('/api/checkout/url', request);
+    }>(
+      '/api/checkout/url',
+      request,
+      this.config.secretKey,
+      // Nested recurring_data cannot be signed under 1.0 (see header).
+      input.subscription ? '2.0' : '1.0',
+    );
 
     if (response.response_status !== 'success' || !response.checkout_url) {
       throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
@@ -263,13 +333,32 @@ export class FlittPaymentProvider implements PaymentProvider {
    * parameter map before the digest is recomputed over it.
    */
   async handleWebhook(request: Request): Promise<WebhookResult> {
-    const params = await readFlittBody(request);
+    const body = await readFlittBody(request);
 
-    const signatureValid = verifyFlittSignature(
-      params,
-      this.config.webhookSecret,
-      typeof params.signature === 'string' ? params.signature : null,
-    );
+    let params: FlittParams;
+    let signatureValid: boolean;
+    if (body.v2) {
+      // Protocol 2.0 callback: the digest covers the base64 payload, and
+      // the parameters live inside it. An undecodable payload is a
+      // rejected delivery, not a crash.
+      signatureValid = digestsEqual(
+        flittSignatureV2(body.v2.data, this.config.webhookSecret),
+        body.v2.signature,
+      );
+      try {
+        params = flatten(decodeV2Data(body.v2.data));
+      } catch {
+        params = {};
+        signatureValid = false;
+      }
+    } else {
+      params = body.params;
+      signatureValid = verifyFlittSignature(
+        params,
+        this.config.webhookSecret,
+        typeof params.signature === 'string' ? params.signature : null,
+      );
+    }
 
     const rawStatus =
       params.order_status === undefined ? null : String(params.order_status);
@@ -482,7 +571,12 @@ function asOptionalString(value: unknown): string | null {
     : String(value);
 }
 
-async function readFlittBody(request: Request): Promise<FlittParams> {
+type FlittBody = {
+  params: FlittParams;
+  v2: { data: string; signature: string | null } | null;
+};
+
+async function readFlittBody(request: Request): Promise<FlittBody> {
   const contentType = request.headers.get('content-type') ?? '';
 
   if (contentType.includes('application/json')) {
@@ -492,7 +586,13 @@ async function readFlittBody(request: Request): Promise<FlittParams> {
       body && typeof body === 'object' && 'response' in body
         ? (body.response as Record<string, unknown>)
         : body;
-    return flatten(inner);
+    if (isV2Envelope(inner)) {
+      return {
+        params: {},
+        v2: { data: inner.data, signature: asOptionalString(inner.signature) },
+      };
+    }
+    return { params: flatten(inner), v2: null };
   }
 
   const form = await request.formData();
@@ -500,7 +600,19 @@ async function readFlittBody(request: Request): Promise<FlittParams> {
   for (const [key, value] of form.entries()) {
     if (typeof value === 'string') params[key] = value;
   }
-  return params;
+  if (isV2Envelope(params)) {
+    return {
+      params: {},
+      v2: { data: params.data, signature: asOptionalString(params.signature) },
+    };
+  }
+  return { params, v2: null };
+}
+
+/** "2026-09-17" -> "2026-09-17 00:00:00"; anything already timed passes. */
+function withMidnight(date: string | undefined): string | undefined {
+  if (!date) return undefined;
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date} 00:00:00` : date;
 }
 
 /** Signature input is a flat map; nested objects are not part of the digest. */

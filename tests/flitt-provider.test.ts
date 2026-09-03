@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  decodeV2Data,
+  flittSignatureV2,
   FlittPaymentProvider,
   flittSignature,
   type FlittConfig,
@@ -69,20 +71,25 @@ describe('subscription checkout', () => {
     expect(session.checkoutUrl).toBe('https://pay.flitt.test/checkout/abc');
     expect(sent[0]?.url).toBe('https://pay.flitt.test/api/checkout/url');
 
-    const request = sent[0]?.request as Record<string, unknown>;
+    // A subscription goes out under protocol 2.0: the order is inside the
+    // base64 payload, not at the top level of the request.
+    const envelope = sent[0]?.request as Record<string, unknown>;
+    expect(envelope.version).toBe('2.0');
+    const request = decodeV2Data(String(envelope.data));
     expect(request.subscription).toBe('Y');
     expect(request.required_rectoken).toBe('Y');
     expect(request.recurring_data).toEqual({
       every: 1,
       period: 'month',
       amount: 2900,
-      start_time: '2026-09-17',
+      // Documented format is date and time; a bare date gets midnight.
+      start_time: '2026-09-17 00:00:00',
       state: 'Y',
       readonly: 'Y',
     });
   });
 
-  it('signs the request over scalar parameters only', async () => {
+  it('signs a subscription as one base64 payload (protocol 2.0)', async () => {
     const sent = mockGateway({
       response_status: 'success',
       checkout_url: 'https://pay.flitt.test/checkout/abc',
@@ -99,16 +106,46 @@ describe('subscription checkout', () => {
       subscription: { every: 1, period: 'month' },
     });
 
-    const { signature, ...params } = sent[0]?.request as Record<
-      string,
-      unknown
-    > & { signature: string };
+    const envelope = sent[0]?.request as {
+      version: string;
+      data: string;
+      signature: string;
+    };
 
-    // Recomputing over the sent parameters (nested schedule included, which
-    // the signature function must ignore) reproduces the sent signature.
-    expect(signature).toBe(
-      flittSignature(params as FlittParams, CONFIG.secretKey),
+    // The flat digest cannot cover recurring_data, which is exactly what the
+    // gateway refused with 1014; the 2.0 signature is sha1(secret|data).
+    expect(envelope.version).toBe('2.0');
+    expect(envelope.signature).toBe(
+      flittSignatureV2(envelope.data, CONFIG.secretKey),
     );
+    expect(Object.keys(envelope).sort()).toEqual(['data', 'signature', 'version']);
+    expect(decodeV2Data(envelope.data).merchant_id).toBe(CONFIG.merchantId);
+  });
+
+  it('reads a protocol 2.0 answer from inside its payload', async () => {
+    const data = Buffer.from(
+      JSON.stringify({
+        order: {
+          response_status: 'success',
+          checkout_url: 'https://pay.flitt.test/checkout/v2',
+          payment_id: 700002,
+        },
+      }),
+    ).toString('base64');
+    mockGateway({ version: '2.0', data, signature: 'not-checked-on-answers' });
+
+    const provider = new FlittPaymentProvider(CONFIG);
+    const session = await provider.createCheckoutSession({
+      orderId: 'dajda-sub-3',
+      amountMinor: 2900,
+      currency: 'GEL',
+      description: 'DAJDA: Monthly',
+      returnUrl: 'https://dajda.ge/dashboard',
+      callbackUrl: 'https://dajda.ge/api/webhooks/payments/flitt',
+      subscription: { every: 1, period: 'month' },
+    });
+    expect(session.checkoutUrl).toBe('https://pay.flitt.test/checkout/v2');
+    expect(session.providerPaymentId).toBe('700002');
   });
 
   it('leaves plain checkouts without subscription parameters', async () => {
@@ -332,6 +369,50 @@ describe('payout (P2P card credit)', () => {
 
     expect(payout.status).toBe('FAILED');
     expect(payout.message).toBe('Insufficient merchant balance');
+  });
+});
+
+describe('protocol 2.0 callbacks', () => {
+  function v2Request(order: Record<string, unknown>, secret: string) {
+    const data = Buffer.from(JSON.stringify({ order })).toString('base64');
+    return new Request('https://dajda.ge/api/webhooks/payments/flitt', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        response: { version: '2.0', data, signature: flittSignatureV2(data, secret) },
+      }),
+    });
+  }
+
+  it('verifies the payload digest and reads the order from inside it', async () => {
+    const provider = new FlittPaymentProvider(CONFIG);
+    const result = await provider.handleWebhook(
+      v2Request(
+        {
+          order_id: 'dajda-sub-9',
+          order_status: 'approved',
+          payment_id: 900001,
+          amount: 2900,
+          currency: 'GEL',
+          rectoken: 'tok_v2',
+        },
+        CONFIG.webhookSecret,
+      ),
+    );
+    expect(result.signatureValid).toBe(true);
+    expect(result.orderId).toBe('dajda-sub-9');
+    expect(result.status).toBe('SUCCEEDED');
+    expect(result.amountMinor).toBe(2900);
+    expect(result.cardToken).toBe('tok_v2');
+  });
+
+  it('rejects a payload signed with the wrong key', async () => {
+    const provider = new FlittPaymentProvider(CONFIG);
+    const result = await provider.handleWebhook(
+      v2Request({ order_id: 'dajda-sub-9', order_status: 'approved' }, 'wrong'),
+    );
+    expect(result.signatureValid).toBe(false);
+    expect(result.rejectionReason).toBe('INVALID_SIGNATURE');
   });
 });
 
