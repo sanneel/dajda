@@ -111,7 +111,9 @@ export default async function HomePage({
         </div>
       </header>
 
-      <div className="mb-6 mt-10">
+      {/* Linked from the dashboard as /#rating, so the reader lands on the
+          list rather than on the hero above it. */}
+      <div id="rating" className="mb-6 mt-10 scroll-mt-24">
         <h2 className="font-display text-xl text-ink">ანალიტიკოსების რეიტინგი</h2>
         <p className="mt-1.5 max-w-xl text-sm text-ink-muted">
           სტატისტიკა ასახავს წარსულს და არ არის მომავლის გარანტია.

@@ -37,8 +37,13 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
   return (
     <div>
       {/* The same ranges as numbers: the reference's table, in units. */}
+      {/*
+       * Five columns need 22rem, which is 10px more than a 375px phone
+       * gives inside the card; ROI is the derived one, so it steps aside
+       * below sm rather than making the whole table scroll sideways.
+       */}
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[22rem] text-sm">
+        <table className="w-full min-w-[17rem] text-sm sm:min-w-[22rem]">
           <caption className="sr-only">შედეგი კუშის მიხედვით</caption>
           <thead>
             <tr className="border-b border-line text-left">
@@ -54,7 +59,10 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
               <th scope="col" className="tabular py-1.5 pr-2 text-right font-medium text-ink-muted">
                 მოგება
               </th>
-              <th scope="col" className="tabular py-1.5 text-right font-medium text-ink-muted">
+              <th
+                scope="col"
+                className="tabular hidden py-1.5 text-right font-medium text-ink-muted sm:table-cell"
+              >
                 ROI
               </th>
             </tr>
@@ -97,7 +105,7 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
                       : '·'}
                   </td>
                   <td
-                    className={`tabular py-1.5 text-right ${
+                    className={`tabular hidden py-1.5 text-right sm:table-cell ${
                       roi === null
                         ? 'text-ink-muted'
                         : roi > 0

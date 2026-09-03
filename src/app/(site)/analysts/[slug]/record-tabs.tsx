@@ -292,7 +292,7 @@ function Plans({
         </p>
         <p className="mt-2 text-xs text-ink-muted">
           <Link
-            href="/dashboard"
+            href="/dashboard#subscriptions"
             className="text-accent underline decoration-line-strong underline-offset-2 hover:decoration-accent"
           >
             პროფილი → გამოწერები

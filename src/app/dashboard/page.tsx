@@ -215,7 +215,11 @@ export default async function DashboardPage({
        * hidden; but once read it is a long block sitting above everything
        * else, and it should be possible to fold away.
        */}
-      <details open className="rounded-card border border-line bg-surface">
+      <details
+        open
+        id="subscriptions"
+        className="scroll-mt-24 rounded-card border border-line bg-surface"
+      >
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 marker:content-none sm:px-5">
           <span className="font-display text-base text-ink">გამოწერები</span>
           <span className="tabular text-sm text-ink-faint">
@@ -228,7 +232,7 @@ export default async function DashboardPage({
               title="აქტიური გამოწერა არ გაქვთ"
               description="გამოწერა ყოველი ავტორის პროფილზეა: აირჩიეთ ავტორი და ნახეთ მისი გეგმები."
               action={
-                <ButtonLink href="/">ანალიტიკოსების ნახვა</ButtonLink>
+                <ButtonLink href="/#rating">ანალიტიკოსების ნახვა</ButtonLink>
               }
             />
           ) : (
@@ -339,7 +343,7 @@ export default async function DashboardPage({
             <ul className="mt-3 divide-y divide-line text-sm">
               <li>
                 <Link
-                  href="/"
+                  href="/#rating"
                   className="flex min-h-11 items-center justify-between gap-3 py-2 text-ink-muted transition-colors hover:text-ink"
                 >
                   <span>
