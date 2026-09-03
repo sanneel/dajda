@@ -278,8 +278,14 @@ const envSchema = z
       }
 
       // Documented in .env.example, so treat it as public knowledge: anyone
-      // could forge a webhook and activate a subscription.
-      if (value.MOCK_PAYMENT_SECRET === DEFAULT_MOCK_SECRET) {
+      // could forge a webhook and activate a subscription. Only the mock
+      // provider signs with it; under Flitt the mock webhook route answers
+      // 404 and the secret is never read, so a live deployment is not asked
+      // to invent a secret for a door that is not there.
+      if (
+        value.PAYMENT_PROVIDER === 'mock' &&
+        value.MOCK_PAYMENT_SECRET === DEFAULT_MOCK_SECRET
+      ) {
         ctx.addIssue({
           code: 'custom',
           path: ['MOCK_PAYMENT_SECRET'],

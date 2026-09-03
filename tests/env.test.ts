@@ -104,8 +104,19 @@ describe('environment configuration', () => {
   });
 
   it('refuses to boot production with the shared mock secret', () => {
-    setEnv({ ...VALID_PRODUCTION, MOCK_PAYMENT_SECRET: 'dev-mock-secret' });
+    setEnv({
+      ...VALID_PRODUCTION,
+      PAYMENT_PROVIDER: 'mock',
+      MOCK_PAYMENT_SECRET: 'dev-mock-secret',
+    });
     expect(() => getEnv()).toThrow(/MOCK_PAYMENT_SECRET/);
+  });
+
+  it('does not demand a mock secret when Flitt is the provider', () => {
+    // The secret only signs the mock webhook, and under Flitt that route
+    // answers 404. A live merchant should not have to invent one.
+    setEnv({ ...VALID_PRODUCTION, MOCK_PAYMENT_SECRET: undefined });
+    expect(() => getEnv()).not.toThrow();
   });
 
   it('refuses to boot production with APP_URL left at its default', () => {
