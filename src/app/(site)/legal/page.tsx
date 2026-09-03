@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { COMPANY } from '@/lib/company';
 import {
   PRIVACY,
   RESPONSIBLE_USE,
@@ -91,6 +92,36 @@ export default function LegalPage() {
       <h1 className="font-display text-3xl text-ink sm:text-4xl">
         იურიდიული ინფორმაცია
       </h1>
+
+      {/*
+       * Who the documents bind, stated once above them. Not a paraphrase of
+       * any clause: these are the requisites from company.json that the
+       * terms themselves are generated from, put where a reader (or the
+       * payment provider) looks for them first.
+       */}
+      <dl className="mt-6 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+        <dt className="text-ink-faint">მომსახურების გამწევი</dt>
+        <dd className="text-ink">
+          {`${COMPANY.nameKa}, სავაჭრო სახელწოდება „${COMPANY.tradeNameKa}"`}
+        </dd>
+        <dt className="text-ink-faint">საიდენტიფიკაციო კოდი</dt>
+        <dd className="tabular text-ink">{COMPANY.legalId}</dd>
+        <dt className="text-ink-faint">მისამართი</dt>
+        <dd className="text-ink">{COMPANY.addressKa}</dd>
+        <dt className="text-ink-faint">კონტაქტი</dt>
+        <dd className="text-ink">
+          <a href={`mailto:${COMPANY.supportEmail}`} className="text-accent hover:underline">
+            {COMPANY.supportEmail}
+          </a>
+          {" · "}
+          <span className="tabular">{COMPANY.phone}</span>
+        </dd>
+        <dt className="text-ink-faint">მიწოდება და დაბრუნება</dt>
+        <dd className="text-ink-muted">
+          ციფრული კონტენტი, წვდომა იხსნება გადახდის დადასტურებისთანავე (წესები 9.7);
+          დაბრუნება მე-12 თავის მიხედვით.
+        </dd>
+      </dl>
 
       {/* Jump list, so a footer link can land on the right document. */}
       <nav aria-label="დოკუმენტები" className="mt-8 border-y border-line py-4">

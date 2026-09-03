@@ -122,7 +122,11 @@ export default function HowItWorksPage() {
       </dl>
 
       <p className="mt-8 text-sm text-ink-muted">
-        დეტალური პირობები:{' '}
+        ყველა პროდუქტი და ფასი ერთ გვერდზე:{' '}
+        <Link href="/pricing" className="text-accent underline">
+          ფასები
+        </Link>
+        . დეტალური პირობები:{' '}
         <Link href="/legal" className="text-accent underline">
           წესები, კონფიდენციალურობა და დაბრუნება
         </Link>

@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { COMPANY } from '@/lib/company';
+import { PaymentMarks } from '@/components/payment-marks';
 
 /*
  * All four documents live on one page now, so these are anchors rather than
@@ -6,6 +8,7 @@ import Link from 'next/link';
  * "იურიდიული" hides what is actually there.
  */
 const LEGAL_LINKS = [
+  { href: '/pricing', label: 'ფასები' },
   { href: '/legal#terms', label: 'წესები და პირობები' },
   { href: '/legal#privacy', label: 'კონფიდენციალურობა' },
   { href: '/legal#refunds', label: 'დაბრუნების პოლიტიკა' },
@@ -14,12 +17,17 @@ const LEGAL_LINKS = [
 ];
 
 /**
- * Deliberately minimal.
+ * Two rows and nothing more.
+ *
+ * The first is the links. The second is who is behind the site and how to
+ * reach them, plus the card marks: the payment provider requires the legal
+ * entity, its identification code, an address, a phone, an email and the
+ * Visa and Mastercard logos to be visible on the site, and the footer is the
+ * one place a visitor on any page can find them.
  *
  * The bookmaker boundary and the 18+ notice used to live down here; they now
  * sit in the ResponsibleUseNotice that every page renders in its own content,
- * where they are actually read. Repeating them in the footer only made the
- * page look busier without making the claim any more visible.
+ * where they are actually read.
  */
 export function SiteFooter() {
   return (
@@ -58,6 +66,37 @@ export function SiteFooter() {
             ))}
           </ul>
         </nav>
+      </div>
+
+      <div className="border-t border-line">
+        <div className="mx-auto flex max-w-page flex-col gap-4 px-4 py-5 text-xs text-ink-faint xl:flex-row xl:items-center xl:justify-between xl:px-6">
+          <address className="not-italic leading-relaxed">
+            <p className="text-ink-muted">
+              {COMPANY.nameKa} · ს/კ {COMPANY.legalId}
+            </p>
+            <p>
+              {COMPANY.addressKa} ·{' '}
+              <a
+                href={`tel:+995${COMPANY.phone.replace(/\s/g, '')}`}
+                className="tabular hover:text-ink"
+              >
+                {COMPANY.phone}
+              </a>{' '}
+              ·{' '}
+              <a
+                href={`mailto:${COMPANY.supportEmail}`}
+                className="hover:text-ink"
+              >
+                {COMPANY.supportEmail}
+              </a>
+            </p>
+          </address>
+
+          <div className="flex items-center gap-3">
+            <span>გადახდა:</span>
+            <PaymentMarks size="md" withWallets />
+          </div>
+        </div>
       </div>
     </footer>
   );

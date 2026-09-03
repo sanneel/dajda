@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { topUpBalanceAction } from '@/actions/balance';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
+import { PaymentMarks } from '@/components/payment-marks';
 
 export function TopUpForm() {
   const [state, action, pending] = useActionState(topUpBalanceAction, null);
@@ -42,6 +43,10 @@ export function TopUpForm() {
           {pending ? 'მუშავდება…' : 'ბალანსის შევსება'}
         </Button>
       </div>
+      <p className="flex items-center gap-2 text-xs text-ink-faint">
+        <span>ბარათით, ლარში:</span>
+        <PaymentMarks />
+      </p>
     </form>
   );
 }

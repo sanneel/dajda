@@ -6,6 +6,7 @@ import { purchaseTicketAction } from '@/actions/purchases';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 import { formatMoney } from '@/lib/format';
+import { PaymentMarks } from '@/components/payment-marks';
 
 /**
  * The one-off purchase button on a locked paid ticket.
@@ -48,6 +49,10 @@ export function BuyTicketButton({
           ? 'მუშავდება…'
           : `ყიდვა · ${formatMoney(priceMinor, 'GEL')}`}
       </Button>
+      <p className="flex items-center gap-2 text-xs text-ink-faint">
+        <span>ბარათით ან ბალანსიდან:</span>
+        <PaymentMarks />
+      </p>
     </form>
   );
 }

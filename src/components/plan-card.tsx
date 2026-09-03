@@ -8,6 +8,7 @@ import { BILLING_PERIOD_KA } from '@/lib/labels';
 import { formatMoney } from '@/lib/format';
 import { startCheckoutAction } from '@/actions/subscriptions';
 import { Alert } from './ui/feedback';
+import { PaymentMarks } from './payment-marks';
 
 export type PlanView = {
   id: string;
@@ -176,6 +177,12 @@ export function PlanCard({
             ყოველ {BILLING_PERIOD_KA[plan.billingPeriod].replace('ში', 'ს')},
             სანამ არ გააუქმებთ. გაუქმება შესაძლებელია ნებისმიერ დროს
             პროფილიდან, წვდომა რჩება გადახდილი პერიოდის ბოლომდე.
+          </p>
+        ) : null}
+        {!isFree ? (
+          <p className="mt-3 flex items-center gap-2 text-xs text-ink-faint">
+            <span>ბარათით ან ბალანსიდან:</span>
+            <PaymentMarks />
           </p>
         ) : null}
       </div>
