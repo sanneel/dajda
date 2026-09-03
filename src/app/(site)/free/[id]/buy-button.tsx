@@ -51,7 +51,7 @@ export function BuyTicketButton({
       </Button>
       <p className="flex items-center gap-2 text-xs text-ink-faint">
         <span>ბარათით:</span>
-        <PaymentMarks />
+        <PaymentMarks withWallets />
       </p>
     </form>
   );

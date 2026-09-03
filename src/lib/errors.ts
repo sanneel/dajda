@@ -99,6 +99,15 @@ export function fail(
  */
 export function toActionFailure(error: unknown): ActionFailure {
   if (error instanceof AppError) {
+    /*
+     * The client gets the Georgian message and nothing else; the reason a
+     * provider gave for refusing goes to the server log, or it goes
+     * nowhere. A checkout that fails with "could not process payment" and
+     * an empty log is undiagnosable, and that is exactly what happened.
+     */
+    if (error.internalDetail && process.env.NODE_ENV !== 'test') {
+      console.error('[dajda]', error.code, error.internalDetail);
+    }
     return fail(error.code, error.message, error.fieldErrors);
   }
   if (process.env.NODE_ENV !== 'test') {

@@ -375,7 +375,7 @@ async function main() {
   let liveCount = 0;
   let freeCount = 0;
 
-  for (const seed of analystSeeds) {
+  for (const [index, seed] of analystSeeds.entries()) {
     const user = await prisma.user.create({
       data: {
         email: seed.email,
@@ -423,7 +423,8 @@ async function main() {
           'სრული აღწერა თითოეულზე',
           'შეტყობინება ყოველ ახალ ბილეთზე',
         ],
-        priceMinor: 3000,
+        // The three prices the terms allow, so the demo shows the spread.
+        priceMinor: [3000, 4000, 5000][index % 3]!,
         currency: 'GEL',
         billingPeriod: 'MONTHLY',
         isDemo: true,
@@ -498,6 +499,10 @@ async function main() {
             resultScreenshotPath,
             titleKa: `${pick} · ${market}`,
             descriptionKa: `${market}. ავტორის მოსაზრება ამ მატჩზე, დემო ტექსტი.`,
+            // The leg the public ticket is drawn from.
+            selections: {
+              create: [{ position: 1, eventKa: pick, pickKa: market, oddsMilli }],
+            },
             oddsMilli,
             stakeUnitsCenti,
             visibility,
@@ -535,6 +540,10 @@ async function main() {
             screenshotPath,
             titleKa: `${pick} · ${market}`,
             descriptionKa: `${market}. ავტორის მოსაზრება ამ მატჩზე, დემო ტექსტი.`,
+            // The leg the public ticket is drawn from.
+            selections: {
+              create: [{ position: 1, eventKa: pick, pickKa: market, oddsMilli }],
+            },
             oddsMilli,
             stakeUnitsCenti,
             visibility,
@@ -561,6 +570,10 @@ async function main() {
               : null,
             titleKa: `${pick} · ${market}`,
             descriptionKa: `${market}. ავტორის მოსაზრება ამ მატჩზე, დემო ტექსტი.`,
+            // The leg the public ticket is drawn from.
+            selections: {
+              create: [{ position: 1, eventKa: pick, pickKa: market, oddsMilli }],
+            },
             oddsMilli,
             stakeUnitsCenti,
             visibility,
@@ -605,6 +618,16 @@ async function main() {
         ),
         titleKa: ticket.title,
         descriptionKa: 'დემო უფასო ბილეთი, მომხმარებლის ატვირთული.',
+        selections: {
+          create: [
+            {
+              position: 1,
+              eventKa: ticket.title.split(' · ')[0] ?? ticket.title,
+              pickKa: ticket.title.split(' · ')[1] ?? '',
+              oddsMilli: Math.round(ticket.odds * 1000),
+            },
+          ],
+        },
         oddsMilli: Math.round(ticket.odds * 1000),
         stakeUnitsCenti: 100,
         visibility: 'PUBLIC',
