@@ -29,12 +29,15 @@ export function WorkspaceTabs({ tabs }: { tabs: WorkspaceTab[] }) {
 
   return (
     <div>
-      {/* Scrolls sideways on a phone rather than wrapping into a ragged
-          second row, the same rule the feed's sort chips follow. */}
+      {/* Wraps on a phone. This used to scroll sideways with the scrollbar
+          hidden, the rule the feed's sort chips follow, but four tabs need
+          514px and a phone gives 341: the drafts tab was simply not there,
+          with nothing on screen to say so. A second row is ragged; an
+          invisible tab is missing. */}
       <div
         role="tablist"
         aria-label="ჩემი კონტენტი"
-        className="-mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+        className="flex flex-wrap gap-x-1 border-b border-line"
       >
         {tabs.map((tab) => {
           const selected = tab.id === current?.id;
