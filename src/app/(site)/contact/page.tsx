@@ -37,7 +37,15 @@ const CHANNELS = [
     label: 'მისამართი',
     value: COMPANY.addressKa,
     href: null,
-    note: `${COMPANY.nameKa} · ს/კ ${COMPANY.legalId}`,
+    note: (
+      <>
+        {`სავაჭრო სახელწოდება „${COMPANY.tradeNameKa}"; მომსახურების გამწევის სრული `}
+        <Link href="/legal#requisites" className="text-accent hover:underline">
+          რეკვიზიტები
+        </Link>{' '}
+        იურიდიულ გვერდზეა.
+      </>
+    ),
   },
 ];
 

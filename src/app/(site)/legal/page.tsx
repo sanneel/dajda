@@ -99,7 +99,10 @@ export default function LegalPage() {
        * terms themselves are generated from, put where a reader (or the
        * payment provider) looks for them first.
        */}
-      <dl className="mt-6 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+      <dl
+        id="requisites"
+        className="mt-6 scroll-mt-24 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-[auto_1fr]"
+      >
         <dt className="text-ink-faint">მომსახურების გამწევი</dt>
         <dd className="text-ink">
           {`${COMPANY.nameKa}, სავაჭრო სახელწოდება „${COMPANY.tradeNameKa}"`}

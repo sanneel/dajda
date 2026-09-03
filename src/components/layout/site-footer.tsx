@@ -14,16 +14,19 @@ const LEGAL_LINKS = [
   { href: '/legal#refunds', label: 'დაბრუნების პოლიტიკა' },
   { href: '/legal#responsible-use', label: 'პასუხისმგებლიანი გამოყენება' },
   { href: '/contact', label: 'კონტაქტი' },
+  { href: '/legal#requisites', label: 'რეკვიზიტები' },
 ];
 
 /**
  * Two rows and nothing more.
  *
- * The first is the links. The second is who is behind the site and how to
- * reach them, plus the card marks: the payment provider requires the legal
- * entity, its identification code, an address, a phone, an email and the
- * Visa and Mastercard logos to be visible on the site, and the footer is the
- * one place a visitor on any page can find them.
+ * The first is the links. The second is how to reach the site, plus the card
+ * marks: the payment provider requires the legal entity, its identification
+ * code, an address, a phone, an email and the Visa and Mastercard logos to be
+ * reachable from every page. The entity and its code are a person's name and
+ * personal number while the merchant is a sole trader, so they stay on the
+ * legal page, one click away through the "რეკვიზიტები" link, rather than
+ * being printed under every page.
  *
  * The bookmaker boundary and the 18+ notice used to live down here; they now
  * sit in the ResponsibleUseNotice that every page renders in its own content,
@@ -71,9 +74,6 @@ export function SiteFooter() {
       <div className="border-t border-line">
         <div className="mx-auto flex max-w-page flex-col gap-4 px-4 py-5 text-xs text-ink-faint xl:flex-row xl:items-center xl:justify-between xl:px-6">
           <address className="not-italic leading-relaxed">
-            <p className="text-ink-muted">
-              {COMPANY.nameKa} · ს/კ {COMPANY.legalId}
-            </p>
             <p>
               {COMPANY.addressKa} ·{' '}
               <a
