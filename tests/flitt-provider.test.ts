@@ -126,7 +126,6 @@ describe('subscription checkout', () => {
     const data = Buffer.from(
       JSON.stringify({
         order: {
-          response_status: 'success',
           checkout_url: 'https://pay.flitt.test/checkout/v2',
           payment_id: 700002,
         },

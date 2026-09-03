@@ -292,7 +292,15 @@ export class FlittPaymentProvider implements PaymentProvider {
       input.subscription ? '2.0' : '1.0',
     );
 
-    if (response.response_status !== 'success' || !response.checkout_url) {
+    // A 1.0 answer says response_status=success beside the URL; a 2.0
+    // answer carries the URL without a status field. Either way the URL
+    // is the success, and a status that is present and not success is not.
+    const checkoutUrl = response.checkout_url;
+    if (
+      !checkoutUrl ||
+      (response.response_status !== undefined &&
+        response.response_status !== 'success')
+    ) {
       throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
         // The raw answer (truncated) goes to the log too: a refusal that
         // names neither code nor message is otherwise undiagnosable.
@@ -303,7 +311,7 @@ export class FlittPaymentProvider implements PaymentProvider {
     }
 
     return {
-      checkoutUrl: response.checkout_url,
+      checkoutUrl,
       providerPaymentId:
         response.payment_id === undefined ? null : String(response.payment_id),
       orderId: input.orderId,
