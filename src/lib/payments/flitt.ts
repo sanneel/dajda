@@ -218,15 +218,21 @@ export class FlittPaymentProvider implements PaymentProvider {
         internalDetail: `Flitt ${path} returned an unexpected envelope`,
       });
     }
-    // A 2.0 answer is wrapped the same way the request was; an error
-    // answer to a 2.0 request may still come back flat, so both are read.
-    if (isV2Envelope(body.response)) {
+    // A 2.0 answer is wrapped the same way the request was, though not
+    // always with a version field: Flitt's SDK decodes any answer that
+    // carries a data string and falls back to the raw answer otherwise. An
+    // error answer to a 2.0 request may still come back flat.
+    const answer = body.response as unknown;
+    if (
+      answer &&
+      typeof answer === 'object' &&
+      typeof (answer as { data?: unknown }).data === 'string' &&
+      (protocol === '2.0' || isV2Envelope(answer))
+    ) {
       try {
-        return decodeV2Data(body.response.data) as T;
+        return decodeV2Data((answer as { data: string }).data) as T;
       } catch {
-        throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
-          internalDetail: `Flitt ${path} returned an undecodable 2.0 payload`,
-        });
+        return body.response;
       }
     }
     return body.response;
@@ -288,9 +294,11 @@ export class FlittPaymentProvider implements PaymentProvider {
 
     if (response.response_status !== 'success' || !response.checkout_url) {
       throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
+        // The raw answer (truncated) goes to the log too: a refusal that
+        // names neither code nor message is otherwise undiagnosable.
         internalDetail: `Flitt checkout failed: ${response.error_code ?? '?'} ${
           response.error_message ?? 'unknown'
-        }`,
+        } :: ${JSON.stringify(response).slice(0, 400)}`,
       });
     }
 
