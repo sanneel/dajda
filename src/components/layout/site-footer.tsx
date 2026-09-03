@@ -20,13 +20,13 @@ const LEGAL_LINKS = [
 /**
  * Two rows and nothing more.
  *
- * The first is the links. The second is how to reach the site, plus the card
+ * The first is the links. The second is the support email, plus the card
  * marks: the payment provider requires the legal entity, its identification
  * code, an address, a phone, an email and the Visa and Mastercard logos to be
- * reachable from every page. The entity and its code are a person's name and
- * personal number while the merchant is a sole trader, so they stay on the
- * legal page, one click away through the "რეკვიზიტები" link, rather than
- * being printed under every page.
+ * reachable from every page. While the merchant is a sole trader the entity
+ * is a person's name, the code their personal number, and the address and
+ * phone their own, so all of that stays on the legal page, one click away
+ * through the "რეკვიზიტები" link, rather than being printed under every page.
  *
  * The bookmaker boundary and the 18+ notice used to live down here; they now
  * sit in the ResponsibleUseNotice that every page renders in its own content,
@@ -75,14 +75,6 @@ export function SiteFooter() {
         <div className="mx-auto flex max-w-page flex-col gap-4 px-4 py-5 text-xs text-ink-faint xl:flex-row xl:items-center xl:justify-between xl:px-6">
           <address className="not-italic leading-relaxed">
             <p>
-              {COMPANY.addressKa} ·{' '}
-              <a
-                href={`tel:+995${COMPANY.phone.replace(/\s/g, '')}`}
-                className="tabular hover:text-ink"
-              >
-                {COMPANY.phone}
-              </a>{' '}
-              ·{' '}
               <a
                 href={`mailto:${COMPANY.supportEmail}`}
                 className="hover:text-ink"

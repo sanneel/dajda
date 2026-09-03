@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Mail, MapPin, Phone } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { COMPANY } from '@/lib/company';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 
@@ -24,28 +24,6 @@ const CHANNELS = [
     value: COMPANY.supportEmail,
     href: `mailto:${COMPANY.supportEmail}`,
     note: 'მხარდაჭერა, თანხის დაბრუნების მოთხოვნა, ავტორად გახდომა. ვპასუხობთ 2 სამუშაო დღეში.',
-  },
-  {
-    icon: Phone,
-    label: 'ტელეფონი',
-    value: COMPANY.phone,
-    href: null,
-    note: 'სამუშაო დღეებში, 10:00 საათიდან 18:00 საათამდე.',
-  },
-  {
-    icon: MapPin,
-    label: 'მისამართი',
-    value: COMPANY.addressKa,
-    href: null,
-    note: (
-      <>
-        {`სავაჭრო სახელწოდება „${COMPANY.tradeNameKa}"; მომსახურების გამწევის სრული `}
-        <Link href="/legal#requisites" className="text-accent hover:underline">
-          რეკვიზიტები
-        </Link>{' '}
-        იურიდიულ გვერდზეა.
-      </>
-    ),
   },
 ];
 
@@ -104,6 +82,14 @@ export default function ContactPage() {
           დაბრუნების პოლიტიკაში
         </Link>
         . მოთხოვნას განვიხილავთ 5 სამუშაო დღეში.
+      </p>
+
+      <p className="mt-3 text-sm text-ink-muted">
+        {`მომსახურების გამწევი: სავაჭრო სახელწოდება „${COMPANY.tradeNameKa}"; სრული `}
+        <Link href="/legal#requisites" className="text-accent underline">
+          რეკვიზიტები
+        </Link>{' '}
+        იურიდიულ გვერდზეა.
       </p>
     </div>
   );
