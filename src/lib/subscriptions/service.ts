@@ -1,11 +1,12 @@
-import { randomUUID } from 'node:crypto';
-import { buildReturnUrl } from '@/lib/payments/return-url';
-import { prisma } from '@/lib/db';
-import { getEnv } from '@/lib/env';
-import { AppError, ERROR_CODES } from '@/lib/errors';
-import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
-import { getPaymentProvider } from '@/lib/payments';
-import { addBillingPeriod } from '@/lib/payments/webhook';
+import { randomUUID } from "node:crypto";
+import { buildReturnUrl } from "@/lib/payments/return-url";
+import { prisma } from "@/lib/db";
+import { getEnv } from "@/lib/env";
+import { AppError, ERROR_CODES } from "@/lib/errors";
+import { AUDIT_ACTIONS, writeAuditLog } from "@/lib/audit";
+import { getPaymentProvider } from "@/lib/payments";
+import { abandonRefusedCheckout } from "@/lib/payments/abandon";
+import { addBillingPeriod } from "@/lib/payments/webhook";
 
 /**
  * Subscription lifecycle.
@@ -16,12 +17,12 @@ import { addBillingPeriod } from '@/lib/payments/webhook';
  */
 
 export type CheckoutResult =
-  | { kind: 'ACTIVATED'; subscriptionId: string }
-  | { kind: 'REDIRECT'; checkoutUrl: string; orderId: string };
+  | { kind: "ACTIVATED"; subscriptionId: string }
+  | { kind: "REDIRECT"; checkoutUrl: string; orderId: string };
 
 export async function startSubscriptionCheckout(
   planId: string,
-  actor: { userId: string; email: string; role: 'USER' | 'ANALYST' | 'ADMIN' },
+  actor: { userId: string; email: string; role: "USER" | "ANALYST" | "ADMIN" },
 ): Promise<CheckoutResult> {
   const plan = await prisma.subscriptionPlan.findUnique({
     where: { id: planId },
@@ -39,15 +40,15 @@ export async function startSubscriptionCheckout(
   });
 
   if (!plan || !plan.isActive) {
-    throw new AppError(ERROR_CODES.NOT_FOUND, 'გეგმა ვერ მოიძებნა.');
+    throw new AppError(ERROR_CODES.NOT_FOUND, "გეგმა ვერ მოიძებნა.");
   }
 
   const existing = await prisma.userSubscription.findFirst({
-    where: { userId: actor.userId, planId: plan.id, status: 'ACTIVE' },
+    where: { userId: actor.userId, planId: plan.id, status: "ACTIVE" },
     select: { id: true },
   });
   if (existing) {
-    throw new AppError(ERROR_CODES.CONFLICT, 'ეს გეგმა უკვე გააქტიურებულია.');
+    throw new AppError(ERROR_CODES.CONFLICT, "ეს გეგმა უკვე გააქტიურებულია.");
   }
 
   // A zero-price plan involves no payment provider at all.
@@ -57,7 +58,7 @@ export async function startSubscriptionCheckout(
         data: {
           userId: actor.userId,
           planId: plan.id,
-          status: 'ACTIVE',
+          status: "ACTIVE",
           startedAt: new Date(),
           currentPeriodEnd: addBillingPeriod(new Date(), plan.billingPeriod),
         },
@@ -66,7 +67,7 @@ export async function startSubscriptionCheckout(
       await writeAuditLog(
         {
           action: AUDIT_ACTIONS.SUBSCRIPTION_ACTIVATED,
-          entityType: 'UserSubscription',
+          entityType: "UserSubscription",
           entityId: created.id,
           summary: `უფასო გეგმა გააქტიურდა: ${plan.nameKa}`,
           actorId: actor.userId,
@@ -78,7 +79,7 @@ export async function startSubscriptionCheckout(
       return created;
     });
 
-    return { kind: 'ACTIVATED', subscriptionId: subscription.id };
+    return { kind: "ACTIVATED", subscriptionId: subscription.id };
   }
 
   const env = getEnv();
@@ -87,7 +88,7 @@ export async function startSubscriptionCheckout(
 
   const { subscriptionId } = await prisma.$transaction(async (tx) => {
     const subscription = await tx.userSubscription.create({
-      data: { userId: actor.userId, planId: plan.id, status: 'PENDING' },
+      data: { userId: actor.userId, planId: plan.id, status: "PENDING" },
     });
 
     await tx.payment.create({
@@ -99,14 +100,14 @@ export async function startSubscriptionCheckout(
         providerOrderId: orderId,
         amountMinor: plan.priceMinor,
         currency: plan.currency,
-        status: 'CREATED',
+        status: "CREATED",
       },
     });
 
     await writeAuditLog(
       {
         action: AUDIT_ACTIONS.PAYMENT_CREATED,
-        entityType: 'Payment',
+        entityType: "Payment",
         entityId: orderId,
         summary: `გადახდა ინიცირებულია: ${plan.nameKa}`,
         actorId: actor.userId,
@@ -126,27 +127,40 @@ export async function startSubscriptionCheckout(
    * the subscription without the customer returning. The card token is
    * requested alongside as the fallback for merchant-initiated charges.
    */
-  const session = await provider.createCheckoutSession({
-    orderId,
-    amountMinor: plan.priceMinor,
-    currency: plan.currency,
-    description: `DAJDA: ${plan.nameKa}`,
-    returnUrl: buildReturnUrl(env.APP_URL, orderId, '/dashboard'),
-    callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
-    customerEmail: actor.email,
-    subscription: {
-      every: plan.billingPeriod === 'QUARTERLY' ? 3 : 1,
-      period: 'month',
-      startDate: addBillingPeriod(new Date(), plan.billingPeriod)
-        .toISOString()
-        .slice(0, 10),
-    },
-    requestCardToken: true,
-  });
+  let session;
+  try {
+    session = await provider.createCheckoutSession({
+      orderId,
+      amountMinor: plan.priceMinor,
+      currency: plan.currency,
+      description: `DAJDA: ${plan.nameKa}`,
+      returnUrl: buildReturnUrl(env.APP_URL, orderId, "/dashboard"),
+      callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
+      customerEmail: actor.email,
+      subscription: {
+        every: plan.billingPeriod === "QUARTERLY" ? 3 : 1,
+        period: "month",
+        startDate: addBillingPeriod(new Date(), plan.billingPeriod)
+          .toISOString()
+          .slice(0, 10),
+      },
+      requestCardToken: true,
+    });
+  } catch (error) {
+    // A refused checkout must not leave a PENDING subscription that blocks
+    // the next attempt; see abandonRefusedCheckout.
+    await abandonRefusedCheckout({
+      orderId,
+      subscriptionId,
+      reason:
+        error instanceof AppError && error.internalDetail
+          ? error.internalDetail
+          : "provider refused to open checkout",
+    });
+    throw error;
+  }
 
-  void subscriptionId;
-
-  return { kind: 'REDIRECT', checkoutUrl: session.checkoutUrl, orderId };
+  return { kind: "REDIRECT", checkoutUrl: session.checkoutUrl, orderId };
 }
 
 /**
@@ -160,21 +174,26 @@ export async function startSubscriptionCheckout(
  */
 export async function cancelSubscription(
   subscriptionId: string,
-  actor: { userId: string; role: 'USER' | 'ANALYST' | 'ADMIN' },
+  actor: { userId: string; role: "USER" | "ANALYST" | "ADMIN" },
 ) {
   const subscription = await prisma.userSubscription.findUnique({
     where: { id: subscriptionId },
-    select: { id: true, userId: true, status: true, plan: { select: { nameKa: true } } },
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      plan: { select: { nameKa: true } },
+    },
   });
 
   if (!subscription) throw new AppError(ERROR_CODES.NOT_FOUND);
 
   // Ownership check - never trust the id alone.
-  if (subscription.userId !== actor.userId && actor.role !== 'ADMIN') {
+  if (subscription.userId !== actor.userId && actor.role !== "ADMIN") {
     throw new AppError(ERROR_CODES.FORBIDDEN);
   }
-  if (subscription.status !== 'ACTIVE') {
-    throw new AppError(ERROR_CODES.CONFLICT, 'გამოწერა აქტიური არ არის.');
+  if (subscription.status !== "ACTIVE") {
+    throw new AppError(ERROR_CODES.CONFLICT, "გამოწერა აქტიური არ არის.");
   }
 
   const provider = getPaymentProvider();
@@ -185,21 +204,21 @@ export async function cancelSubscription(
     where: {
       subscriptionId: subscription.id,
       providerCode: provider.code,
-      status: 'SUCCEEDED',
+      status: "SUCCEEDED",
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: "asc" },
     select: { providerOrderId: true },
   });
 
   if (openingPayment) {
     const stop = await provider.setSubscriptionState({
       orderId: openingPayment.providerOrderId,
-      action: 'stop',
+      action: "stop",
     });
 
-    if (stop.status !== 'ACCEPTED') {
+    if (stop.status !== "ACCEPTED") {
       throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
-        internalDetail: `provider refused to stop subscription: ${stop.rawStatus} ${stop.message ?? ''}`,
+        internalDetail: `provider refused to stop subscription: ${stop.rawStatus} ${stop.message ?? ""}`,
       });
     }
   }
@@ -213,7 +232,7 @@ export async function cancelSubscription(
     await writeAuditLog(
       {
         action: AUDIT_ACTIONS.SUBSCRIPTION_CANCELED,
-        entityType: 'UserSubscription',
+        entityType: "UserSubscription",
         entityId: subscription.id,
         summary: `გამოწერა გაუქმდა პერიოდის ბოლოს: ${subscription.plan.nameKa}`,
         actorId: actor.userId,
