@@ -112,19 +112,24 @@ export function RecordTabs({
         {tab === 'PLANS' ? (
           <div className="space-y-6">
             {/*
-             * The paid record sits above the price, because it IS the
-             * product: a subscription buys access to these bets, so the
-             * numbers (and the same two charts every other tab gets) belong
-             * on the page where a buyer decides to pay.
+             * The price leads. A reader who pressed "გამოწერა" anywhere on
+             * the site lands here (the links carry #plans) and should see
+             * the plan, not scroll past the record to find it; on a phone
+             * the stats and the chart used to push the cards a screen and a
+             * half down. The paid record still follows, because it is what
+             * the subscription buys.
              */}
-            <RecordStats summary={paid} />
-            <ChartPair tab={tab} charts={paidCharts} />
+            <Plans
+              plans={sellable}
+              isAuthenticated={isAuthenticated}
+              monthlyMinimum={monthlyMinimum}
+            />
             <div className="border-t border-line pt-6">
-              <Plans
-                plans={sellable}
-                isAuthenticated={isAuthenticated}
-                monthlyMinimum={monthlyMinimum}
-              />
+              <h3 className="mb-4 text-sm font-medium text-ink">
+                ფასიანი პროგნოზების ჩანაწერი
+              </h3>
+              <RecordStats summary={paid} />
+              <ChartPair tab={tab} charts={paidCharts} />
             </div>
           </div>
         ) : (
@@ -253,7 +258,9 @@ function Plans({
   monthlyMinimum: number | null;
 }) {
   return (
-    <div>
+    // The anchor every "გამოწერა" link on the site points at; the scroll
+    // margin keeps the cards clear of the sticky header on arrival.
+    <div id="plans" className="scroll-mt-24">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan) => (
           <PlanCard

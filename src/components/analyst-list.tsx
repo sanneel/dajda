@@ -82,7 +82,7 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h3 className="truncate text-lg font-bold text-ink">
                 <Link
-                  href={`/analysts/${analyst.slug}?tab=plans`}
+                  href={`/analysts/${analyst.slug}?tab=plans#plans`}
                   className="hover:underline"
                 >
                   {analyst.displayName}
@@ -171,7 +171,7 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
         </Link>
 
         <Link
-          href={`/analysts/${analyst.slug}?tab=plans`}
+          href={`/analysts/${analyst.slug}?tab=plans#plans`}
           className="inline-flex min-h-11 w-full items-center justify-center rounded-control bg-ink px-4 text-sm font-semibold text-on-ink transition-colors hover:bg-accent"
         >
           {cheapestPlan === null
