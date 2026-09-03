@@ -84,6 +84,9 @@ describe('subscription checkout', () => {
       amount: 2900,
       // Documented format is date and time; a bare date gets midnight.
       start_time: '2026-09-17 00:00:00',
+      // The gateway insists on a bound (quantity or end_time); without one
+      // the card is declined with 2008 at payment time.
+      quantity: 120,
       state: 'Y',
       readonly: 'Y',
     });

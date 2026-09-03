@@ -49,6 +49,13 @@ import type {
 
 export const FLITT_PROVIDER_CODE = 'flitt';
 
+/**
+ * How many renewals a subscription calendar is opened for. The gateway needs
+ * a bound; ten years of monthly charges is one no card survives, and a
+ * cancellation stops the calendar long before. Integer(6) at the gateway.
+ */
+export const SUBSCRIPTION_MAX_RENEWALS = 120;
+
 /** Parameters the gateway adds to a response but excludes from the digest. */
 const SIGNATURE_EXCLUDED = new Set(['signature', 'response_signature_string']);
 
@@ -271,6 +278,12 @@ export class FlittPaymentProvider implements PaymentProvider {
         // Documented format is "YYYY-MM-DD HH24:MI:SS"; a bare date gets
         // midnight appended. Absent means "from the initial payment".
         start_time: withMidnight(input.subscription.startDate),
+        // The calendar must be bounded: the gateway requires either
+        // quantity or end_time, and a schedule with neither is accepted at
+        // checkout only to be declined at payment with 2008 "Order
+        // parameters are incorrect". Our subscriptions run until canceled,
+        // so the bound is nominal: enough renewals to outlive any card.
+        quantity: SUBSCRIPTION_MAX_RENEWALS,
         // The customer pays what the plan costs; the hosted page must not
         // let them edit the schedule.
         state: 'Y',
