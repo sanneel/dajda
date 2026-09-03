@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { buildReturnUrl } from '@/lib/payments/return-url';
 import { prisma } from '@/lib/db';
 import { getEnv } from '@/lib/env';
 import { AppError, ERROR_CODES } from '@/lib/errors';
@@ -78,7 +79,7 @@ export async function startBalanceTopUp(
     amountMinor,
     currency: BALANCE_CURRENCY,
     description: 'DAJDA: ბალანსის შევსება',
-    returnUrl: `${env.APP_URL}/dashboard?order=${orderId}`,
+    returnUrl: buildReturnUrl(env.APP_URL, orderId, '/dashboard'),
     callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
     customerEmail: actor.email,
   });

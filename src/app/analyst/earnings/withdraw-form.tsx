@@ -5,6 +5,7 @@ import { requestWithdrawalAction } from '@/actions/payouts';
 import { Field, Input } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
+import { PaymentMarks } from '@/components/payment-marks';
 
 export function WithdrawForm({
   maxGel,
@@ -84,9 +85,14 @@ export function WithdrawForm({
         />
       </Field>
 
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className="w-full">
         {pending ? 'იგზავნება…' : 'გატანის მოთხოვნა'}
       </Button>
+
+      <div className="flex items-center gap-2 text-xs text-ink-faint">
+        <span>ჩარიცხვა ბარათზე:</span>
+        <PaymentMarks />
+      </div>
     </form>
   );
 }

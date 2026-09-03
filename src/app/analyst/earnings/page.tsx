@@ -13,7 +13,7 @@ import {
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, EmptyState } from '@/components/ui/feedback';
-import { WithdrawForm } from './withdraw-form';
+import { WithdrawDialog } from './withdraw-dialog';
 
 export const dynamic = 'force-dynamic';
 
@@ -176,7 +176,7 @@ export default async function AnalystEarningsPage() {
               წინა მოთხოვნის დამუშავებამდე ახლის შეტანა შეუძლებელია.
             </Alert>
           ) : (
-            <WithdrawForm
+            <WithdrawDialog
               windowOpen={windowOpen}
               minGel={env.ANALYST_MIN_PAYOUT_MINOR / 100}
               maxGel={user.earningsMinor / 100}

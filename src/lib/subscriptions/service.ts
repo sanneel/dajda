@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { buildReturnUrl } from '@/lib/payments/return-url';
 import type { BillingPeriod } from '@/generated/prisma/enums';
 import { prisma } from '@/lib/db';
 import { getEnv } from '@/lib/env';
@@ -149,7 +150,7 @@ export async function startSubscriptionCheckout(
     amountMinor: plan.priceMinor,
     currency: plan.currency,
     description: `DAJDA: ${plan.nameKa}`,
-    returnUrl: `${env.APP_URL}/dashboard?order=${orderId}`,
+    returnUrl: buildReturnUrl(env.APP_URL, orderId, '/dashboard'),
     callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
     customerEmail: actor.email,
     subscription: {

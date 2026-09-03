@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { buildReturnUrl } from '@/lib/payments/return-url';
 import { prisma } from '@/lib/db';
 import { getEnv } from '@/lib/env';
 import { AppError, ERROR_CODES } from '@/lib/errors';
@@ -123,7 +124,7 @@ export async function startTicketPurchase(
     amountMinor: priceMinor,
     currency: 'GEL',
     description: `DAJDA ბილეთი: ${prediction.titleKa}`,
-    returnUrl: `${env.APP_URL}/free/${prediction.id}?order=${orderId}`,
+    returnUrl: buildReturnUrl(env.APP_URL, orderId, `/free/${prediction.id}`),
     callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
     customerEmail: actor.email,
   });

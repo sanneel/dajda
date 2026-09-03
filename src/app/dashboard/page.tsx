@@ -16,7 +16,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { CancelSubscriptionButton } from "./cancel-button";
 import { ResendVerificationButton } from "./resend-verification-button";
 import { VerifyCodeForm } from "./verify-code-form";
-import { TopUpForm } from "./top-up-form";
+import { TopUpDialog } from "./top-up-dialog";
 import { Avatar } from "@/components/ui/avatar";
 import { PaymentReturnBanner } from "@/components/payment-return";
 import { paymentReturnStatus } from "@/lib/payments/return-status";
@@ -458,25 +458,7 @@ export default async function DashboardPage({
                 {formatMoney(balance.balanceMinor, "GEL")}
               </p>
             </div>
-            {/*
-             * The top-up form starts folded. Most visits to this page are a
-             * glance at a number or a cancellation, and an always-open input
-             * with its explanation made the first card the tallest thing on a
-             * phone. Native details, so it costs no JavaScript.
-             */}
-            <details className="group">
-              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors marker:content-none hover:border-ink-faint">
-                <span className="group-open:hidden">შევსება</span>
-                <span className="hidden group-open:inline">დახურვა</span>
-              </summary>
-              <div className="mt-3 space-y-2">
-                <TopUpForm />
-                <p className="max-w-72 text-xs leading-relaxed text-ink-faint">
-                  თუ ბალანსი გეგმის სრულ ფასს ფარავს, გამოწერა პირდაპირ
-                  ბალანსიდან გადაიხდება, ბარათის გარეშე.
-                </p>
-              </div>
-            </details>
+            <TopUpDialog />
           </div>
 
           {balanceEntries.length > 0 ? (
