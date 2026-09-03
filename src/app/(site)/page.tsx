@@ -85,14 +85,13 @@ export default async function HomePage({
     <div className="mx-auto max-w-page px-4 py-6 sm:px-8 sm:py-10">
       <header className="mb-6 sm:mb-8">
         <h1 className="font-display text-3xl leading-tight text-ink sm:text-5xl">
-          ნახე, ვისი ანალიზი
-          <br />
-          <span className="text-accent">მართლდება.</span>
+          სპორტული <span className="text-accent">ანალიტიკა</span>
         </h1>
 
         <p className="mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
-          ავტორები პროგნოზს მოვლენის დაწყებამდე აქვეყნებენ, შედეგი უცვლელად ფიქსირდება
-          და სტატისტიკა შემოწმებადია, წაგებული პროგნოზების ჩათვლით.
+          ანალიტიკოსები თავიანთ პროგნოზებს მატჩის დაწყებამდე აქვეყნებენ. შედეგი
+          დაფიქსირების შემდეგ აღარ იცვლება, სტატისტიკა კი ღიაა და შემოწმებადი,
+          წაგებული პროგნოზების ჩათვლით.
         </p>
 
         {/*

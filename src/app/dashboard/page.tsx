@@ -346,7 +346,7 @@ export default async function DashboardPage({
                     <span className="font-medium text-ink">
                       ნახე ანალიტიკოსების რეიტინგი
                     </span>
-                    {" "}— ვისი ანალიზი მართლდება
+                    {", ვისი პროგნოზები მართლდება"}
                   </span>
                   <span aria-hidden="true" className="text-accent">→</span>
                 </Link>
