@@ -181,7 +181,7 @@ export function PlanCard({
         ) : null}
         {!isFree ? (
           <p className="mt-3 flex items-center gap-2 text-xs text-ink-faint">
-            <span>ბარათით ან ბალანსიდან:</span>
+            <span>ბარათით:</span>
             <PaymentMarks />
           </p>
         ) : null}

@@ -141,8 +141,32 @@ export const uploadPathSchema = z
     'სურათის მისამართი არასწორია.',
   );
 
+/** One leg of a slip, as typed from the screenshot. */
+export const selectionSchema = z.object({
+  eventKa: z
+    .string()
+    .trim()
+    .min(2, 'მიუთითეთ მატჩი.')
+    .max(120, 'მატჩის სახელი ძალიან გრძელია.'),
+  pickKa: z
+    .string()
+    .trim()
+    .min(1, 'მიუთითეთ არჩევანი.')
+    .max(120, 'არჩევანი ძალიან გრძელია.'),
+  odds: oddsSchema,
+});
+
 export const createPredictionSchema = z.object({
   sportId: z.uuid('აირჩიეთ სპორტი.'),
+  /**
+   * The legs. This is what the public sees instead of the screenshot, so a
+   * bet cannot be posted without at least one: the screenshot alone would
+   * put the bookmaker's branding on the page, or nothing at all.
+   */
+  selections: z
+    .array(selectionSchema)
+    .min(1, 'დაამატეთ ბილეთის მინიმუმ ერთი პოზიცია.')
+    .max(20, 'მაქსიმუმ 20 პოზიცია.'),
   /** The bet slip. A bet with no evidence is not a record. */
   screenshotPath: uploadPathSchema,
   /**
@@ -409,13 +433,6 @@ export const saveAnalystSchema = z.object({
   analystProfileId: z.uuid(),
 });
 
-export const topUpSchema = z.object({
-  /** The form takes lari; minor units are derived server-side. */
-  amountGel: z.coerce
-    .number('შეიყვანეთ თანხა.')
-    .min(1, 'მინიმუმ 1 ლარი.')
-    .max(500, 'მაქსიმუმ 500 ლარი ერთ შევსებაზე.'),
-});
 
 export const withdrawalSchema = z.object({
   amountGel: z.coerce

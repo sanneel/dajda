@@ -4,19 +4,16 @@ import { prisma } from '@/lib/db';
 import { getEnv } from '@/lib/env';
 import { AppError, ERROR_CODES } from '@/lib/errors';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
-import { BALANCE_CURRENCY } from '@/lib/balance/service';
-import { analystShareMinor, applyEarningsMovement } from '@/lib/balance/ledger';
 import { getPaymentProvider } from '@/lib/payments';
-import { BALANCE_PROVIDER_CODE } from '@/lib/subscriptions/service';
 
 /**
  * Buying one paid prediction outright.
  *
  * A paid bet is its own product, apart from the author's subscription: the
  * analyst prices each one when posting, and a buyer takes just that ticket.
- * The mechanics mirror a subscription purchase deliberately - balance first
- * (immediate, no gateway), otherwise a one-time provider checkout that only
- * a verified webhook completes - so the money paths stay one set of rules.
+ * The mechanics mirror a subscription purchase deliberately: a one-time
+ * provider checkout that only a verified webhook completes, so the money
+ * paths stay one set of rules.
  */
 
 type Actor = { userId: string; email: string; role: 'USER' | 'ANALYST' | 'ADMIN' };
@@ -83,10 +80,6 @@ export async function startTicketPurchase(
 
   const priceMinor = prediction.priceMinor;
 
-  // Balance first: the money is already here, so access is immediate.
-  const fromBalance = await purchaseFromBalance(prediction, priceMinor, actor);
-  if (fromBalance) return { kind: 'PURCHASED' };
-
   const env = getEnv();
   const provider = getPaymentProvider();
   const orderId = `dajda-${randomUUID()}`;
@@ -132,122 +125,3 @@ export async function startTicketPurchase(
   return { kind: 'REDIRECT', checkoutUrl: session.checkoutUrl, orderId };
 }
 
-/**
- * Debit the ticket's price from the balance and grant access in one
- * transaction. Returns null - "use the gateway instead" - when the balance
- * cannot cover the full price, exactly like a subscription.
- */
-async function purchaseFromBalance(
-  prediction: {
-    id: string;
-    titleKa: string;
-    priceMinor: number | null;
-    author: { id: string; userId: string } | null;
-  },
-  priceMinor: number,
-  actor: Actor,
-): Promise<boolean> {
-  return prisma.$transaction(async (tx) => {
-    // Conditional decrement: overdraft is impossible under concurrency.
-    const debited = await tx.user.updateMany({
-      where: { id: actor.userId, balanceMinor: { gte: priceMinor } },
-      data: { balanceMinor: { decrement: priceMinor } },
-    });
-    if (debited.count === 0) return false;
-
-    const user = await tx.user.findUniqueOrThrow({
-      where: { id: actor.userId },
-      select: { balanceMinor: true },
-    });
-
-    const payment = await tx.payment.create({
-      data: {
-        userId: actor.userId,
-        predictionId: prediction.id,
-        purpose: 'TICKET',
-        providerCode: BALANCE_PROVIDER_CODE,
-        providerOrderId: `dajda-balance-${randomUUID()}`,
-        amountMinor: priceMinor,
-        currency: BALANCE_CURRENCY,
-        status: 'SUCCEEDED',
-      },
-      select: { id: true },
-    });
-
-    await tx.paymentStatusTransition.create({
-      data: {
-        paymentId: payment.id,
-        fromStatus: null,
-        toStatus: 'SUCCEEDED',
-        source: 'SYSTEM',
-        reason: 'paid from balance',
-      },
-    });
-
-    await tx.balanceTransaction.create({
-      data: {
-        userId: actor.userId,
-        kind: 'TICKET_PURCHASE',
-        amountMinor: -priceMinor,
-        currency: BALANCE_CURRENCY,
-        balanceAfterMinor: user.balanceMinor,
-        paymentId: payment.id,
-        note: `ბილეთი: ${prediction.titleKa}`,
-      },
-    });
-
-    // upsert: a revoked purchase can be re-bought and simply comes back.
-    await tx.predictionPurchase.upsert({
-      where: {
-        userId_predictionId: {
-          userId: actor.userId,
-          predictionId: prediction.id,
-        },
-      },
-      create: {
-        userId: actor.userId,
-        predictionId: prediction.id,
-        paymentId: payment.id,
-        amountMinor: priceMinor,
-        currency: BALANCE_CURRENCY,
-      },
-      update: {
-        paymentId: payment.id,
-        amountMinor: priceMinor,
-        revokedAt: null,
-      },
-    });
-
-    if (prediction.author) {
-      const share = analystShareMinor(
-        priceMinor,
-        getEnv().ANALYST_SHARE_PERCENT,
-      );
-      if (share > 0) {
-        await applyEarningsMovement(tx, {
-          userId: prediction.author.userId,
-          kind: 'ANALYST_EARNING',
-          amountMinor: share,
-          currency: BALANCE_CURRENCY,
-          paymentId: payment.id,
-          note: 'ბილეთის გაყიდვიდან კუთვნილი წილი',
-        });
-      }
-    }
-
-    await writeAuditLog(
-      {
-        action: AUDIT_ACTIONS.TICKET_PURCHASED,
-        entityType: 'Prediction',
-        entityId: prediction.id,
-        summary: `ბილეთი შეძენილია ბალანსიდან: ${prediction.titleKa}`,
-        actorId: actor.userId,
-        actorRole: actor.role,
-        metadata: { paymentId: payment.id, paidFromBalance: true },
-      },
-      tx,
-    );
-
-    return true;
-  });
-}

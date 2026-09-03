@@ -16,7 +16,6 @@ import { ButtonLink } from "@/components/ui/button";
 import { CancelSubscriptionButton } from "./cancel-button";
 import { ResendVerificationButton } from "./resend-verification-button";
 import { VerifyCodeForm } from "./verify-code-form";
-import { TopUpDialog } from "./top-up-dialog";
 import { Avatar } from "@/components/ui/avatar";
 import { PaymentReturnBanner } from "@/components/payment-return";
 import { paymentReturnStatus } from "@/lib/payments/return-status";
@@ -442,9 +441,10 @@ export default async function DashboardPage({
       ) : null}
 
       {/*
-       * Hidden for the ordinary account it would only clutter: the card
-       * appears when there is money on it, movement behind it, or the owner
-       * is an analyst whose earnings land here.
+       * The author's earnings ledger. There is no customer top-up, so an
+       * ordinary account never has a balance and never sees this card; it
+       * appears for an analyst, or for an account with money or movement on
+       * it from before top-ups were removed.
        */}
       {actor.analystProfileId ||
       balance.balanceMinor !== 0 ||
@@ -458,7 +458,6 @@ export default async function DashboardPage({
                 {formatMoney(balance.balanceMinor, "GEL")}
               </p>
             </div>
-            <TopUpDialog />
           </div>
 
           {balanceEntries.length > 0 ? (

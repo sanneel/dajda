@@ -50,7 +50,7 @@ export function BuyTicketButton({
           : `ყიდვა · ${formatMoney(priceMinor, 'GEL')}`}
       </Button>
       <p className="flex items-center gap-2 text-xs text-ink-faint">
-        <span>ბარათით ან ბალანსიდან:</span>
+        <span>ბარათით:</span>
         <PaymentMarks />
       </p>
     </form>

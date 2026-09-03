@@ -28,8 +28,8 @@ source, approves applications, releases payouts, answers reports.
 DAJDA (dajda.ge, trade name დაჯდა) sells access to written sports analysis by
 vetted Georgian authors and publishes each author's complete performance
 record: wins, losses and open bets alike. Money enters only as payment for
-content (a monthly subscription to one author, a single ticket, or a balance
-top-up spent on either). Success means a buyer can check an author's history
+content (a monthly subscription to one author or a single ticket; there is
+no balance top-up, decided 2026-09-03). Success means a buyer can check an author's history
 before paying, and an author who delivers gets paid on the last day of the
 month.
 
@@ -55,7 +55,11 @@ threshold sort below the rest and are labelled "მცირე შერჩე�
   (UTC+4, no daylight saving); authors type kickoff times in Tbilisi time.
 - Evidence is a photograph: authors post bookmaker slip screenshots from a
   phone (up to 6 per ticket, re-encoded server-side). The slip is the bet; the
-  written analysis is optional.
+  written analysis is optional. The screenshot is never shown publicly: it
+  carries the bookmaker's branding and often the author's balance, and the
+  product must not display either. Authors type the legs (match, pick, odds)
+  and the public sees a DAJDA-drawn ticket; the screenshot stays with the
+  author and the administrator, who settles against it. Decided 2026-09-03.
 - One subscription per author, monthly, at 30, 40 or 50 GEL, chosen by the
   author. Single tickets have their own price. Authors receive 85%
   (`ANALYST_SHARE_PERCENT`, matching the signed agreement) and may withdraw
@@ -70,7 +74,7 @@ threshold sort below the rest and are labelled "მცირე შერჩე�
   minimum or monthly fee, Apple Pay and Google Pay at no extra charge. Limits:
   500 GEL per transaction, 10,000 GEL per day and 50,000 GEL per month in
   total; per card, 5 transactions or 3,000 GEL a day and 30 transactions or
-  5,000 GEL a month. The balance top-up ceiling in code is 500 GEL to match.
+  5,000 GEL a month. Single tickets are capped at 500 GEL to match.
 - Notifications go out by email (Resend or Brevo) and by a Telegram bot the
   reader links themselves. Sign-in is email and password, Google, or Telegram.
 - The administrator's Telegram is @gulfishotdog. When an author marks a bet
@@ -97,8 +101,9 @@ threshold sort below the rest and are labelled "მცირე შერჩე�
   notice appears on ticket pages. Whether self-certification suffices is an
   open legal question recorded in the README.
 - "Units" are a bookkeeping convention (every ticket counted as a flat 100 GEL
-  stake), not a currency and not redeemable. The balance exists only to pay
-  for content and cannot be withdrawn; only earned author income can.
+  stake), not a currency and not redeemable. Readers hold no balance on the
+  platform; the only ledger is an author's earned income, withdrawable on
+  the last day of the month.
 - Records are immutable after publication; every edit attempt, refused or not,
   is logged. A bet published after its event starts does not count in the
   author's statistics (terms §8.1). Enforcement of §8.1 in code is not

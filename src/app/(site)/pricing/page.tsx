@@ -6,7 +6,7 @@ import { ResponsibleUseNotice } from '@/components/responsible-use';
 export const metadata: Metadata = {
   title: 'ფასები',
   description:
-    'რა იყიდება DAJDA-ზე და რა ღირს: ავტორის თვიური გამოწერა 30, 40 ან 50 ლარი, ცალკეული ბილეთი ავტორის ფასით, ბალანსის შევსება. ყველა ფასი ლარში.',
+    'რა იყიდება DAJDA-ზე და რა ღირს: ავტორის თვიური გამოწერა 30, 40 ან 50 ლარი, ცალკეული ბილეთი ავტორის ფასით. ყველა ფასი ლარში.',
 };
 
 /**
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
  * and a reader deciding whether to pay deserves the same thing. The numbers
  * here are the ones the code enforces: PLAN_PRICES_MINOR in the analyst
  * actions for the subscription, the ticket price range in the validation
- * schema, and the top-up ceiling that matches the provider's per-transaction
- * limit. Change those and change this page.
+ * schema (whose ceiling matches the provider's per-transaction limit).
+ * Change those and change this page.
  */
 const PRODUCTS: {
   id: string;
@@ -44,15 +44,6 @@ const PRODUCTS: {
     description: [
       'ერთი კონკრეტული პროგნოზი, გამოწერის გარეშე. შეძენამდე ჩანს ავტორი, კოეფიციენტი, ფასი და პირველი პოზიციის დაწყების დრო; შეძენის შემდეგ იხსნება სრული ჩანაწერი და ანალიზი.',
       'ერთჯერადი შეძენაა, არ განახლდება და ხსნის მხოლოდ იმ ერთ ბილეთს.',
-    ],
-  },
-  {
-    id: 'balance',
-    name: 'ბალანსის შევსება',
-    price: '1-დან 500 ₾-მდე',
-    unit: 'ერთ ოპერაციაზე',
-    description: [
-      'თანხა პლატფორმის შიდა ბალანსზე, რომლითაც შემდეგ იხდით გამოწერას ან ცალკეულ ბილეთს ბარათის ხელახლა შეყვანის გარეშე. ბალანსი გამოიყენება მხოლოდ პლატფორმაზე კონტენტის საყიდლად: არ არის საფსონე ანგარიში, არ ირიცხება პროცენტი და ბარათზე უკან არ ბრუნდება.',
     ],
   },
 ];
