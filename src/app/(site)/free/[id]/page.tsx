@@ -16,6 +16,7 @@ import { ReportForm } from '@/components/report-form';
 import { PaymentReturnBanner } from '@/components/payment-return';
 import { paymentReturnStatus } from '@/lib/payments/return-status';
 import { BuyTicketButton } from './buy-button';
+import { Slip } from '@/components/slip';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 
 export const dynamic = 'force-dynamic';
@@ -49,8 +50,11 @@ export async function generateMetadata({
 /**
  * One ticket.
  *
- * The slip fills the page because the slip is the claim. Below it sit only the
- * facts needed to judge it: the odds, who posted it, and how it resolved.
+ * The ticket fills the page because the ticket is the claim: the legs as the
+ * author entered them, drawn by us. The bookmaker's screenshot is never
+ * public. It carries the operator's branding and often the author's balance,
+ * and it is evidence for the administrator, who settles against it. The
+ * author and an administrator can still open the original from this page.
  *
  * The page serves both shapes of bet. A community ticket has no author and is
  * always readable; an analyst's paid bet keeps its gate, so a direct link
@@ -102,6 +106,16 @@ export default async function TicketPage({
    */
   const isPaid = ticket.visibility !== 'PUBLIC' && ticket.authorId !== null;
   const locked = ticket.status === 'PENDING' && (!actor || !canView);
+
+  /*
+   * Who may open the bookmaker's screenshot: the person who posted it and an
+   * administrator. Everyone else gets the ticket we draw.
+   */
+  const canSeeOriginal =
+    actor !== null &&
+    (actor.role === 'ADMIN' ||
+      actor.userId === ticket.postedBy.id ||
+      (author !== null && actor.analystProfileId === author.id));
 
   const feedHref = isPaid ? '/paid' : '/free';
   const feedLabel = isPaid ? 'ფასიანი პროგნოზები' : 'უფასო პროგნოზები';
@@ -222,16 +236,27 @@ export default async function TicketPage({
           ) : null}
         </div>
       ) : (
-        /* The slip, exactly as posted. */
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card border border-line bg-canvas">
-          <Image
-            src={ticket.screenshotPath}
-            alt={`პროგნოზის სკრინშოტი: ${ticket.titleKa}`}
-            fill
-            sizes="(min-width: 768px) 42rem, 92vw"
-            className="object-contain"
-            priority
-          />
+        <div>
+          <Slip ticket={ticket} />
+          {canSeeOriginal ? (
+            <details className="mt-3 rounded-card border border-line bg-surface">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm text-ink-muted marker:content-none">
+                ორიგინალი სკრინშოტი
+                <span className="text-xs text-ink-faint">
+                  მხოლოდ თქვენ და ადმინი ხედავთ
+                </span>
+              </summary>
+              <div className="relative aspect-[4/3] w-full overflow-hidden border-t border-line bg-canvas">
+                <Image
+                  src={ticket.screenshotPath}
+                  alt={`პროგნოზის სკრინშოტი: ${ticket.titleKa}`}
+                  fill
+                  sizes="(min-width: 768px) 42rem, 92vw"
+                  className="object-contain"
+                />
+              </div>
+            </details>
+          ) : null}
         </div>
       )}
 
@@ -289,10 +314,14 @@ export default async function TicketPage({
                 </div>
               </div>
 
-              {ticket.resultScreenshotPath ? (
+              {/* The author's proof carries the bookmaker's branding too, so
+                  it stays with the author and the administrator. The public
+                  sees the source named on the ticket above. */}
+              {ticket.resultScreenshotPath && canSeeOriginal ? (
                 <div className="mt-4 border-t border-line pt-4">
                   <p className="mb-2 text-xs text-ink-muted">
-                    შედეგის სკრინშოტი, ავტორისგან
+                    შედეგის სკრინშოტი, ავტორისგან. მხოლოდ თქვენ და ადმინი
+                    ხედავთ.
                   </p>
                   <div className="relative aspect-[4/3] w-full max-w-md overflow-hidden rounded-card border border-line bg-canvas">
                     <Image

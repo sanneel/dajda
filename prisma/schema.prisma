@@ -557,6 +557,9 @@ model Prediction {
 
   result    PredictionResult?
   edits     PredictionEdit[]
+  /// The legs of the slip, as the author typed them. This is what the public
+  /// sees; the screenshot itself stays with the author and the administrator.
+  selections PredictionSelection[]
   views     PredictionView[]
   reports   Report[]
   purchases PredictionPurchase[]
@@ -574,6 +577,31 @@ model Prediction {
   @@index([finishedAt, status])
 
   notifications Notification[]
+}
+
+/// One leg of a bet, as the author entered it from their slip.
+///
+/// The public never sees the bookmaker's screenshot: it carries the
+/// operator's branding, and often the author's balance and account number.
+/// What the public sees is a DAJDA-rendered ticket built from these rows,
+/// and the administrator settles the bet by comparing them with the original
+/// image. Frozen with the bet: a correction copies them onto the new version.
+model PredictionSelection {
+  id String @id @default(uuid()) @db.Uuid
+
+  predictionId String     @db.Uuid
+  prediction   Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  /// Order on the slip, from 1.
+  position Int
+  /// The match or event, e.g. "დინამო თბილისი vs საბურთალო".
+  eventKa String
+  /// The market and pick, e.g. "ჯამური 2.5-ზე მეტი".
+  pickKa String
+  /// This leg's own odds, in thousandths.
+  oddsMilli Int
+
+  @@unique([predictionId, position])
 }
 
 model PredictionResult {

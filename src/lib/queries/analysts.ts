@@ -240,6 +240,11 @@ export async function getAnalystBySlug(slug: string) {
       result: {
         select: { profitUnitsCenti: true, settledAt: true, settlementSource: true },
       },
+      // The legs, for the ticket we draw in place of the screenshot.
+      selections: {
+        orderBy: { position: 'asc' as const },
+        select: { eventKa: true, pickKa: true, oddsMilli: true },
+      },
     },
   });
 

@@ -10,8 +10,9 @@ import { formatOdds } from '@/lib/format';
  *
  * Answers exactly as the /free page would answer the same caller: signed-out
  * requests get every row with its odds, author and first-leg time, but an
- * OPEN pick's title and slip come back null with `locked: true` - a free
- * ticket costs an account. Settled rows are the public record and open to
+ * OPEN pick's title and legs come back null with `locked: true` - a free
+ * ticket costs an account. The bookmaker's screenshot is never in the feed:
+ * it is evidence for the administrator, not content. Settled rows are the public record and open to
  * everyone. The written description is never included: an analyst's paid
  * bets share this table, and a JSON feed must not become the unauthenticated
  * path to them.
@@ -66,7 +67,13 @@ export async function GET(request: Request) {
           id: ticket.id,
           title: locked ? null : ticket.titleKa,
           sport: ticket.sport.code,
-          screenshot: locked ? null : ticket.screenshotPath,
+          selections: locked
+            ? null
+            : ticket.selections.map((leg) => ({
+                event: leg.eventKa,
+                pick: leg.pickKa,
+                odds: formatOdds(leg.oddsMilli),
+              })),
           locked,
           oddsAtPublication: formatOdds(ticket.oddsMilli),
           publishedAt: ticket.publishedAt,

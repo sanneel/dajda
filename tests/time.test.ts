@@ -51,6 +51,9 @@ describe('datetime-local as Tbilisi time', () => {
     const bet = createPredictionSchema.parse({
       sportId: '3c1d1f1e-6b9e-4e2b-9d6a-2b3f4a5c6d7e',
       screenshotPath: '/uploads/abcdef0123456789.webp',
+      selections: [
+        { eventKa: 'დინამო vs საბურთალო', pickKa: 'ჯამური 2.5+', odds: '1.85' },
+      ],
       odds: '1.85',
       eventAt: '2026-09-03T20:00',
       eventEndAt: '2026-09-03T22:30',

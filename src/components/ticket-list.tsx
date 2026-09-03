@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import type { FeedTicket } from '@/lib/queries/tickets';
 import { PREDICTION_VISIBILITY_KA } from '@/lib/labels';
 import {
@@ -22,8 +21,9 @@ import { SportTile } from './sport-tile';
  * profile where that number can be checked in full.
  *
  * A locked row keeps the pre-purchase facts - odds, first-leg time, status,
- * author, price - and withholds the pick: no title, no slip. Must stay a
- * server component, so the withheld fields never reach the browser at all.
+ * author, price - and withholds the pick: no title. No row ever shows the
+ * bookmaker's screenshot; the tile is the sport. Must stay a server
+ * component, so the withheld fields never reach the browser at all.
  */
 export function TicketList({
   tickets,
@@ -68,23 +68,11 @@ export function TicketList({
             className="rounded-card border border-line bg-surface p-4"
           >
             <div className="flex items-start gap-3">
-              {hidden ? (
-                <SportTile
-                  code={ticket.sport.code}
-                  className="size-14 rounded-md"
-                  iconClassName="size-6"
-                />
-              ) : (
-                <span className="relative block size-14 shrink-0 overflow-hidden rounded-md border border-line bg-canvas">
-                  <Image
-                    src={ticket.screenshotPath}
-                    alt=""
-                    fill
-                    sizes="3.5rem"
-                    className="object-cover"
-                  />
-                </span>
-              )}
+              <SportTile
+                code={ticket.sport.code}
+                className="size-14 rounded-md"
+                iconClassName="size-6"
+              />
 
               <div className="min-w-0 flex-1">
                 <p className="font-medium leading-snug text-ink">
@@ -215,23 +203,11 @@ export function TicketList({
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    {hidden ? (
-                      <SportTile
-                        code={ticket.sport.code}
-                        className="h-12 w-16 rounded"
-                        iconClassName="size-5"
-                      />
-                    ) : (
-                      <span className="relative block h-12 w-16 shrink-0 overflow-hidden rounded border border-line bg-canvas">
-                        <Image
-                          src={ticket.screenshotPath}
-                          alt=""
-                          fill
-                          sizes="4rem"
-                          className="object-cover"
-                        />
-                      </span>
-                    )}
+                    <SportTile
+                      code={ticket.sport.code}
+                      className="h-12 w-16 rounded"
+                      iconClassName="size-5"
+                    />
 
                     <div className="min-w-0">
                       <Link

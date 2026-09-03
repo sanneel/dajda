@@ -181,6 +181,9 @@ describe('bet creation', () => {
   const valid = {
     sportId: '00000000-0000-4000-8000-000000000001',
     screenshotPath: '/uploads/0123456789abcdef0123456789abcdef.webp',
+      selections: [
+        { eventKa: 'დინამო vs საბურთალო', pickKa: 'ჯამური 2.5+', odds: '1.85' },
+      ],
     odds: '1.85',
     titleKa: 'დინამო vs საბურთალო, ტოტალი',
   };

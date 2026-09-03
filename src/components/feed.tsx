@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { Radio } from 'lucide-react';
 import type { FeedEntry } from '@/lib/queries/feed';
 import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
@@ -138,23 +137,13 @@ function BetEntry({
 
       <div className="mt-2 flex flex-wrap items-start gap-4">
         <Link href={`/free/${bet.id}`} className="shrink-0">
-          {locked ? (
-            <SportTile
-              code={bet.sport.code}
-              className="h-16 w-24 rounded"
-              iconClassName="size-6"
-            />
-          ) : (
-            <span className="relative block h-16 w-24 overflow-hidden rounded border border-line bg-canvas">
-              <Image
-                src={bet.screenshotPath}
-                alt=""
-                fill
-                sizes="6rem"
-                className="object-cover"
-              />
-            </span>
-          )}
+          {/* The sport tile for every row, locked or not: the bookmaker's
+              screenshot is evidence for the administrator, not a thumbnail. */}
+          <SportTile
+            code={bet.sport.code}
+            className="h-16 w-24 rounded"
+            iconClassName="size-6"
+          />
         </Link>
 
         <div className="min-w-0 flex-1">

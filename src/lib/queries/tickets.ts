@@ -43,7 +43,17 @@ const publicTicketSelect = {
   },
   postedBy: { select: { id: true, name: true } },
   result: {
-    select: { profitUnitsCenti: true, settledAt: true, outcome: true },
+    select: {
+      profitUnitsCenti: true,
+      settledAt: true,
+      outcome: true,
+      settlementSource: true,
+    },
+  },
+  // The legs, in slip order: what the public ticket is drawn from.
+  selections: {
+    orderBy: { position: 'asc' as const },
+    select: { eventKa: true, pickKa: true, oddsMilli: true },
   },
 } satisfies Prisma.PredictionSelect;
 

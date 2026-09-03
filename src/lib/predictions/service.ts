@@ -12,6 +12,7 @@ import type {
 } from '@/lib/validation/schemas';
 import { classifyEdit, FROZEN_FIELDS } from './immutability';
 import { computeProfitUnitsCenti, type TerminalOutcome } from './settlement';
+import { slipTitle } from './slip';
 
 /**
  * The only sanctioned write path for bets.
@@ -62,7 +63,8 @@ export async function createPrediction(
   const titleKa =
     input.titleKa && input.titleKa.length > 0
       ? input.titleKa
-      : `${sport.nameKa} · კოეფ. ${(input.odds / 1000).toFixed(2)}`;
+      : (slipTitle(input.selections) ??
+        `${sport.nameKa} · კოეფ. ${(input.odds / 1000).toFixed(2)}`);
 
   const publishedAt = input.publishNow ? new Date() : null;
 
@@ -96,6 +98,15 @@ export async function createPrediction(
       eventAt: input.eventAt ?? null,
       eventEndAt: input.eventEndAt ?? null,
       publishedAt,
+      // The legs, in slip order. What every public page renders.
+      selections: {
+        create: input.selections.map((leg, index) => ({
+          position: index + 1,
+          eventKa: leg.eventKa,
+          pickKa: leg.pickKa,
+          oddsMilli: leg.odds,
+        })),
+      },
     },
   });
 
@@ -322,6 +333,10 @@ export async function correctPrediction(
         version: true,
         supersededAt: true,
         isDemo: true,
+        selections: {
+          orderBy: { position: 'asc' },
+          select: { position: true, eventKa: true, pickKa: true, oddsMilli: true },
+        },
       },
     });
     if (!original) throw new AppError(ERROR_CODES.NOT_FOUND);
@@ -354,6 +369,9 @@ export async function correctPrediction(
         version: original.version + 1,
         correctionOfId: original.id,
         isDemo: original.isDemo,
+        // The legs travel with the claim: the new version shows the same
+        // ticket, and the original keeps its own copy.
+        selections: { create: original.selections },
       },
     });
 

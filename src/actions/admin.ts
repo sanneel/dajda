@@ -8,6 +8,7 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { enqueueForAnalystAudience } from '@/lib/notifications/outbox';
 import { formatUnitsSigned } from '@/lib/format';
 import { PREDICTION_STATUS_KA } from '@/lib/labels';
+import { selectionsFromFormData } from '@/lib/predictions/slip';
 import {
   AppError,
   ERROR_CODES,
@@ -210,6 +211,7 @@ export async function createPredictionAction(
     const parsed = createPredictionSchema.safeParse({
       sportId: formData.get('sportId'),
       screenshotPath: formData.get('screenshotPath'),
+      selections: selectionsFromFormData(formData),
       titleKa: formData.get('titleKa'),
       descriptionKa: formData.get('descriptionKa') || undefined,
       odds: formData.get('odds'),

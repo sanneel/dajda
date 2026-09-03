@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Lock, SlidersHorizontal } from 'lucide-react';
 import { getAnalystBySlug } from '@/lib/queries/analysts';
@@ -27,6 +26,7 @@ import { ResponsibleUseNotice } from '@/components/responsible-use';
 import { SaveAnalystButton } from './save-button';
 import { AddTicketButton } from '@/components/add-ticket-button';
 import { AnalystHistory } from './history';
+import { Slip } from '@/components/slip';
 
 export const dynamic = 'force-dynamic';
 
@@ -317,20 +317,10 @@ export default async function AnalystProfilePage({
                       />
                     </span>
                   ) : (
-                    <a
-                      href={prediction.screenshotPath}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="relative block h-36 border-b border-line bg-canvas"
-                    >
-                      <Image
-                        src={prediction.screenshotPath}
-                        alt=""
-                        fill
-                        sizes="(min-width: 1024px) 20rem, 100vw"
-                        className="object-cover"
-                      />
-                    </a>
+                    /* Our ticket, not the bookmaker's screenshot. */
+                    <div className="h-36 border-b border-line">
+                      <Slip ticket={prediction} variant="compact" />
+                    </div>
                   )}
 
                   <div className="p-4">

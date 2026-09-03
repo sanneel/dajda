@@ -18,6 +18,7 @@ import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
 import { storeIdentityDocument, storeScreenshot } from '@/lib/uploads';
 import { enqueueForAnalystAudience } from '@/lib/notifications/outbox';
 import { notifyAdminsBetFinished } from '@/lib/notifications/admin-alerts';
+import { selectionsFromFormData } from '@/lib/predictions/slip';
 import { formatOdds } from '@/lib/format';
 import {
   analystApplicationSchema,
@@ -151,6 +152,7 @@ export async function postBetAction(
       sportId: formData.get('sportId'),
       screenshotPath: stored.urlPath,
       extraScreenshotPaths: storedAll.slice(1).map((item) => item.urlPath),
+      selections: selectionsFromFormData(formData),
       // Blank means "no name given", not an empty title: the service derives
       // one from the sport and the odds.
       titleKa: formData.get('titleKa') || undefined,

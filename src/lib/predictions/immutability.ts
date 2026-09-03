@@ -15,6 +15,10 @@
  * evidence. If an author could swap the image after publishing, the record
  * would be worth nothing, so a replacement has to go through a correction that
  * keeps the original image reachable.
+ *
+ * The legs (`PredictionSelection` rows) are frozen the same way, by having no
+ * write path at all after creation: the edit form never touches them, and a
+ * correction copies them onto the new version.
  */
 export const FROZEN_FIELDS = [
   'authorId',

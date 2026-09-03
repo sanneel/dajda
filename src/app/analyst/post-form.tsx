@@ -6,6 +6,7 @@ import { postBetAction } from '@/actions/analyst';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
+import { combinedOddsMilli, SELECTION_FIELDS } from '@/lib/predictions/slip';
 
 /**
  * Post a bet, screenshot first.
@@ -16,10 +17,13 @@ import { Alert } from '@/components/ui/feedback';
  * largest - a tap target that shows the picture back - and the numbers follow
  * in one tight grid rather than as a column of equals.
  *
- * A name and a comment are optional. Requiring a title made every analyst
- * write a sentence describing a picture that was already open in front of the
- * reader; when it is left blank the server derives one from the sport and the
- * odds.
+ * The legs are required. The public never sees the screenshot (it carries
+ * the bookmaker's branding and often the author's balance); it sees a ticket
+ * drawn from the rows typed here, so a bet with no rows has nothing to show.
+ * The total odds fill themselves from the rows.
+ *
+ * A name and a comment are optional. Left blank, the server names the bet
+ * after its first leg.
  *
  * The preview is a local object URL: nothing uploads until submit, so changing
  * your mind leaves nothing behind on the server.
@@ -54,6 +58,52 @@ export function PostBetForm({
   // Subscription is the default: it is what an author's page is FOR.
   const [visibility, setVisibility] = useState('VIP');
   const [price, setPrice] = useState('');
+  /*
+   * The legs of the slip. Controlled, so the combined price can be computed
+   * as they are typed and written into the total field until the author
+   * touches that field themselves (a bookmaker sometimes rounds differently,
+   * and the record should carry the printed number).
+   */
+  const [legs, setLegs] = useState<
+    { key: number; eventKa: string; pickKa: string; odds: string }[]
+  >([{ key: 0, eventKa: '', pickKa: '', odds: '' }]);
+  const nextKey = useRef(1);
+  const [odds, setOdds] = useState('');
+  const [oddsTouched, setOddsTouched] = useState(false);
+  const MAX_LEGS = 20;
+
+  const legsForOdds = legs
+    .map((leg) => ({ oddsMilli: Math.round(Number(leg.odds) * 1000) }))
+    .filter((leg) => Number.isFinite(leg.oddsMilli) && leg.oddsMilli > 1000);
+
+  const syncOdds = (
+    next: { key: number; eventKa: string; pickKa: string; odds: string }[],
+  ) => {
+    setLegs(next);
+    if (oddsTouched) return;
+    const priced = next
+      .map((leg) => ({ oddsMilli: Math.round(Number(leg.odds) * 1000) }))
+      .filter((leg) => Number.isFinite(leg.oddsMilli) && leg.oddsMilli > 1000);
+    setOdds(
+      priced.length > 0 ? (combinedOddsMilli(priced) / 1000).toFixed(2) : '',
+    );
+  };
+  const updateLeg = (
+    index: number,
+    patch: Partial<{ eventKa: string; pickKa: string; odds: string }>,
+  ) =>
+    syncOdds(legs.map((leg, at) => (at === index ? { ...leg, ...patch } : leg)));
+  const addLeg = () => {
+    if (legs.length >= MAX_LEGS) return;
+    syncOdds([
+      ...legs,
+      { key: nextKey.current++, eventKa: '', pickKa: '', odds: '' },
+    ]);
+  };
+  const removeLeg = (index: number) => {
+    if (legs.length === 1) return;
+    syncOdds(legs.filter((_, at) => at !== index));
+  };
   const pickerRef = useRef<HTMLInputElement>(null);
   const fieldRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLButtonElement>(null);
@@ -390,14 +440,130 @@ export function PostBetForm({
       </div>
 
       {/* ----------------------------------------------------------------- */}
-      {/* 3. What the record needs                                           */}
+      {/* 3. The legs: what the public ticket is drawn from                  */}
+      {/* ----------------------------------------------------------------- */}
+      <fieldset className="rounded-card border border-line bg-canvas p-4">
+        <legend className="px-1 text-sm font-medium text-ink">
+          ბილეთის პოზიციები
+          <span className="ml-1 text-loss" aria-hidden="true">
+            *
+          </span>
+        </legend>
+        <p className="mb-3 text-xs text-ink-muted">
+          გადმოწერეთ სკრინშოტიდან. საჯაროდ სწორედ ეს ჩანს და არა სკრინშოტი, ასე
+          რომ ბუკმეკერის ლოგო და თქვენი ბალანსი არსად გამოჩნდება.
+        </p>
+
+        <ol className="space-y-3 divide-y divide-line [&>li+li]:pt-3">
+          {legs.map((leg, index) => (
+            <li
+              key={leg.key}
+              className="grid grid-cols-[minmax(0,1fr)_5.5rem_auto] gap-2"
+            >
+              {/* The match gets the whole first line: it is the longest
+                  text, and the drawer is thirty rem wide. */}
+              <div className="col-span-3">
+                <label htmlFor={`leg-event-${leg.key}`} className="sr-only">
+                  მატჩი {index + 1}
+                </label>
+                <Input
+                  id={`leg-event-${leg.key}`}
+                  name={SELECTION_FIELDS.event}
+                  value={leg.eventKa}
+                  onChange={(event) =>
+                    updateLeg(index, { eventKa: event.target.value })
+                  }
+                  maxLength={120}
+                  placeholder="მატჩი: დინამო vs საბურთალო"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor={`leg-pick-${leg.key}`} className="sr-only">
+                  არჩევანი {index + 1}
+                </label>
+                <Input
+                  id={`leg-pick-${leg.key}`}
+                  name={SELECTION_FIELDS.pick}
+                  value={leg.pickKa}
+                  onChange={(event) =>
+                    updateLeg(index, { pickKa: event.target.value })
+                  }
+                  maxLength={120}
+                  placeholder="არჩევანი: ჯამური 2.5+"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor={`leg-odds-${leg.key}`} className="sr-only">
+                  კოეფიციენტი {index + 1}
+                </label>
+                <Input
+                  id={`leg-odds-${leg.key}`}
+                  name={SELECTION_FIELDS.odds}
+                  type="number"
+                  step="0.01"
+                  min="1.01"
+                  inputMode="decimal"
+                  value={leg.odds}
+                  onChange={(event) =>
+                    updateLeg(index, { odds: event.target.value })
+                  }
+                  placeholder="1.85"
+                  required
+                  className="tabular"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeLeg(index)}
+                disabled={legs.length === 1}
+                aria-label={`პოზიცია ${index + 1} წაშლა`}
+                className="inline-flex min-h-11 items-center justify-center rounded-md border border-line px-2.5 text-ink-muted transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40"
+              >
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ol>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={addLeg}
+            disabled={legs.length >= MAX_LEGS}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-line px-3 text-sm text-ink-muted transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40"
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            პოზიციის დამატება
+          </button>
+          {legs.length > 1 ? (
+            <p className="text-sm text-ink-muted">
+              ნამრავლი{' '}
+              <span className="tabular font-medium text-ink">
+                {(combinedOddsMilli(legsForOdds) / 1000).toFixed(2)}
+              </span>
+            </p>
+          ) : null}
+        </div>
+
+        {errorFor('selections') ? (
+          <p className="mt-2 text-xs text-loss" role="alert">
+            {errorFor('selections')}
+          </p>
+        ) : null}
+      </fieldset>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* 4. What the record needs                                           */}
       {/* ----------------------------------------------------------------- */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
-          label="კოეფიციენტი"
+          label="ჯამური კოეფიციენტი"
           htmlFor="odds"
           required
           error={errorFor('odds')}
+          hint="ივსება პოზიციებიდან; თუ ბუკმეკერი სხვანაირად ამრგვალებს, ჩაასწორეთ."
         >
           <Input
             id="odds"
@@ -408,7 +574,13 @@ export function PostBetForm({
             inputMode="decimal"
             placeholder="1.85"
             required
+            value={odds}
+            onChange={(event) => {
+              setOdds(event.target.value);
+              setOddsTouched(true);
+            }}
             error={Boolean(errorFor('odds'))}
+            className="tabular"
           />
         </Field>
 
@@ -461,7 +633,7 @@ export function PostBetForm({
       </div>
 
       {/* ----------------------------------------------------------------- */}
-      {/* 4. Optional words                                                  */}
+      {/* 5. Optional words                                                  */}
       {/* ----------------------------------------------------------------- */}
       <details className="group rounded-card border border-line">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-medium text-ink marker:content-none">
@@ -475,7 +647,7 @@ export function PostBetForm({
             label="ბილეთის სახელი"
             htmlFor="titleKa"
             error={errorFor('titleKa')}
-            hint="ცარიელი თუ დატოვეთ, ავტომატურად შეივსება სპორტითა და კოეფიციენტით."
+            hint="ცარიელი თუ დატოვეთ, პირველი პოზიციის მიხედვით დაერქმევა."
           >
             <Input
               id="titleKa"
