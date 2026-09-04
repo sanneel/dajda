@@ -59,7 +59,10 @@ const nextConfig: NextConfig = {
   ],
 
   // The generated Prisma client must not be bundled into the browser build.
-  serverExternalPackages: ['@prisma/client'],
+  // opencv.js is a 14MB WebAssembly script loaded with require() at runtime
+  // (src/lib/logo-detect.ts); left external so the bundler neither inlines
+  // nor rewrites it, and file tracing carries it into the serverless bundle.
+  serverExternalPackages: ['@prisma/client', '@techstark/opencv-js'],
 
   typescript: {
     // Never ship a build that does not typecheck.

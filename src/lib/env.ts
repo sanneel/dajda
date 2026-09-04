@@ -96,15 +96,6 @@ const envSchema = z
     FLITT_API_URL: z.url().default('https://pay.flitt.com'),
 
     /**
-     * Claude API key for screening uploaded slips: a bookmaker or casino
-     * logo or name on a screenshot is against the author agreement, and
-     * the model reads the image and says whether one is showing. Optional:
-     * without it the screening step is skipped and uploads go straight
-     * through.
-     */
-    ANTHROPIC_API_KEY: z.string().optional(),
-
-    /**
      * BotFather token, `<numeric id>:<secret>`. Optional: without it the
      * "log in with Telegram" button simply does not render, so a deployment
      * that has not registered a bot loses nothing. The bot must also have its
