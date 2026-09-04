@@ -101,7 +101,7 @@ export default async function HomePage({
           სპორტული <span className="text-accent">ანალიტიკა</span>
         </h1>
 
-        <p className="mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
+        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-ink-muted">
           ანალიტიკოსები თავიანთ პროგნოზებს მატჩის დაწყებამდე აქვეყნებენ. შედეგი
           დაფიქსირების შემდეგ აღარ იცვლება, სტატისტიკა კი ღიაა და შემოწმებადი,
           წაგებული პროგნოზების ჩათვლით.
