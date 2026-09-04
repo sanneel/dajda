@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ChevronDown, Users } from 'lucide-react';
+import { prisma } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { AnalystSearch } from '@/components/analyst-search';
 import { ButtonLink } from '@/components/ui/button';
@@ -71,6 +72,18 @@ export default async function HomePage({
     listSports(),
     getCurrentUser(),
   ]);
+
+  // Authors the viewer already pays: their rows say so instead of selling.
+  const subscribedIds = actor
+    ? (
+        await prisma.userSubscription.findMany({
+          where: { userId: actor.userId, status: 'ACTIVE' },
+          select: { plan: { select: { analystProfileId: true } } },
+        })
+      )
+        .map((row) => row.plan.analystProfileId)
+        .filter((id): id is string => id !== null)
+    : [];
 
   const selectClass =
     'min-h-10 w-full appearance-none rounded-control border border-on-band/20 bg-on-band/10 py-2 pl-3 pr-9 text-sm text-on-band ' +
@@ -256,7 +269,7 @@ export default async function HomePage({
           />
         )
       ) : (
-        <AnalystList analysts={analysts} />
+        <AnalystList analysts={analysts} subscribedIds={subscribedIds} />
       )}
 
       <div className="mt-12">

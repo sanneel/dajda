@@ -25,7 +25,7 @@ import { RecordTabs } from './record-tabs';
 import { ReportForm } from '@/components/report-form';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 import { SaveAnalystButton } from './save-button';
-import { ButtonLink } from '@/components/ui/button';
+import { SubscribeButton } from './subscribe-button';
 import { AddTicketButton } from '@/components/add-ticket-button';
 import { AnalystHistory } from './history';
 import { Slip } from '@/components/slip';
@@ -78,7 +78,10 @@ export default async function AnalystProfilePage({
    * reading location.hash could only happen after hydration, which means
    * rendering the wrong panel first and swapping it under the reader.
    */
-  const requestedTab = TAB_BY_PARAM[String((await searchParams).tab ?? '')];
+  const query = await searchParams;
+  const requestedTab = TAB_BY_PARAM[String(query.tab ?? '')];
+  // A "გამოწერა" link from elsewhere on the site: open the plan dialog at once.
+  const wantsSubscribe = query.subscribe === '1';
   const data = await getAnalystBySlug(slug);
 
   if (!data) notFound();
@@ -248,21 +251,30 @@ export default async function AnalystProfilePage({
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             {/*
-             * The subscription button lives in the header so it is on
-             * screen whichever tab the record is showing, signed in or
-             * not. It is a link, not a tab switch: ?tab=plans opens the
-             * subscription panel on the server and #plans lands on the
-             * plan card inside it.
+             * The subscription lives in the header, top right, so it is on
+             * screen whichever tab the record is showing, signed in or not.
+             * The button opens the plan in a dialog; a reader who arrived
+             * through a "გამოწერა" link elsewhere (?subscribe=1) finds it
+             * already open.
              */}
             {sellsSubscription ? (
-              <ButtonLink
-                href={`/analysts/${profile.slug}?tab=plans#plans`}
-                variant={holdsPlan ? 'secondary' : 'primary'}
-              >
-                {holdsPlan
-                  ? 'გამოწერილია'
-                  : `გამოწერა · ${formatMoney(lowestPriceMinor)} / თვე`}
-              </ButtonLink>
+              <SubscribeButton
+                label={
+                  holdsPlan
+                    ? 'გამოწერილია'
+                    : `გამოწერა · ${formatMoney(lowestPriceMinor)} / თვე`
+                }
+                plans={profile.plans
+                  .filter((plan) => plan.priceMinor > 0)
+                  .map((plan) => ({
+                    ...plan,
+                    currentStatus: statusByPlan.get(plan.id),
+                  }))}
+                isAuthenticated={Boolean(actor)}
+                monthlyMinimum={profile.monthlyMinimum}
+                owned={holdsPlan}
+                openOnMount={wantsSubscribe}
+              />
             ) : null}
             {actor ? (
               <SaveAnalystButton
@@ -302,8 +314,6 @@ export default async function AnalystProfilePage({
             ...plan,
             currentStatus: statusByPlan.get(plan.id),
           }))}
-          isAuthenticated={Boolean(actor)}
-          monthlyMinimum={profile.monthlyMinimum}
           initialTab={requestedTab}
         />
       </section>

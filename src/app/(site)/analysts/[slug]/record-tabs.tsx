@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import type {
   MonthlyBucket,
   OddsBucket,
@@ -10,8 +9,9 @@ import type {
 import { formatGelSigned, formatPercentBps } from '@/lib/format';
 import { Card, CardBody } from '@/components/ui/card';
 import { Stat, RecordBar } from '@/components/ui/stat';
-import { PlanCard, type PlanView } from '@/components/plan-card';
+import type { PlanView } from '@/components/plan-card';
 import { OddsBucketsChart } from '@/components/charts/odds-buckets';
+import { MonthlyBars } from '@/components/charts/monthly-bars';
 
 type Tab = 'FREE' | 'PAID' | 'PLANS';
 
@@ -45,8 +45,6 @@ export function RecordTabs({
   freeCharts,
   paidCharts,
   plans,
-  isAuthenticated,
-  monthlyMinimum,
   initialTab = 'FREE',
 }: {
   free: PerformanceSummary;
@@ -54,9 +52,6 @@ export function RecordTabs({
   freeCharts: TabCharts;
   paidCharts: TabCharts;
   plans: PanelPlan[];
-  isAuthenticated: boolean;
-  /** The author's declared monthly floor, printed on the plan card. */
-  monthlyMinimum: number | null;
   /** Chosen by the page from ?tab=, so a deep link opens the right panel. */
   initialTab?: Tab;
 }) {
@@ -109,38 +104,24 @@ export function RecordTabs({
       </div>
 
       <CardBody>
-        {tab === 'PLANS' ? (
-          <div className="space-y-6">
-            {/*
-             * The paid record sits above the price, because it IS the
-             * product: a subscription buys access to these bets, so the
-             * numbers (and the same two charts every other tab gets) belong
-             * on the page where a buyer decides to pay.
-             */}
-            <RecordStats summary={paid} />
-            <ChartPair tab={tab} charts={paidCharts} />
-            <div className="border-t border-line pt-6">
-              <Plans
-                plans={sellable}
-                isAuthenticated={isAuthenticated}
-                monthlyMinimum={monthlyMinimum}
-              />
-            </div>
-          </div>
-        ) : (
-          <div>
-            <RecordStats summary={tab === 'FREE' ? free : paid} />
-            {/*
-             * The charts belong to the slice the switch selected: the free
-             * tab charts the free record, the paid tab the paid one, so a
-             * number and its picture can never disagree.
-             */}
-            <ChartPair
-              tab={tab}
-              charts={tab === 'FREE' ? freeCharts : paidCharts}
-            />
-          </div>
-        )}
+        {/*
+         * Statistics only, on every tab. The subscription itself is bought
+         * from the button in the profile header, not from inside the
+         * record: this panel answers "how did the bets go", and the price
+         * is a different question.
+         */}
+        <div>
+          <RecordStats summary={tab === 'FREE' ? free : paid} />
+          {/*
+           * The charts belong to the slice the switch selected: the free
+           * tab charts the free record, the paid tab the paid one, so a
+           * number and its picture can never disagree.
+           */}
+          <ChartPair
+            tab={tab}
+            charts={tab === 'FREE' ? freeCharts : paidCharts}
+          />
+        </div>
       </CardBody>
     </Card>
   );
@@ -226,80 +207,22 @@ function RecordStats({ summary }: { summary: PerformanceSummary }) {
 }
 
 /**
- * Per-odds-range performance, keyed so switching a tab resets selection.
- *
- * The monthly bar chart that stood beside this is gone with the bars: two
- * pictures above the fold pushed the record itself off a phone screen, and
- * neither said anything the numbers do not say exactly.
+ * The two pictures of one slice: month by month on the left, per odds range
+ * on the right, side by side from lg up and stacked on a phone. Keyed on
+ * the tab so switching resets each chart's selection.
  */
 function ChartPair({ tab, charts }: { tab: Tab; charts: TabCharts }) {
   return (
-    <div className="mt-6 border-t border-line pt-5">
-      <h3 className="mb-3 text-sm font-medium text-ink">
-        შედეგი კოეფიციენტების მიხედვით
-      </h3>
-      <OddsBucketsChart key={tab} buckets={charts.oddsBuckets} />
-    </div>
-  );
-}
-
-function Plans({
-  plans,
-  isAuthenticated,
-  monthlyMinimum,
-}: {
-  plans: PanelPlan[];
-  isAuthenticated: boolean;
-  monthlyMinimum: number | null;
-}) {
-  return (
-    // The anchor every "გამოწერა" link on the site points at, so a reader
-    // who pressed it lands on the plan rather than at the top of the page.
-    <div id="plans" className="scroll-mt-24">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {plans.map((plan) => (
-          <PlanCard
-            key={plan.id}
-            plan={plan}
-            featured={plan.tier === 'PREMIUM'}
-            isAuthenticated={isAuthenticated}
-            currentStatus={plan.currentStatus}
-            monthlyMinimum={monthlyMinimum}
-          />
-        ))}
+    <div className="mt-6 grid gap-8 border-t border-line pt-5 lg:grid-cols-2">
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-ink">მოგება თვეების მიხედვით</h3>
+        <MonthlyBars key={`m-${tab}`} buckets={charts.monthly} />
       </div>
-
-      {/*
-       * Billing terms sit at the point of purchase - there is no platform-wide
-       * subscriptions page any more. Each sentence restates a numbered clause
-       * of the terms (9.2, 9.3 with 11.1, then 9.4 and 9.5), because the three
-       * facts a reader needs before handing over a card are when access
-       * starts, that it renews until cancelled, and who handles the card.
-       */}
-      <div className="mt-5 border-t border-line pt-4">
-        <p className="text-xs leading-relaxed text-ink-muted">
-          წვდომა აქტიურდება გადახდის დადასტურებისთანავე და მოქმედებს
-          კალენდარული თვის განმავლობაში. გამოწერა ავტომატურად განახლდება ყოველ
-          თვეს, სანამ არ გააუქმებთ; გაუქმების შემდეგ წვდომა რჩება გადახდილი
-          პერიოდის ბოლომდე. გადახდას ამუშავებს ლიცენზირებული გადახდის
-          პროვაიდერი და პლატფორმა ბარათის სრულ მონაცემებს არ ინახავს. ფასი
-          მოიცავს კანონმდებლობით გათვალისწინებულ გადასახადებს.
-        </p>
-        <p className="mt-2 text-xs text-ink-muted">
-          <Link
-            href="/dashboard"
-            className="text-accent underline decoration-line-strong underline-offset-2 hover:decoration-accent"
-          >
-            პროფილი → გამოწერები
-          </Link>
-          {' · '}
-          <Link
-            href="/legal#refunds"
-            className="text-accent underline decoration-line-strong underline-offset-2 hover:decoration-accent"
-          >
-            დაბრუნების პოლიტიკა
-          </Link>
-        </p>
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-ink">
+          შედეგი კოეფიციენტების მიხედვით
+        </h3>
+        <OddsBucketsChart key={`o-${tab}`} buckets={charts.oddsBuckets} />
       </div>
     </div>
   );

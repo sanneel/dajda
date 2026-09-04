@@ -231,7 +231,7 @@ export default async function TicketPage({
                 </ButtonLink>
               ) : null}
               <ButtonLink
-                href={`/analysts/${author.slug}?tab=plans#plans`}
+                href={`/analysts/${author.slug}?subscribe=1`}
                 variant={
                   ticket.priceMinor !== null && ticket.priceMinor > 0
                     ? 'secondary'
@@ -293,7 +293,7 @@ export default async function TicketPage({
             აღწერა ხელმისაწვდომია გამოწერით
           </p>
           {author ? (
-            <ButtonLink href={`/analysts/${author.slug}?tab=plans#plans`}>
+            <ButtonLink href={`/analysts/${author.slug}?subscribe=1`}>
               გეგმების ნახვა
             </ButtonLink>
           ) : null}

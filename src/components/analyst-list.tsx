@@ -21,7 +21,14 @@ import { Avatar } from './ui/avatar';
  * The row therefore draws no outer border and no background of its own. The
  * separator between rows belongs to the list, not to the row.
  */
-export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
+export function AnalystRow({
+  analyst,
+  subscribed = false,
+}: {
+  analyst: AnalystListItem;
+  /** The viewer already pays this author: say so instead of selling again. */
+  subscribed?: boolean;
+}) {
   const { stats, cheapestPlan } = analyst;
   const settled = stats.decided > 0;
 
@@ -82,7 +89,7 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h3 className="truncate text-lg font-bold text-ink">
                 <Link
-                  href={`/analysts/${analyst.slug}?tab=plans#plans`}
+                  href={`/analysts/${analyst.slug}?subscribe=1`}
                   className="hover:underline"
                 >
                   {analyst.displayName}
@@ -170,19 +177,30 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
           გადახედე
         </Link>
 
-        <Link
-          href={`/analysts/${analyst.slug}?tab=plans#plans`}
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-control bg-ink px-4 text-sm font-semibold text-on-ink transition-colors hover:bg-accent"
-        >
-          {cheapestPlan === null
-            ? 'პროფილის ნახვა'
-            : cheapestPlan.priceMinor === 0
-              ? 'უფასო წვდომა'
-              : `გამოწერა ${formatMoney(cheapestPlan.priceMinor, cheapestPlan.currency)}-დან`}
-        </Link>
+        {subscribed ? (
+          <Link
+            href={`/analysts/${analyst.slug}?tab=paid`}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-control border border-accent/40 bg-accent/10 px-4 text-sm font-medium text-accent"
+          >
+            გამოწერილია
+          </Link>
+        ) : (
+          <Link
+            href={`/analysts/${analyst.slug}?subscribe=1`}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-control bg-ink px-4 text-sm font-semibold text-on-ink transition-colors hover:bg-accent"
+          >
+            {cheapestPlan === null
+              ? 'პროფილის ნახვა'
+              : cheapestPlan.priceMinor === 0
+                ? 'უფასო წვდომა'
+                : `გამოწერა ${formatMoney(cheapestPlan.priceMinor, cheapestPlan.currency)}-დან`}
+          </Link>
+        )}
 
         <p className="text-center text-xs leading-relaxed text-ink-faint">
-          {cheapestPlan === null || cheapestPlan.priceMinor === 0 ? (
+          {subscribed ? (
+            'აქტიური გამოწერა · მართვა პროფილის გვერდზე'
+          ) : cheapestPlan === null || cheapestPlan.priceMinor === 0 ? (
             'გამოწერა გაძლევთ წვდომას ავტორის ფსონებზე.'
           ) : (
             <>
@@ -203,12 +221,24 @@ export function AnalystRow({ analyst }: { analyst: AnalystListItem }) {
 /**
  * The container the rows live in: one panel, hairlines between entries.
  */
-export function AnalystList({ analysts }: { analysts: AnalystListItem[] }) {
+export function AnalystList({
+  analysts,
+  subscribedIds = [],
+}: {
+  analysts: AnalystListItem[];
+  /** Profiles the viewer already holds an active subscription to. */
+  subscribedIds?: string[];
+}) {
+  const subscribed = new Set(subscribedIds);
   return (
     <div>
       <ul className="divide-y divide-line overflow-hidden rounded-panel border border-line bg-surface">
         {analysts.map((analyst) => (
-          <AnalystRow key={analyst.id} analyst={analyst} />
+          <AnalystRow
+            key={analyst.id}
+            analyst={analyst}
+            subscribed={subscribed.has(analyst.id)}
+          />
         ))}
       </ul>
       <p className="mt-2.5 text-xs text-ink-faint">
