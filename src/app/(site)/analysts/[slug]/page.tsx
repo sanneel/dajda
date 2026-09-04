@@ -14,6 +14,7 @@ import {
 } from '@/lib/stats/performance';
 import {
   formatDateTimeKa,
+  formatMoney,
   formatOdds,
   formatUnitsSigned,
 } from '@/lib/format';
@@ -138,6 +139,9 @@ export default async function AnalystProfilePage({
   // worded differently for a reader who already pays.
   const sellsSubscription = profile.plans.some((plan) => plan.priceMinor > 0);
   const holdsPlan = [...statusByPlan.values()].includes('ACTIVE');
+  const lowestPriceMinor = Math.min(
+    ...profile.plans.filter((plan) => plan.priceMinor > 0).map((plan) => plan.priceMinor),
+  );
   const lockedBetIds = new Set(
     predictions
       .filter(
@@ -255,7 +259,9 @@ export default async function AnalystProfilePage({
                 href={`/analysts/${profile.slug}?tab=plans#plans`}
                 variant={holdsPlan ? 'secondary' : 'primary'}
               >
-                {holdsPlan ? 'გამოწერილია' : 'გამოწერა'}
+                {holdsPlan
+                  ? 'გამოწერილია'
+                  : `გამოწერა · ${formatMoney(lowestPriceMinor)} / თვე`}
               </ButtonLink>
             ) : null}
             {actor ? (

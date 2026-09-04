@@ -16,6 +16,10 @@ import {
 } from '@/lib/errors';
 import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
 import { storeIdentityDocument, storeScreenshot } from '@/lib/uploads';
+import {
+  brandingRefusalMessage,
+  screenSlipForBookmakerBranding,
+} from '@/lib/slip-screening';
 import { enqueueForAnalystAudience } from '@/lib/notifications/outbox';
 import { notifyAdminsBetFinished } from '@/lib/notifications/admin-alerts';
 import { selectionsFromFormData } from '@/lib/predictions/slip';
@@ -142,6 +146,19 @@ export async function postBetAction(
       return fail(ERROR_CODES.VALIDATION_ERROR, undefined, {
         screenshot: ['მაქსიმუმ 6 ფოტო.'],
       });
+    }
+
+    // A bookmaker's logo or name on a slip is against the author agreement
+    // (clause 3.6). Checked before anything is stored, so a refused image
+    // leaves nothing behind and the author fixes it while the form is open.
+    for (const file of slips) {
+      const screening = await screenSlipForBookmakerBranding(file);
+      if (screening.checked && screening.flagged) {
+        const message = brandingRefusalMessage(screening.brands);
+        return fail(ERROR_CODES.VALIDATION_ERROR, message, {
+          screenshot: [message],
+        });
+      }
     }
 
     const storedAll = [];

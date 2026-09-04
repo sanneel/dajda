@@ -337,6 +337,8 @@ export function PostBetForm({
         ) : (
           <p id="screenshot-help" className="mt-1.5 text-xs text-ink-muted">
             JPG, PNG, HEIC ან WebP. მაქსიმუმ {MAX_SLIPS} ფოტო, თითო 12MB-მდე.
+            ბუკმეკერის ლოგო ან სახელი სკრინშოტზე არ უნდა ჩანდეს: გადაფარეთ ან
+            მოჭერით ატვირთვამდე.
           </p>
         )}
       </div>

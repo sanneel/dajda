@@ -13,6 +13,10 @@ import {
 } from '@/lib/errors';
 import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
 import { storeScreenshot } from '@/lib/uploads';
+import {
+  brandingRefusalMessage,
+  screenSlipForBookmakerBranding,
+} from '@/lib/slip-screening';
 import { freeTicketSchema } from '@/lib/validation/schemas';
 
 /**
@@ -51,6 +55,16 @@ export async function postFreeTicketAction(
     if (!(slip instanceof File) || slip.size === 0) {
       return fail(ERROR_CODES.VALIDATION_ERROR, 'ატვირთეთ სკრინშოტი.', {
         screenshot: ['ატვირთეთ სკრინშოტი.'],
+      });
+    }
+
+    // Same rule as a paid slip: no bookmaker logo or name on the screenshot
+    // (author agreement, clause 3.6).
+    const screening = await screenSlipForBookmakerBranding(slip);
+    if (screening.checked && screening.flagged) {
+      const message = brandingRefusalMessage(screening.brands);
+      return fail(ERROR_CODES.VALIDATION_ERROR, message, {
+        screenshot: [message],
       });
     }
 
