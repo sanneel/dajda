@@ -6,7 +6,12 @@ import { Lock } from 'lucide-react';
 import { getTicketById } from '@/lib/queries/tickets';
 import { canViewPrediction, getCurrentUser } from '@/lib/auth/authorization';
 import { prisma } from '@/lib/db';
-import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
+import {
+  formatDateTimeKa,
+  formatMoney,
+  formatOdds,
+  formatUnitsSigned,
+} from '@/lib/format';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge, DemoBadge, StatusBadge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
@@ -215,10 +220,20 @@ export default async function TicketPage({
                   priceMinor={ticket.priceMinor}
                 />
               ) : null}
+              {/*
+               * A visitor who is not signed in still has to learn that the
+               * single ticket exists: the feed said "ყიდვა", and a page that
+               * then offered only the subscription read as a dead end.
+               */}
+              {!actor && ticket.priceMinor !== null && ticket.priceMinor > 0 ? (
+                <ButtonLink href="/login">
+                  {`შესვლა და ყიდვა · ${formatMoney(ticket.priceMinor)}`}
+                </ButtonLink>
+              ) : null}
               <ButtonLink
                 href={`/analysts/${author.slug}?tab=plans#plans`}
                 variant={
-                  actor && ticket.priceMinor !== null && ticket.priceMinor > 0
+                  ticket.priceMinor !== null && ticket.priceMinor > 0
                     ? 'secondary'
                     : 'primary'
                 }
