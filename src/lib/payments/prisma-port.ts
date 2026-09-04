@@ -155,6 +155,74 @@ export const prismaWebhookPort: WebhookPort = {
 
   async activateSubscription(input) {
     await prisma.$transaction(async (tx) => {
+      /*
+       * One ACTIVE subscription per user and plan, enforced by a partial
+       * unique index. A second verified payment for a plan the user already
+       * holds - two checkouts opened in two tabs, a gateway retry after a
+       * rename - must not crash here: the money is captured, and a 500
+       * makes the gateway retry the same failure forever. It is folded into
+       * the running subscription instead: that one gains the paid period,
+       * and the pending row is closed. Checked before the update rather
+       * than caught after it, because a failed statement aborts the whole
+       * Postgres transaction.
+       */
+      const pending = await tx.userSubscription.findUnique({
+        where: { id: input.subscriptionId },
+        select: { planId: true, status: true },
+      });
+      if (!pending || pending.status === 'ACTIVE') return;
+
+      const running = await tx.userSubscription.findFirst({
+        where: {
+          userId: input.userId,
+          planId: pending.planId,
+          status: 'ACTIVE',
+          id: { not: input.subscriptionId },
+        },
+        select: { id: true, currentPeriodEnd: true },
+      });
+
+      if (running) {
+        const now = new Date();
+        const paidPeriodMs = input.currentPeriodEnd.getTime() - now.getTime();
+        const base =
+          running.currentPeriodEnd && running.currentPeriodEnd > now
+            ? running.currentPeriodEnd
+            : now;
+        const extendedEnd = new Date(base.getTime() + Math.max(paidPeriodMs, 0));
+
+        await tx.userSubscription.update({
+          where: { id: running.id },
+          data: {
+            currentPeriodEnd: extendedEnd,
+            cancelAtPeriodEnd: false,
+            canceledAt: null,
+          },
+        });
+        await tx.userSubscription.update({
+          where: { id: input.subscriptionId },
+          data: { status: 'CANCELED', canceledAt: now },
+        });
+
+        await writeAuditLog(
+          {
+            action: AUDIT_ACTIONS.SUBSCRIPTION_ACTIVATED,
+            entityType: 'UserSubscription',
+            entityId: running.id,
+            summary:
+              'განმეორებითი გადახდა უკვე აქტიურ გამოწერას დაემატა: პერიოდი გაგრძელდა',
+            actorId: input.userId,
+            metadata: {
+              paymentId: input.paymentId,
+              supersededSubscriptionId: input.subscriptionId,
+              currentPeriodEnd: extendedEnd.toISOString(),
+            },
+          },
+          tx,
+        );
+        return;
+      }
+
       const updated = await tx.userSubscription.updateMany({
         where: {
           id: input.subscriptionId,

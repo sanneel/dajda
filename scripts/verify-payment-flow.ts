@@ -77,7 +77,7 @@ async function postWebhook(
   return (await response.json()) as { action?: string };
 }
 
-async function createPendingOrder(plan: { id: string }, userId: string) {
+async function createPendingOrder(plan: { id: string; priceMinor: number }, userId: string) {
   const orderId = `verify-${randomUUID()}`;
 
   const subscription = await withRetry(() =>
@@ -94,7 +94,7 @@ async function createPendingOrder(plan: { id: string }, userId: string) {
       subscriptionId: subscription.id,
       providerCode: 'mock',
       providerOrderId: orderId,
-      amountMinor: 2900,
+      amountMinor: plan.priceMinor,
       currency: 'GEL',
       status: 'CREATED',
       },
@@ -167,8 +167,14 @@ async function main() {
     select: { id: true },
   }));
   const plan = await withRetry(() => prisma.subscriptionPlan.findFirstOrThrow({
-    where: { analystProfileId: null, tier: 'PREMIUM' },
-    select: { id: true },
+    where: {
+      priceMinor: { gt: 0 },
+      analystProfileId: { not: null },
+      // A plan the user already holds would exercise the double-activation
+      // path rather than the ordinary one.
+      subscriptions: { none: { userId: user.id, status: 'ACTIVE' } },
+    },
+    select: { id: true, priceMinor: true },
   }));
 
   // ---- 1. verified approval activates -------------------------------------
@@ -184,12 +190,12 @@ async function main() {
     order_id: order.orderId,
     payment_id: `mock-pay-1-${runId}`,
     order_status: 'approved',
-    amount: 2900,
+    amount: plan.priceMinor,
     currency: 'GEL',
   };
 
   const first = await postWebhook(payload, { eventId });
-  check('webhook reports APPLIED', first.action === 'APPLIED', first.action);
+  check('webhook reports APPLIED', first.action === 'APPLIED', JSON.stringify(first));
 
   const afterApproval = await statusOf(order.subscriptionId);
   check('subscription is now ACTIVE', afterApproval.status === 'ACTIVE');
@@ -223,7 +229,7 @@ async function main() {
       order_id: forgedOrder.orderId,
       payment_id: `mock-pay-2-${runId}`,
       order_status: 'approved',
-      amount: 2900,
+      amount: plan.priceMinor,
       currency: 'GEL',
     },
     { eventId: randomUUID(), signature: 'f'.repeat(64) },
@@ -277,7 +283,7 @@ async function main() {
       order_id: staleOrder.orderId,
       payment_id: `mock-pay-4-${runId}`,
       order_status: 'approved',
-      amount: 2900,
+      amount: plan.priceMinor,
       currency: 'GEL',
     },
     { eventId: randomUUID(), timestamp: Date.now() - 60 * 60 * 1000 },
@@ -293,12 +299,43 @@ async function main() {
     (await statusOf(staleOrder.subscriptionId)).status === 'PENDING',
   );
 
+  // ---- 6. a second payment for a plan already held is folded in ------------
+  // The plan from step 1 is ACTIVE for this user now. A second verified
+  // approval for the same plan (two tabs, a gateway retry) must extend that
+  // subscription rather than fail on the one-active-per-plan index.
+  console.info('\n6. a second payment for an already active plan extends it');
+  const secondOrder = await createPendingOrder(plan, user.id);
+  const second = await postWebhook(
+    {
+      order_id: secondOrder.orderId,
+      payment_id: `mock-pay-5-${runId}`,
+      order_status: 'approved',
+      amount: plan.priceMinor,
+      currency: 'GEL',
+    },
+    { eventId: randomUUID() },
+  );
+  check('webhook reports APPLIED', second.action === 'APPLIED', JSON.stringify(second));
+  const folded = await statusOf(secondOrder.subscriptionId);
+  check('the duplicate subscription is closed, not left PENDING', folded.status === 'CANCELED', folded.status);
+  const extended = await statusOf(order.subscriptionId);
+  const extendedBy =
+    extended.currentPeriodEnd && afterApproval.currentPeriodEnd
+      ? extended.currentPeriodEnd.getTime() - afterApproval.currentPeriodEnd.getTime()
+      : 0;
+  check(
+    'the running subscription gained the paid period',
+    extendedBy >= 27 * 24 * 60 * 60 * 1000,
+    `extended by ${Math.round(extendedBy / 86_400_000)} days`,
+  );
+
   // ---- cleanup ------------------------------------------------------------
   const orderIds = [
     order.orderId,
     forgedOrder.orderId,
     cheapOrder.orderId,
     staleOrder.orderId,
+    secondOrder.orderId,
   ];
   await prisma.paymentStatusTransition.deleteMany({
     where: { payment: { providerOrderId: { in: orderIds } } },
@@ -314,6 +351,7 @@ async function main() {
           forgedOrder.subscriptionId,
           cheapOrder.subscriptionId,
           staleOrder.subscriptionId,
+          secondOrder.subscriptionId,
         ],
       },
     },
