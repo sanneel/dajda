@@ -237,11 +237,24 @@ export default async function HomePage({
       </form>
 
       {analysts.length === 0 ? (
-        <EmptyState
-          icon={<Users className="size-8" aria-hidden="true" />}
-          title="ანალიტიკოსი ვერ მოიძებნა"
-          description="სცადეთ სხვა ძებნა ან წაშალეთ ფილტრი."
-        />
+        /*
+         * Two different empties: a filter that matched nobody, and a site
+         * with no authors yet. Telling the second reader to "clear the
+         * filter" would send them looking for one that is not there.
+         */
+        period === 'all' && !sportParam && !queryParam ? (
+          <EmptyState
+            icon={<Users className="size-8" aria-hidden="true" />}
+            title="ავტორები ჯერ არ არიან"
+            description="პირველი ანალიტიკოსების ჩანაწერები აქ გამოჩნდება, როგორც კი პროგნოზებს გამოაქვეყნებენ."
+          />
+        ) : (
+          <EmptyState
+            icon={<Users className="size-8" aria-hidden="true" />}
+            title="ანალიტიკოსი ვერ მოიძებნა"
+            description="სცადეთ სხვა ძებნა ან წაშალეთ ფილტრი."
+          />
+        )
       ) : (
         <AnalystList analysts={analysts} />
       )}
