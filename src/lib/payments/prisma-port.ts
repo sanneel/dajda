@@ -8,6 +8,7 @@ import { getEnv } from '@/lib/env';
 // number from "+16.15 ₾", and the audit log once said the first.
 import { formatMoney } from '@/lib/format';
 import type { PaymentSnapshot, WebhookPort } from './webhook';
+import { cardTokenKey, sealCardToken } from './card-token';
 
 /** Prisma unique-constraint violation. */
 function isUniqueViolation(error: unknown): boolean {
@@ -201,7 +202,7 @@ export const prismaWebhookPort: WebhookPort = {
         });
         await tx.userSubscription.update({
           where: { id: input.subscriptionId },
-          data: { status: 'CANCELED', canceledAt: now },
+          data: { status: 'CANCELED', canceledAt: now, canceledBy: 'SYSTEM' },
         });
 
         await writeAuditLog(
@@ -227,13 +228,21 @@ export const prismaWebhookPort: WebhookPort = {
         where: {
           id: input.subscriptionId,
           userId: input.userId,
-          status: { in: ['PENDING', 'PAST_DUE', 'EXPIRED'] },
+          OR: [
+            { status: { in: ['PENDING', 'PAST_DUE', 'EXPIRED'] } },
+            // Closed by a failed first payment, never active: an approval
+            // that follows a decline on the same order reopens it. A row a
+            // person cancelled (USER) or the system folded (SYSTEM) stays
+            // shut.
+            { status: 'CANCELED', canceledBy: 'PAYMENT' },
+          ],
         },
         data: {
           status: 'ACTIVE',
           startedAt: new Date(),
           currentPeriodEnd: input.currentPeriodEnd,
           canceledAt: null,
+          canceledBy: null,
           cancelAtPeriodEnd: false,
         },
       });
@@ -258,11 +267,33 @@ export const prismaWebhookPort: WebhookPort = {
     });
   },
 
+  async closePendingSubscription(input) {
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.userSubscription.updateMany({
+        where: { id: input.subscriptionId, status: 'PENDING' },
+        data: { status: 'CANCELED', canceledAt: new Date(), canceledBy: 'PAYMENT' },
+      });
+
+      if (updated.count === 0) return;
+
+      await writeAuditLog(
+        {
+          action: AUDIT_ACTIONS.SUBSCRIPTION_CANCELED,
+          entityType: 'UserSubscription',
+          entityId: input.subscriptionId,
+          summary: `გამოწერა ვერ დაიწყო: ${input.reason}`,
+          metadata: { reason: input.reason, canceledBy: 'PAYMENT' },
+        },
+        tx,
+      );
+    });
+  },
+
   async deactivateSubscription(input) {
     await prisma.$transaction(async (tx) => {
       const updated = await tx.userSubscription.updateMany({
         where: { id: input.subscriptionId, status: 'ACTIVE' },
-        data: { status: 'CANCELED', canceledAt: new Date() },
+        data: { status: 'CANCELED', canceledAt: new Date(), canceledBy: 'PAYMENT' },
       });
 
       if (updated.count === 0) return;
@@ -285,7 +316,8 @@ export const prismaWebhookPort: WebhookPort = {
     await prisma.userSubscription.updateMany({
       where: { id: input.subscriptionId, userId: input.userId },
       data: {
-        cardToken: input.cardToken,
+        // Sealed at rest; see card-token.ts.
+        cardToken: sealCardToken(input.cardToken, cardTokenKey()),
         cardTokenLifetime: input.cardTokenLifetime,
       },
     });

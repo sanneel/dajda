@@ -27,6 +27,7 @@ type Recorded = {
   transitions: { paymentId: string; from: PaymentStatus; to: PaymentStatus }[];
   activations: { subscriptionId: string; currentPeriodEnd: Date }[];
   deactivations: { subscriptionId: string; reason: string }[];
+  pendingClosures: { subscriptionId: string; reason: string }[];
   tokenSaves: { subscriptionId: string; cardToken: string }[];
   renewalPayments: { orderId: string; parentPaymentId: string; amountMinor: number }[];
   renewals: { subscriptionId: string; currentPeriodEnd: Date }[];
@@ -47,6 +48,7 @@ function makePort(payment: PaymentSnapshot | null) {
     transitions: [],
     activations: [],
     deactivations: [],
+    pendingClosures: [],
     tokenSaves: [],
     renewalPayments: [],
     renewals: [],
@@ -104,6 +106,10 @@ function makePort(payment: PaymentSnapshot | null) {
 
     async deactivateSubscription(input) {
       recorded.deactivations.push(input);
+    },
+
+    async closePendingSubscription(input) {
+      recorded.pendingClosures.push(input);
     },
 
     async grantTicketPurchase(input) {
@@ -278,8 +284,10 @@ describe('transition rules', () => {
     expect(canTransition('SUCCEEDED', 'FAILED')).toBe(false);
   });
 
-  it('treats failure states as terminal', () => {
-    expect(canTransition('FAILED', 'SUCCEEDED')).toBe(false);
+  it('lets a declined order be approved on a retry, and nothing else reopen', () => {
+    // The gateway's page offers "try another card" under the same order id.
+    expect(canTransition('FAILED', 'SUCCEEDED')).toBe(true);
+    expect(canTransition('FAILED', 'PROCESSING')).toBe(false);
     expect(canTransition('CANCELED', 'SUCCEEDED')).toBe(false);
     expect(canTransition('EXPIRED', 'SUCCEEDED')).toBe(false);
   });
@@ -479,6 +487,65 @@ describe('processPaymentWebhook', () => {
     expect(recorded.activations).toHaveLength(0);
   });
 
+  it('closes the pending subscription when the first payment is declined', async () => {
+    await processPaymentWebhook(
+      'mock',
+      result({ status: 'FAILED', rawStatus: 'declined' }),
+      port,
+    );
+
+    expect(recorded.pendingClosures).toEqual([
+      { subscriptionId: 'sub-1', reason: 'payment failed' },
+    ]);
+    expect(recorded.deactivations).toHaveLength(0);
+  });
+
+  it('activates after a decline when the same order is approved on a retry', async () => {
+    await processPaymentWebhook(
+      'mock',
+      result({ status: 'FAILED', rawStatus: 'declined', providerPaymentId: 'pay-1' }),
+      port,
+    );
+    const outcome = await processPaymentWebhook(
+      'mock',
+      result({
+        eventId: 'evt-2',
+        status: 'SUCCEEDED',
+        rawStatus: 'approved',
+        providerPaymentId: 'pay-2',
+      }),
+      port,
+    );
+
+    expect(outcome.action).toBe('APPLIED');
+    expect(outcome.from).toBe('FAILED');
+    expect(outcome.subscriptionActivated).toBe(true);
+    expect(recorded.activations).toHaveLength(1);
+  });
+
+  it('refuses an approval that names no amount', async () => {
+    const outcome = await processPaymentWebhook(
+      'mock',
+      result({ status: 'SUCCEEDED', rawStatus: 'approved', amountMinor: null, currency: null }),
+      port,
+    );
+
+    expect(outcome.action).toBe('AMOUNT_MISMATCH');
+    expect(recorded.activations).toHaveLength(0);
+    expect(recorded.transitions).toHaveLength(0);
+  });
+
+  it('still records a decline that names no amount', async () => {
+    const outcome = await processPaymentWebhook(
+      'mock',
+      result({ status: 'FAILED', rawStatus: 'declined', amountMinor: null, currency: null }),
+      port,
+    );
+
+    expect(outcome.action).toBe('APPLIED');
+    expect(recorded.transitions).toHaveLength(1);
+  });
+
   it('skips activation when the payment has no subscription attached', async () => {
     const { port: looseP, recorded: log } = makePort({
       ...PAYMENT,
@@ -591,6 +658,18 @@ describe('gateway-scheduled renewals', () => {
     expect(outcome.action).toBe('AMOUNT_MISMATCH');
     expect(recorded.renewalPayments).toHaveLength(0);
     expect(recorded.renewals).toHaveLength(0);
+  });
+
+  it('rejects a renewal that names no amount', async () => {
+    const outcome = await processPaymentWebhook(
+      'mock',
+      renewalResult({ amountMinor: null, currency: null }),
+      port,
+    );
+
+    expect(outcome.action).toBe('AMOUNT_MISMATCH');
+    expect(recorded.renewals).toHaveLength(0);
+    expect(recorded.renewalPayments).toHaveLength(0);
   });
 
   it('rejects a renewal naming an unknown parent order', async () => {

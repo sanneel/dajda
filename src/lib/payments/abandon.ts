@@ -40,7 +40,7 @@ export async function abandonRefusedCheckout(input: {
     if (input.subscriptionId) {
       await tx.userSubscription.updateMany({
         where: { id: input.subscriptionId, status: 'PENDING' },
-        data: { status: 'CANCELED' },
+        data: { status: 'CANCELED', canceledBy: 'SYSTEM' },
       });
     }
   });

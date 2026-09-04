@@ -106,6 +106,12 @@ enum BillingPeriod {
   QUARTERLY
 }
 
+enum SubscriptionCanceledBy {
+  USER
+  SYSTEM
+  PAYMENT
+}
+
 enum SubscriptionStatus {
   PENDING
   ACTIVE
@@ -741,6 +747,12 @@ model UserSubscription {
   currentPeriodEnd DateTime?
   cancelAtPeriodEnd Boolean  @default(false)
   canceledAt       DateTime?
+  /// Who closed it. USER: the subscriber, from their dashboard. SYSTEM: a
+  /// checkout the gateway refused, or a duplicate folded into a running
+  /// subscription. PAYMENT: the first payment failed, was cancelled or
+  /// expired, or a paid-for period was refunded. Only a PAYMENT-closed row
+  /// that was never active may be reopened by a later approval.
+  canceledBy       SubscriptionCanceledBy?
 
   /// Gateway-issued reusable card token (Flitt rectoken) for
   /// merchant-initiated recurring charges. Opaque - never a PAN.

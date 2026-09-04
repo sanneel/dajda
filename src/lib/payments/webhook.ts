@@ -92,6 +92,18 @@ export interface WebhookPort {
   }): Promise<void>;
 
   /**
+   * The payment for a subscription that was never active failed, was
+   * cancelled or expired: close the PENDING row so it stops reading as
+   * "awaiting confirmation". Marked as closed by the payment, so a later
+   * approval of the same order (a retry on the gateway's page) can reopen
+   * exactly this row and nothing a person cancelled. Idempotent.
+   */
+  closePendingSubscription(input: {
+    subscriptionId: string;
+    reason: string;
+  }): Promise<void>;
+
+  /**
    * Persist a gateway-issued card token on the subscription, enabling
    * merchant-initiated recurring charges. Overwrites any previous token -
    * the gateway may rotate them. The token is opaque; never a PAN.
@@ -205,7 +217,11 @@ const ALLOWED_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
   CREATED: ['PROCESSING', 'SUCCEEDED', 'FAILED', 'CANCELED', 'EXPIRED'],
   PROCESSING: ['SUCCEEDED', 'FAILED', 'CANCELED', 'EXPIRED'],
   SUCCEEDED: ['REFUNDED', 'DISPUTED'],
-  FAILED: [],
+  // A decline is not the end of the order: the gateway's page lets the
+  // customer try another card under the same order id, and the approval
+  // that follows names it. Refusing that edge would take the money and
+  // grant nothing. An expired order cannot be paid again, so it stays shut.
+  FAILED: ['SUCCEEDED'],
   CANCELED: [],
   EXPIRED: [],
   REFUNDED: ['DISPUTED'],
@@ -308,11 +324,14 @@ export async function processPaymentWebhook(
   }
 
   // Guard against a callback that claims a different price than we charged.
-  if (
-    result.amountMinor !== null &&
+  // A success that names no amount at all is not one we can check, and is
+  // refused the same way rather than trusted.
+  const amountMissing = result.amountMinor === null;
+  const amountWrong =
+    !amountMissing &&
     (result.amountMinor !== payment.amountMinor ||
-      (result.currency !== null && result.currency !== payment.currency))
-  ) {
+      (result.currency !== null && result.currency !== payment.currency));
+  if (amountWrong || (amountMissing && result.status === 'SUCCEEDED')) {
     await port.markProcessed(
       event.id,
       `rejected: amount mismatch (expected ${payment.amountMinor} ${payment.currency}, got ${result.amountMinor} ${result.currency ?? '?'})`,
@@ -381,6 +400,21 @@ export async function processPaymentWebhook(
     payment.subscriptionId
   ) {
     await port.deactivateSubscription({
+      subscriptionId: payment.subscriptionId,
+      reason: `payment ${result.status.toLowerCase()}`,
+    });
+  }
+
+  // The first payment did not go through: the subscription it was to open
+  // must not sit as "awaiting confirmation". Closed by the payment, so an
+  // approval that follows a decline on the same order reopens it.
+  if (
+    (result.status === 'FAILED' ||
+      result.status === 'CANCELED' ||
+      result.status === 'EXPIRED') &&
+    payment.subscriptionId
+  ) {
+    await port.closePendingSubscription({
       subscriptionId: payment.subscriptionId,
       reason: `payment ${result.status.toLowerCase()}`,
     });
@@ -509,10 +543,12 @@ async function processRenewal(
 
   // The calendar was created with the plan's price; a renewal claiming a
   // different one is refused just like a first payment would be.
+  // A renewal is always a success by the time it gets here, so an absent
+  // amount is refused like a wrong one: it cannot be checked.
   if (
-    result.amountMinor !== null &&
-    (result.amountMinor !== parent.amountMinor ||
-      (result.currency !== null && result.currency !== parent.currency))
+    result.amountMinor === null ||
+    result.amountMinor !== parent.amountMinor ||
+    (result.currency !== null && result.currency !== parent.currency)
   ) {
     await port.markProcessed(
       eventRowId,

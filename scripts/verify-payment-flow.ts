@@ -8,7 +8,11 @@
  *   2. replaying the same event does nothing the second time
  *   3. a forged signature changes nothing
  *   4. a mismatched amount changes nothing
- *   5. a browser "return" is never sufficient on its own
+ *   5. a stale (replayed) timestamp is rejected
+ *   6. a second payment for a plan already held extends it, never crashes
+ *   7. a decline closes the pending subscription; an approval of the same
+ *      order on a retry reopens it, and the card token lands sealed with
+ *      nothing of it in the webhook ledger
  *
  * Usage (with the app running and DATABASE_URL pointing at the same database):
  *   npx tsx scripts/verify-payment-flow.ts [baseUrl]
@@ -17,6 +21,7 @@ import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { cardTokenKey, openCardToken } from '../src/lib/payments/card-token';
 import {
   MOCK_EVENT_ID_HEADER,
   MOCK_SIGNATURE_HEADER,
@@ -125,7 +130,7 @@ async function statusOf(subscriptionId: string) {
   return withRetry(() =>
     prisma.userSubscription.findUniqueOrThrow({
       where: { id: subscriptionId },
-      select: { status: true, currentPeriodEnd: true },
+      select: { status: true, currentPeriodEnd: true, canceledBy: true, cardToken: true },
     }),
   );
 }
@@ -329,6 +334,73 @@ async function main() {
     `extended by ${Math.round(extendedBy / 86_400_000)} days`,
   );
 
+  // ---- 7. a decline closes the pending row; a retry's approval reopens it --
+  // The gateway's page lets the customer try another card under the same
+  // order. The first callback says declined, the second approved.
+  console.info('\n7. declined, then approved on a retry of the same order');
+  const retryPlan = await withRetry(() => prisma.subscriptionPlan.findFirstOrThrow({
+    where: {
+      priceMinor: { gt: 0 },
+      analystProfileId: { not: null },
+      id: { not: plan.id },
+      subscriptions: { none: { userId: user.id, status: 'ACTIVE' } },
+    },
+    select: { id: true, priceMinor: true },
+  }));
+  const retryOrder = await createPendingOrder(retryPlan, user.id);
+  const declined = await postWebhook(
+    {
+      order_id: retryOrder.orderId,
+      payment_id: `mock-pay-6a-${runId}`,
+      order_status: 'declined',
+      amount: retryPlan.priceMinor,
+      currency: 'GEL',
+    },
+    { eventId: randomUUID() },
+  );
+  check('decline reports APPLIED', declined.action === 'APPLIED', JSON.stringify(declined));
+  const afterDecline = await statusOf(retryOrder.subscriptionId);
+  check(
+    'the pending subscription is closed by the payment',
+    afterDecline.status === 'CANCELED' && afterDecline.canceledBy === 'PAYMENT',
+    `${afterDecline.status}/${afterDecline.canceledBy}`,
+  );
+  const approvedRetry = await postWebhook(
+    {
+      order_id: retryOrder.orderId,
+      payment_id: `mock-pay-6b-${runId}`,
+      order_status: 'approved',
+      amount: retryPlan.priceMinor,
+      currency: 'GEL',
+      rectoken: `tok-${runId}`,
+    },
+    { eventId: randomUUID() },
+  );
+  check('retry approval reports APPLIED', approvedRetry.action === 'APPLIED', JSON.stringify(approvedRetry));
+  const afterRetry = await statusOf(retryOrder.subscriptionId);
+  check('the subscription is ACTIVE after the retry', afterRetry.status === 'ACTIVE', afterRetry.status);
+  check(
+    'the card token is stored sealed, not in the clear',
+    afterRetry.cardToken !== null && afterRetry.cardToken !== `tok-${runId}`,
+    afterRetry.cardToken ?? 'null',
+  );
+  check(
+    'the sealed token opens under the configured key',
+    afterRetry.cardToken !== null &&
+      openCardToken(afterRetry.cardToken, cardTokenKey()) === `tok-${runId}`,
+  );
+  const ledgerRow = await withRetry(() =>
+    prisma.webhookEvent.findFirst({
+      where: { payload: { path: ['order_id'], equals: retryOrder.orderId } },
+      orderBy: { receivedAt: 'desc' },
+      select: { payload: true },
+    }),
+  );
+  check(
+    'the webhook ledger does not keep the token',
+    JSON.stringify(ledgerRow?.payload ?? {}).includes(`tok-${runId}`) === false,
+  );
+
   // ---- cleanup ------------------------------------------------------------
   const orderIds = [
     order.orderId,
@@ -336,6 +408,7 @@ async function main() {
     cheapOrder.orderId,
     staleOrder.orderId,
     secondOrder.orderId,
+    retryOrder.orderId,
   ];
   await prisma.paymentStatusTransition.deleteMany({
     where: { payment: { providerOrderId: { in: orderIds } } },
@@ -352,6 +425,7 @@ async function main() {
           cheapOrder.subscriptionId,
           staleOrder.subscriptionId,
           secondOrder.subscriptionId,
+          retryOrder.subscriptionId,
         ],
       },
     },

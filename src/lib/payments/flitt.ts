@@ -418,7 +418,10 @@ export class FlittPaymentProvider implements PaymentProvider {
       // Present on charges the gateway initiated from a subscription
       // calendar; names the original checkout order.
       parentOrderId: asOptionalString(params.parent_order_id),
-      payload: params as Record<string, unknown>,
+      // The delivery is kept whole in the ledger for investigation, minus
+      // the card token: that lives sealed on the subscription, and a ledger
+      // row must not be a second, plaintext copy of it.
+      payload: redactCardToken(params as Record<string, unknown>),
       ...(signatureValid ? {} : { rejectionReason: 'INVALID_SIGNATURE' }),
     };
   }
@@ -642,6 +645,14 @@ async function readFlittBody(request: Request): Promise<FlittBody> {
 function withMidnight(date: string | undefined): string | undefined {
   if (!date) return undefined;
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date} 00:00:00` : date;
+}
+
+/** The ledger copy of a delivery, with the reusable card token blanked. */
+export function redactCardToken(
+  params: Record<string, unknown>,
+): Record<string, unknown> {
+  if (params.rectoken === undefined || params.rectoken === null) return params;
+  return { ...params, rectoken: '[redacted]' };
 }
 
 /** Signature input is a flat map; nested objects are not part of the digest. */

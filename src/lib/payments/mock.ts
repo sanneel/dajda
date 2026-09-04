@@ -187,7 +187,11 @@ export class MockPaymentProvider implements PaymentProvider {
       cardToken: payload.rectoken ?? null,
       cardTokenLifetime: payload.rectoken_lifetime ?? null,
       parentOrderId: payload.parent_order_id ?? null,
-      payload: payload as Record<string, unknown>,
+      // Same rule as the real provider: the ledger never keeps the token.
+      payload: {
+        ...(payload as Record<string, unknown>),
+        ...(payload.rectoken ? { rectoken: '[redacted]' } : {}),
+      },
       ...(check.valid ? {} : { rejectionReason: check.reason }),
     };
   }

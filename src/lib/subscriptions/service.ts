@@ -226,7 +226,7 @@ export async function cancelSubscription(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.userSubscription.update({
       where: { id: subscription.id },
-      data: { cancelAtPeriodEnd: true, canceledAt: new Date() },
+      data: { cancelAtPeriodEnd: true, canceledAt: new Date(), canceledBy: 'USER' },
     });
 
     await writeAuditLog(
