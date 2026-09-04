@@ -112,24 +112,19 @@ export function RecordTabs({
         {tab === 'PLANS' ? (
           <div className="space-y-6">
             {/*
-             * The price leads. A reader who pressed "გამოწერა" anywhere on
-             * the site lands here (the links carry #plans) and should see
-             * the plan, not scroll past the record to find it; on a phone
-             * the stats and the chart used to push the cards a screen and a
-             * half down. The paid record still follows, because it is what
-             * the subscription buys.
+             * The paid record sits above the price, because it IS the
+             * product: a subscription buys access to these bets, so the
+             * numbers (and the same two charts every other tab gets) belong
+             * on the page where a buyer decides to pay.
              */}
-            <Plans
-              plans={sellable}
-              isAuthenticated={isAuthenticated}
-              monthlyMinimum={monthlyMinimum}
-            />
+            <RecordStats summary={paid} />
+            <ChartPair tab={tab} charts={paidCharts} />
             <div className="border-t border-line pt-6">
-              <h3 className="mb-4 text-sm font-medium text-ink">
-                ფასიანი პროგნოზების ჩანაწერი
-              </h3>
-              <RecordStats summary={paid} />
-              <ChartPair tab={tab} charts={paidCharts} />
+              <Plans
+                plans={sellable}
+                isAuthenticated={isAuthenticated}
+                monthlyMinimum={monthlyMinimum}
+              />
             </div>
           </div>
         ) : (
@@ -258,8 +253,8 @@ function Plans({
   monthlyMinimum: number | null;
 }) {
   return (
-    // The anchor every "გამოწერა" link on the site points at; the scroll
-    // margin keeps the cards clear of the sticky header on arrival.
+    // The anchor every "გამოწერა" link on the site points at, so a reader
+    // who pressed it lands on the plan rather than at the top of the page.
     <div id="plans" className="scroll-mt-24">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan) => (
@@ -292,7 +287,7 @@ function Plans({
         </p>
         <p className="mt-2 text-xs text-ink-muted">
           <Link
-            href="/dashboard#subscriptions"
+            href="/dashboard"
             className="text-accent underline decoration-line-strong underline-offset-2 hover:decoration-accent"
           >
             პროფილი → გამოწერები
