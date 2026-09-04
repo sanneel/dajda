@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Mail } from 'lucide-react';
+import { Mail, MapPin, Phone } from 'lucide-react';
 import { COMPANY } from '@/lib/company';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 
@@ -24,6 +24,20 @@ const CHANNELS = [
     value: COMPANY.supportEmail,
     href: `mailto:${COMPANY.supportEmail}`,
     note: 'მხარდაჭერა, თანხის დაბრუნების მოთხოვნა, ავტორად გახდომა. ვპასუხობთ 2 სამუშაო დღეში.',
+  },
+  {
+    icon: Phone,
+    label: 'ტელეფონი',
+    value: COMPANY.phone,
+    href: `tel:+995${COMPANY.phone.replace(/\s/g, '')}`,
+    note: 'სამუშაო დღეებში, 10:00 საათიდან 18:00 საათამდე.',
+  },
+  {
+    icon: MapPin,
+    label: 'მისამართი',
+    value: COMPANY.addressKa,
+    href: null,
+    note: 'წერილობითი მიმართვისთვის. მიღება წინასწარი შეთანხმებით.',
   },
 ];
 

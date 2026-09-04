@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: 'იურიდიული ინფორმაცია',
   description:
     'DAJDA-ს წესები და პირობები, კონფიდენციალურობის პოლიტიკა, დაბრუნების პოლიტიკა და პასუხისმგებლიანი გამოყენება.',
+  // The requisites name a person; the page is for readers who come to it,
+  // not for search engines. Every other page stays indexable.
+  robots: { index: false, follow: false },
 };
 
 /*
@@ -93,42 +96,17 @@ export default function LegalPage() {
         იურიდიული ინფორმაცია
       </h1>
 
-      {/*
-       * Who the documents bind, stated once above them. Not a paraphrase of
-       * any clause: these are the requisites from company.json that the
-       * terms themselves are generated from, put where a reader (or the
-       * payment provider) looks for them first.
-       */}
-      <dl
-        id="requisites"
-        className="mt-6 scroll-mt-24 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-[auto_1fr]"
-      >
-        <dt className="text-ink-faint">მომსახურების გამწევი</dt>
-        <dd className="text-ink">
-          {`${COMPANY.nameKa}, სავაჭრო სახელწოდება „${COMPANY.tradeNameKa}"`}
-        </dd>
-        <dt className="text-ink-faint">საიდენტიფიკაციო კოდი</dt>
-        <dd className="tabular text-ink">{COMPANY.legalId}</dd>
-        <dt className="text-ink-faint">მისამართი</dt>
-        <dd className="text-ink">{COMPANY.addressKa}</dd>
-        <dt className="text-ink-faint">კონტაქტი</dt>
-        <dd className="text-ink">
-          <a href={`mailto:${COMPANY.supportEmail}`} className="text-accent hover:underline">
-            {COMPANY.supportEmail}
-          </a>
-          {" · "}
-          <span className="tabular">{COMPANY.phone}</span>
-        </dd>
-        <dt className="text-ink-faint">მიწოდება და დაბრუნება</dt>
-        <dd className="text-ink-muted">
-          ციფრული კონტენტი, წვდომა იხსნება გადახდის დადასტურებისთანავე (წესები 9.7);
-          დაბრუნება მე-12 თავის მიხედვით.
-        </dd>
-      </dl>
-
       {/* Jump list, so a footer link can land on the right document. */}
       <nav aria-label="დოკუმენტები" className="mt-8 border-y border-line py-4">
         <ul className="flex flex-wrap gap-x-5 gap-y-2">
+          <li>
+            <a
+              href="#requisites"
+              className="text-sm text-accent underline decoration-line-strong underline-offset-4 hover:decoration-accent"
+            >
+              რეკვიზიტები
+            </a>
+          </li>
           {BLOCKS.map((block) => (
             <li key={block.id}>
               <a
@@ -141,6 +119,53 @@ export default function LegalPage() {
           ))}
         </ul>
       </nav>
+
+      {/*
+       * Who the documents bind, stated once, as its own section: the
+       * footer and the contact page link here, and the payment provider
+       * looks for it. The values are the requisites from company.json that
+       * the terms (clause 21) and the privacy policy (clause 11) are
+       * generated from, so the three cannot drift apart.
+       */}
+      <section
+        id="requisites"
+        aria-labelledby="requisites-heading"
+        className="scroll-mt-24 pt-12"
+      >
+        <h2 id="requisites-heading" className="font-display text-2xl text-ink">
+          რეკვიზიტები
+        </h2>
+        <dl className="mt-3 grid gap-x-8 gap-y-2 border-t border-line pt-5 text-sm sm:grid-cols-[auto_1fr]">
+          <dt className="text-ink-faint">მომსახურების გამწევი</dt>
+          <dd className="text-ink">
+            {`${COMPANY.nameKa} (სავაჭრო სახელწოდება „${COMPANY.tradeNameKa}")`}
+          </dd>
+          <dt className="text-ink-faint">ს/კ</dt>
+          <dd className="tabular text-ink">{COMPANY.legalId}</dd>
+          <dt className="text-ink-faint">მისამართი</dt>
+          <dd className="text-ink">{COMPANY.addressKa}</dd>
+          <dt className="text-ink-faint">ელფოსტა</dt>
+          <dd className="text-ink">
+            <a href={`mailto:${COMPANY.supportEmail}`} className="text-accent hover:underline">
+              {COMPANY.supportEmail}
+            </a>
+          </dd>
+          <dt className="text-ink-faint">ტელეფონი</dt>
+          <dd className="text-ink">
+            <a
+              href={`tel:+995${COMPANY.phone.replace(/\s/g, '')}`}
+              className="tabular text-accent hover:underline"
+            >
+              {COMPANY.phone}
+            </a>
+          </dd>
+          <dt className="text-ink-faint">მიწოდება და დაბრუნება</dt>
+          <dd className="text-ink-muted">
+            ციფრული კონტენტი, წვდომა იხსნება გადახდის დადასტურებისთანავე (წესები 9.7);
+            დაბრუნება მე-12 თავის მიხედვით.
+          </dd>
+        </dl>
+      </section>
 
       {BLOCKS.map((block) => (
         <section

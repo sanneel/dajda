@@ -10,6 +10,8 @@
  *
  *   npm run demo:purge            dry run: counts what would go
  *   npm run demo:purge -- --yes   actually delete, in one transaction
+ *   npm run demo:purge -- --analysts=levan-japaridze,giorgi-beridze [--yes]
+ *                                 only those profiles and what hangs off them
  *
  * What goes: demo users, demo analyst profiles (and everything that hangs
  * off them: plans, posts, broadcasts, saved-by rows), every prediction by a
@@ -47,27 +49,56 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString, keepAlive: true, max: 1 }),
 });
 
+/**
+ * `--analysts=levan-japaridze,giorgi-beridze` narrows the purge to those
+ * profiles: their owner accounts, plans, bets, posts and money rows, and
+ * every subscription to their plans. Nothing else flagged demo is touched,
+ * so a demo subscriber or admin account survives a scoped run.
+ */
+const analystsArg = process.argv.find((arg) => arg.startsWith('--analysts='));
+const scopedSlugs = analystsArg
+  ? analystsArg
+      .slice('--analysts='.length)
+      .split(',')
+      .map((slug) => slug.trim())
+      .filter(Boolean)
+  : null;
+
 async function main() {
+  const demoProfiles = await prisma.analystProfile.findMany({
+    where: scopedSlugs ? { slug: { in: scopedSlugs } } : { isDemo: true },
+    select: { id: true, slug: true, userId: true },
+  });
+  if (scopedSlugs) {
+    const found = new Set(demoProfiles.map((profile) => profile.slug));
+    const missing = scopedSlugs.filter((slug) => !found.has(slug));
+    if (missing.length > 0) {
+      console.info(`Not in this database (skipped): ${missing.join(', ')}`);
+    }
+  }
   const demoUsers = await prisma.user.findMany({
-    where: { isDemo: true },
+    where: scopedSlugs
+      ? { id: { in: demoProfiles.map((profile) => profile.userId) } }
+      : { isDemo: true },
     select: { id: true, email: true },
   });
-  const demoProfiles = await prisma.analystProfile.findMany({
-    where: { isDemo: true },
-    select: { id: true, slug: true },
-  });
+  const profileIds = demoProfiles.map((profile) => profile.id);
   const demoPlans = await prisma.subscriptionPlan.findMany({
-    where: { isDemo: true },
+    where: scopedSlugs
+      ? { analystProfileId: { in: profileIds } }
+      : { isDemo: true },
     select: { id: true },
   });
 
   const userIds = demoUsers.map((user) => user.id);
-  const profileIds = demoProfiles.map((profile) => profile.id);
   const planIds = demoPlans.map((plan) => plan.id);
 
+  // Scoped: only what hangs off the named profiles and their owners. Whole
+  // purge: everything flagged demo as well.
+  const demoFlag = scopedSlugs ? [] : [{ isDemo: true }];
   const predictionWhere = {
     OR: [
-      { isDemo: true },
+      ...demoFlag,
       { authorId: { in: profileIds } },
       { postedById: { in: userIds } },
     ],
@@ -76,10 +107,10 @@ async function main() {
     OR: [{ planId: { in: planIds } }, { userId: { in: userIds } }],
   };
   const postWhere = {
-    OR: [{ isDemo: true }, { authorId: { in: profileIds } }],
+    OR: [...demoFlag, { authorId: { in: profileIds } }],
   };
   const planWhere = {
-    OR: [{ isDemo: true }, { analystProfileId: { in: profileIds } }],
+    OR: [...demoFlag, { analystProfileId: { in: profileIds } }],
   };
 
   const predictions = await prisma.prediction.count({ where: predictionWhere });
