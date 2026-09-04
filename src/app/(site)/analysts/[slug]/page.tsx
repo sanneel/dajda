@@ -24,6 +24,7 @@ import { RecordTabs } from './record-tabs';
 import { ReportForm } from '@/components/report-form';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 import { SaveAnalystButton } from './save-button';
+import { ButtonLink } from '@/components/ui/button';
 import { AddTicketButton } from '@/components/add-ticket-button';
 import { AnalystHistory } from './history';
 import { Slip } from '@/components/slip';
@@ -133,6 +134,10 @@ export default async function AnalystProfilePage({
 
   /** The author, looking at their own page. */
   const isOwner = actor?.analystProfileId === profile.id;
+  // The header's subscribe button: only when something is for sale, and
+  // worded differently for a reader who already pays.
+  const sellsSubscription = profile.plans.some((plan) => plan.priceMinor > 0);
+  const holdsPlan = [...statusByPlan.values()].includes('ACTIVE');
   const lockedBetIds = new Set(
     predictions
       .filter(
@@ -236,12 +241,31 @@ export default async function AnalystProfilePage({
               მართვა
             </Link>
           </div>
-        ) : actor ? (
-          <SaveAnalystButton
-            analystProfileId={profile.id}
-            initiallySaved={saved > 0}
-          />
-        ) : null}
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            {/*
+             * The subscription button lives in the header so it is on
+             * screen whichever tab the record is showing, signed in or
+             * not. It is a link, not a tab switch: ?tab=plans opens the
+             * subscription panel on the server and #plans lands on the
+             * plan card inside it.
+             */}
+            {sellsSubscription ? (
+              <ButtonLink
+                href={`/analysts/${profile.slug}?tab=plans#plans`}
+                variant={holdsPlan ? 'secondary' : 'primary'}
+              >
+                {holdsPlan ? 'გამოწერილია' : 'გამოწერა'}
+              </ButtonLink>
+            ) : null}
+            {actor ? (
+              <SaveAnalystButton
+                analystProfileId={profile.id}
+                initiallySaved={saved > 0}
+              />
+            ) : null}
+          </div>
+        )}
       </header>
 
       {profile.bio ? (
