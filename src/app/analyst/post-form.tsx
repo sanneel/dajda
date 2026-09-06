@@ -68,6 +68,17 @@ export function PostBetForm({
   const [eventAt, setEventAt] = useState<Kickoff>(EMPTY_KICKOFF);
   const [eventEndAt, setEventEndAt] = useState<Kickoff | null>(null);
   const [missingKickoff, setMissingKickoff] = useState(false);
+  /*
+   * A kickoff already behind us is refused here, not on the server: the
+   * feeds drop a ticket the moment its first match starts, so a bet posted
+   * with a past time would publish fine and then be visible to nobody but
+   * its author. That looked like a bug in the feed; it was a slip of the
+   * hour list. The author's clock is Tbilisi's, so local time is right.
+   */
+  const [pastKickoff, setPastKickoff] = useState(false);
+  const kickoffIsPast = (kickoff: Kickoff) =>
+    kickoff.day !== '' &&
+    new Date(kickoffValue(kickoff)).getTime() < Date.now();
   const kickoffRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<HTMLInputElement>(null);
   const fieldRef = useRef<HTMLInputElement>(null);
@@ -123,8 +134,9 @@ export function PostBetForm({
       <div className="space-y-4">
         {state.data.published ? (
           <Alert tone="success" title="ბილეთი გამოქვეყნდა">
-            ჩანაწერი დაემატა თქვენს საჯარო ისტორიას. მატჩის დასრულების შემდეგ
-            მონიშნეთ დასრულებულად.
+            ბილეთი ჩანს ფიდში მატჩის დაწყებამდე და თქვენს პროფილზე მუდმივად.
+            „მოლოდინში“ ნიშნავს, რომ შედეგი ჯერ არ დათვლილა: მატჩის
+            დასრულების შემდეგ მონიშნეთ დასრულებულად.
           </Alert>
         ) : (
           <Alert tone="success" title="მონახაზი შენახულია">
@@ -167,9 +179,10 @@ export function PostBetForm({
           dropRef.current?.focus();
           return;
         }
-        if (!eventAt.day) {
+        if (!eventAt.day || kickoffIsPast(eventAt)) {
           event.preventDefault();
-          setMissingKickoff(true);
+          if (!eventAt.day) setMissingKickoff(true);
+          else setPastKickoff(true);
           kickoffRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
       }}
@@ -468,15 +481,24 @@ export function PostBetForm({
             onChange={(next) => {
               setEventAt(next);
               if (next.day) setMissingKickoff(false);
+              if (!kickoffIsPast(next)) setPastKickoff(false);
             }}
-            invalid={missingKickoff || Boolean(errorFor('eventAt'))}
+            invalid={
+              missingKickoff || pastKickoff || Boolean(errorFor('eventAt'))
+            }
           />
-          {missingKickoff || errorFor('eventAt') ? (
+          {missingKickoff || pastKickoff || errorFor('eventAt') ? (
             <p className="mt-1.5 text-xs text-loss" role="alert">
-              {errorFor('eventAt') ?? 'აირჩიეთ, რომელ დღეს იწყება მატჩი.'}
+              {errorFor('eventAt') ??
+                (pastKickoff
+                  ? 'ეს დრო უკვე გავიდა. ბილეთი ფიდში მხოლოდ მატჩის დაწყებამდე ჩანს, ამიტომ მიუთითეთ რეალური დაწყების დრო.'
+                  : 'აირჩიეთ, რომელ დღეს იწყება მატჩი.')}
             </p>
           ) : (
-            <p className="mt-1.5 text-xs text-ink-muted">თბილისის დროით.</p>
+            <p className="mt-1.5 text-xs text-ink-muted">
+              თბილისის დროით. ფიდში ბილეთი ამ დრომდე ჩანს, შემდეგ მხოლოდ
+              თქვენს პროფილზე.
+            </p>
           )}
 
           {/*
@@ -585,6 +607,7 @@ export function PostBetForm({
           onClick={() => {
             if (files.length === 0) setMissingSlip(true);
             if (!eventAt.day) setMissingKickoff(true);
+            else if (kickoffIsPast(eventAt)) setPastKickoff(true);
           }}
         >
           {pending ? 'ქვეყნდება…' : 'გამოქვეყნება'}
@@ -599,6 +622,7 @@ export function PostBetForm({
           onClick={() => {
             if (files.length === 0) setMissingSlip(true);
             if (!eventAt.day) setMissingKickoff(true);
+            else if (kickoffIsPast(eventAt)) setPastKickoff(true);
           }}
         >
           მონახაზად შენახვა
