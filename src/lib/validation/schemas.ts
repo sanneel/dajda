@@ -159,31 +159,31 @@ export const selectionSchema = z.object({
 export const createPredictionSchema = z.object({
   sportId: z.uuid('აირჩიეთ სპორტი.'),
   /**
-   * The legs. This is what the public sees instead of the screenshot, so a
-   * bet cannot be posted without at least one: the screenshot alone would
-   * put the bookmaker's branding on the page, or nothing at all.
+   * The legs, typed by hand. Optional since 2026-09-06: the public sees the
+   * screenshot itself, so a bet no longer needs rows to have a face. Kept so
+   * a caller that still has them (older forms, corrections) can pass them.
    */
   selections: z
     .array(selectionSchema)
-    .min(1, 'დაამატეთ ბილეთის მინიმუმ ერთი პოზიცია.')
-    .max(20, 'მაქსიმუმ 20 პოზიცია.'),
+    .max(20, 'მაქსიმუმ 20 პოზიცია.')
+    .default([]),
   /** The bet slip. A bet with no evidence is not a record. */
   screenshotPath: uploadPathSchema,
   /**
-   * Optional: the slip is the bet, and requiring a title only made authors
-   * narrate a picture the reader already has open. Left blank, the caller
-   * derives one from the sport and the odds (see `postBetAction`).
+   * Both required. The screenshot is a picture, and a picture cannot be
+   * searched, listed or read aloud: the name is what every feed row prints,
+   * and the comment is what a buyer pays for beyond the pick.
    */
   titleKa: z
     .string()
     .trim()
-    .max(160, 'სახელი ძალიან გრძელია.')
-    .optional(),
+    .min(3, 'დაარქვით ბილეთს სახელი.')
+    .max(160, 'სახელი ძალიან გრძელია.'),
   descriptionKa: z
     .string()
     .trim()
-    .max(4000, 'აღწერა ძალიან გრძელია.')
-    .optional(),
+    .min(10, 'დაწერეთ კომენტარი, მინიმუმ 10 სიმბოლო.')
+    .max(4000, 'აღწერა ძალიან გრძელია.'),
   /**
    * Photos 2..N of the same slip. The primary one is `screenshotPath`; these
    * are the extra legs that did not fit in one screenshot.

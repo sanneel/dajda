@@ -6,7 +6,12 @@ import { postBetAction } from '@/actions/analyst';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
-import { combinedOddsMilli, SELECTION_FIELDS } from '@/lib/predictions/slip';
+import {
+  EMPTY_KICKOFF,
+  KickoffPicker,
+  kickoffValue,
+  type Kickoff,
+} from './kickoff-picker';
 
 /**
  * Post a bet, screenshot first.
@@ -17,13 +22,10 @@ import { combinedOddsMilli, SELECTION_FIELDS } from '@/lib/predictions/slip';
  * largest - a tap target that shows the picture back - and the numbers follow
  * in one tight grid rather than as a column of equals.
  *
- * The legs are required. The public never sees the screenshot (it carries
- * the bookmaker's branding and often the author's balance); it sees a ticket
- * drawn from the rows typed here, so a bet with no rows has nothing to show.
- * The total odds fill themselves from the rows.
- *
- * A name and a comment are optional. Left blank, the server names the bet
- * after its first leg.
+ * The screenshot IS what the buyer opens, so nothing is typed twice: no
+ * per-leg rows, just the total odds off the slip. What a picture cannot
+ * carry is typed once - a name (every feed row prints it) and a comment
+ * (the analysis a buyer pays for beyond the pick), and both are required.
  *
  * The preview is a local object URL: nothing uploads until submit, so changing
  * your mind leaves nothing behind on the server.
@@ -59,51 +61,14 @@ export function PostBetForm({
   const [visibility, setVisibility] = useState('VIP');
   const [price, setPrice] = useState('');
   /*
-   * The legs of the slip. Controlled, so the combined price can be computed
-   * as they are typed and written into the total field until the author
-   * touches that field themselves (a bookmaker sometimes rounds differently,
-   * and the record should carry the printed number).
+   * Kickoff times, owned here so the submit check can see them: the hidden
+   * inputs the action reads cannot carry `required` (the browser would
+   * refuse silently), so an unset day is caught on the button like the slip.
    */
-  const [legs, setLegs] = useState<
-    { key: number; eventKa: string; pickKa: string; odds: string }[]
-  >([{ key: 0, eventKa: '', pickKa: '', odds: '' }]);
-  const nextKey = useRef(1);
-  const [odds, setOdds] = useState('');
-  const [oddsTouched, setOddsTouched] = useState(false);
-  const MAX_LEGS = 20;
-
-  const legsForOdds = legs
-    .map((leg) => ({ oddsMilli: Math.round(Number(leg.odds) * 1000) }))
-    .filter((leg) => Number.isFinite(leg.oddsMilli) && leg.oddsMilli > 1000);
-
-  const syncOdds = (
-    next: { key: number; eventKa: string; pickKa: string; odds: string }[],
-  ) => {
-    setLegs(next);
-    if (oddsTouched) return;
-    const priced = next
-      .map((leg) => ({ oddsMilli: Math.round(Number(leg.odds) * 1000) }))
-      .filter((leg) => Number.isFinite(leg.oddsMilli) && leg.oddsMilli > 1000);
-    setOdds(
-      priced.length > 0 ? (combinedOddsMilli(priced) / 1000).toFixed(2) : '',
-    );
-  };
-  const updateLeg = (
-    index: number,
-    patch: Partial<{ eventKa: string; pickKa: string; odds: string }>,
-  ) =>
-    syncOdds(legs.map((leg, at) => (at === index ? { ...leg, ...patch } : leg)));
-  const addLeg = () => {
-    if (legs.length >= MAX_LEGS) return;
-    syncOdds([
-      ...legs,
-      { key: nextKey.current++, eventKa: '', pickKa: '', odds: '' },
-    ]);
-  };
-  const removeLeg = (index: number) => {
-    if (legs.length === 1) return;
-    syncOdds(legs.filter((_, at) => at !== index));
-  };
+  const [eventAt, setEventAt] = useState<Kickoff>(EMPTY_KICKOFF);
+  const [eventEndAt, setEventEndAt] = useState<Kickoff | null>(null);
+  const [missingKickoff, setMissingKickoff] = useState(false);
+  const kickoffRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<HTMLInputElement>(null);
   const fieldRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLButtonElement>(null);
@@ -195,11 +160,18 @@ export function PostBetForm({
       action={action}
       className="space-y-5"
       onSubmit={(event) => {
-        if (files.length > 0) return;
-        event.preventDefault();
-        setMissingSlip(true);
-        dropRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        dropRef.current?.focus();
+        if (files.length === 0) {
+          event.preventDefault();
+          setMissingSlip(true);
+          dropRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          dropRef.current?.focus();
+          return;
+        }
+        if (!eventAt.day) {
+          event.preventDefault();
+          setMissingKickoff(true);
+          kickoffRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
       }}
       // Let an explicit success reset through; block React 19's automatic
       // reset when the action failed, so an error never wipes the draft.
@@ -337,8 +309,8 @@ export function PostBetForm({
         ) : (
           <p id="screenshot-help" className="mt-1.5 text-xs text-ink-muted">
             JPG, PNG, HEIC ან WebP. მაქსიმუმ {MAX_SLIPS} ფოტო, თითო 12MB-მდე.
-            ბუკმეკერის ლოგო ან სახელი სკრინშოტზე არ უნდა ჩანდეს: გადაფარეთ ან
-            მოჭერით ატვირთვამდე.
+            სწორედ ეს ფოტო ეჩვენება მყიდველს, ამიტომ ბუკმეკერის ლოგო, სახელი და
+            თქვენი ბალანსი მოჭერით ან გადაფარეთ ატვირთვამდე.
           </p>
         )}
       </div>
@@ -442,122 +414,7 @@ export function PostBetForm({
       </div>
 
       {/* ----------------------------------------------------------------- */}
-      {/* 3. The legs: what the public ticket is drawn from                  */}
-      {/* ----------------------------------------------------------------- */}
-      <fieldset className="rounded-card border border-line bg-canvas p-4">
-        <legend className="px-1 text-sm font-medium text-ink">
-          ბილეთის პოზიციები
-          <span className="ml-1 text-loss" aria-hidden="true">
-            *
-          </span>
-        </legend>
-        <p className="mb-3 text-xs text-ink-muted">
-          გადმოწერეთ სკრინშოტიდან. საჯაროდ სწორედ ეს ჩანს და არა სკრინშოტი, ასე
-          რომ ბუკმეკერის ლოგო და თქვენი ბალანსი არსად გამოჩნდება.
-        </p>
-
-        <ol className="space-y-3 divide-y divide-line [&>li+li]:pt-3">
-          {legs.map((leg, index) => (
-            <li
-              key={leg.key}
-              className="grid grid-cols-[minmax(0,1fr)_5.5rem_auto] gap-2"
-            >
-              {/* The match gets the whole first line: it is the longest
-                  text, and the drawer is thirty rem wide. */}
-              <div className="col-span-3">
-                <label htmlFor={`leg-event-${leg.key}`} className="sr-only">
-                  მატჩი {index + 1}
-                </label>
-                <Input
-                  id={`leg-event-${leg.key}`}
-                  name={SELECTION_FIELDS.event}
-                  value={leg.eventKa}
-                  onChange={(event) =>
-                    updateLeg(index, { eventKa: event.target.value })
-                  }
-                  maxLength={120}
-                  placeholder="მატჩი: დინამო vs საბურთალო"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor={`leg-pick-${leg.key}`} className="sr-only">
-                  არჩევანი {index + 1}
-                </label>
-                <Input
-                  id={`leg-pick-${leg.key}`}
-                  name={SELECTION_FIELDS.pick}
-                  value={leg.pickKa}
-                  onChange={(event) =>
-                    updateLeg(index, { pickKa: event.target.value })
-                  }
-                  maxLength={120}
-                  placeholder="არჩევანი: ჯამური 2.5+"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor={`leg-odds-${leg.key}`} className="sr-only">
-                  კოეფიციენტი {index + 1}
-                </label>
-                <Input
-                  id={`leg-odds-${leg.key}`}
-                  name={SELECTION_FIELDS.odds}
-                  type="number"
-                  step="0.01"
-                  min="1.01"
-                  inputMode="decimal"
-                  value={leg.odds}
-                  onChange={(event) =>
-                    updateLeg(index, { odds: event.target.value })
-                  }
-                  placeholder="1.85"
-                  required
-                  className="tabular"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => removeLeg(index)}
-                disabled={legs.length === 1}
-                aria-label={`პოზიცია ${index + 1} წაშლა`}
-                className="inline-flex min-h-11 items-center justify-center rounded-md border border-line px-2.5 text-ink-muted transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40"
-              >
-                <X className="size-4" aria-hidden="true" />
-              </button>
-            </li>
-          ))}
-        </ol>
-
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={addLeg}
-            disabled={legs.length >= MAX_LEGS}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-line px-3 text-sm text-ink-muted transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40"
-          >
-            <Plus className="size-4" aria-hidden="true" />
-            პოზიციის დამატება
-          </button>
-          {legs.length > 1 ? (
-            <p className="text-sm text-ink-muted">
-              ნამრავლი{' '}
-              <span className="tabular font-medium text-ink">
-                {(combinedOddsMilli(legsForOdds) / 1000).toFixed(2)}
-              </span>
-            </p>
-          ) : null}
-        </div>
-
-        {errorFor('selections') ? (
-          <p className="mt-2 text-xs text-loss" role="alert">
-            {errorFor('selections')}
-          </p>
-        ) : null}
-      </fieldset>
-
-      {/* ----------------------------------------------------------------- */}
-      {/* 4. What the record needs                                           */}
+      {/* 3. What the record needs                                           */}
       {/* ----------------------------------------------------------------- */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
@@ -565,7 +422,7 @@ export function PostBetForm({
           htmlFor="odds"
           required
           error={errorFor('odds')}
-          hint="ივსება პოზიციებიდან; თუ ბუკმეკერი სხვანაირად ამრგვალებს, ჩაასწორეთ."
+          hint="ისე, როგორც ბილეთზე წერია."
         >
           <Input
             id="odds"
@@ -576,11 +433,6 @@ export function PostBetForm({
             inputMode="decimal"
             placeholder="1.85"
             required
-            value={odds}
-            onChange={(event) => {
-              setOdds(event.target.value);
-              setOddsTouched(true);
-            }}
             error={Boolean(errorFor('odds'))}
             className="tabular"
           />
@@ -603,78 +455,122 @@ export function PostBetForm({
           </Select>
         </Field>
 
-        <Field
-          label="პირველი მატჩის დაწყება"
-          htmlFor="eventAt"
-          required
-          error={errorFor('eventAt')}
-          hint="თბილისის დროით."
-        >
-          <Input
-            id="eventAt"
-            name="eventAt"
-            type="datetime-local"
-            required
-            error={Boolean(errorFor('eventAt'))}
+        <div ref={kickoffRef} className="sm:col-span-2">
+          <p className="mb-1.5 text-sm font-medium text-ink">
+            {eventEndAt ? 'პირველი მატჩი იწყება' : 'მატჩი იწყება'}
+            <span className="ml-1 text-loss" aria-hidden="true">
+              *
+            </span>
+          </p>
+          <input type="hidden" name="eventAt" value={kickoffValue(eventAt)} />
+          <KickoffPicker
+            value={eventAt}
+            onChange={(next) => {
+              setEventAt(next);
+              if (next.day) setMissingKickoff(false);
+            }}
+            invalid={missingKickoff || Boolean(errorFor('eventAt'))}
           />
-        </Field>
+          {missingKickoff || errorFor('eventAt') ? (
+            <p className="mt-1.5 text-xs text-loss" role="alert">
+              {errorFor('eventAt') ?? 'აირჩიეთ, რომელ დღეს იწყება მატჩი.'}
+            </p>
+          ) : (
+            <p className="mt-1.5 text-xs text-ink-muted">თბილისის დროით.</p>
+          )}
 
-        <Field
-          label="ბოლო მატჩის დაწყება"
-          htmlFor="eventEndAt"
-          error={errorFor('eventEndAt')}
-          hint="მრავალმატჩიან ბილეთზე. ერთმატჩიანზე დატოვეთ ცარიელი."
-        >
-          <Input
-            id="eventEndAt"
-            name="eventEndAt"
-            type="datetime-local"
-            error={Boolean(errorFor('eventEndAt'))}
-          />
-        </Field>
+          {/*
+           * The second time is a question, not a field: most tickets are one
+           * evening, and an empty "last match" box beside a filled first one
+           * looked like something forgotten.
+           */}
+          {eventEndAt ? (
+            <div className="mt-4 border-t border-line pt-4">
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-ink">
+                  ბოლო მატჩი იწყება
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEventEndAt(null)}
+                  className="text-xs text-ink-muted hover:text-ink"
+                >
+                  ერთ დღეზეა
+                </button>
+              </div>
+              <input
+                type="hidden"
+                name="eventEndAt"
+                value={kickoffValue(eventEndAt)}
+              />
+              <KickoffPicker
+                value={eventEndAt}
+                onChange={setEventEndAt}
+                minDay={eventAt.day || undefined}
+                invalid={Boolean(errorFor('eventEndAt'))}
+              />
+              {errorFor('eventEndAt') ? (
+                <p className="mt-1.5 text-xs text-loss" role="alert">
+                  {errorFor('eventEndAt')}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEventEndAt({ ...eventAt })}
+              className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-md border border-line px-3 text-sm text-ink-muted transition-colors hover:border-line-strong hover:text-ink"
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              ბილეთი რამდენიმე დღეზეა
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* 4. The words      </div>
 
       {/* ----------------------------------------------------------------- */}
       {/* 5. Optional words                                                  */}
       {/* ----------------------------------------------------------------- */}
-      <details className="group rounded-card border border-line">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-medium text-ink marker:content-none">
-          სახელი და კომენტარი
-          <span className="text-xs font-normal text-ink-faint">
-            არასავალდებულო
-          </span>
-        </summary>
-        <div className="space-y-4 border-t border-line p-4">
-          <Field
-            label="ბილეთის სახელი"
-            htmlFor="titleKa"
-            error={errorFor('titleKa')}
-            hint="ცარიელი თუ დატოვეთ, პირველი პოზიციის მიხედვით დაერქმევა."
-          >
-            <Input
-              id="titleKa"
-              name="titleKa"
-              maxLength={160}
-              placeholder="მაგ: დინამო vs საბურთალო, ჯამური 2.5+"
-              error={Boolean(errorFor('titleKa'))}
-            />
-          </Field>
+      <div className="space-y-4 rounded-card border border-line bg-canvas p-4">
+        <Field
+          label="ბილეთის სახელი"
+          htmlFor="titleKa"
+          required
+          error={errorFor('titleKa')}
+          hint="ასე გამოჩნდება სიაში და შეტყობინებებში."
+        >
+          <Input
+            id="titleKa"
+            name="titleKa"
+            maxLength={160}
+            minLength={3}
+            required
+            placeholder="მაგ: დინამო vs საბურთალო, ჯამური 2.5+"
+            error={Boolean(errorFor('titleKa'))}
+          />
+        </Field>
 
-          <Field
-            label="კომენტარი"
-            htmlFor="descriptionKa"
-            error={errorFor('descriptionKa')}
-            hint="რატომ ფიქრობთ ასე. მყიდველები სრულად ხედავენ."
-          >
-            <Textarea
-              id="descriptionKa"
-              name="descriptionKa"
-              rows={4}
-              maxLength={4000}
-            />
-          </Field>
-        </div>
-      </details>
+        <Field
+          label="კომენტარი"
+          htmlFor="descriptionKa"
+          required
+          error={errorFor('descriptionKa')}
+          hint="რატომ ფიქრობთ ასე. მყიდველები სრულად ხედავენ."
+        >
+          <Textarea
+            id="descriptionKa"
+            name="descriptionKa"
+            rows={4}
+            maxLength={4000}
+            minLength={10}
+            required
+            error={Boolean(errorFor('descriptionKa'))}
+          />
+        </Field>
+      </div>
 
       {/*
        * The click runs BEFORE the browser's own required-field check, so an
@@ -688,6 +584,7 @@ export function PostBetForm({
           disabled={pending}
           onClick={() => {
             if (files.length === 0) setMissingSlip(true);
+            if (!eventAt.day) setMissingKickoff(true);
           }}
         >
           {pending ? 'ქვეყნდება…' : 'გამოქვეყნება'}
@@ -701,6 +598,7 @@ export function PostBetForm({
           disabled={pending}
           onClick={() => {
             if (files.length === 0) setMissingSlip(true);
+            if (!eventAt.day) setMissingKickoff(true);
           }}
         >
           მონახაზად შენახვა

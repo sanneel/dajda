@@ -28,6 +28,8 @@ const publicTicketSelect = {
   titleKa: true,
   descriptionKa: true,
   screenshotPath: true,
+  // Photos 2..N of the same slip, shown after the first on the ticket page.
+  extraScreenshotPaths: true,
   resultScreenshotPath: true,
   status: true,
   visibility: true,

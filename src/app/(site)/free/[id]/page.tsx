@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { Lock } from 'lucide-react';
+import { Check, Lock } from 'lucide-react';
 import { getTicketById } from '@/lib/queries/tickets';
 import { canViewPrediction, getCurrentUser } from '@/lib/auth/authorization';
 import { prisma } from '@/lib/db';
@@ -21,7 +21,6 @@ import { ReportForm } from '@/components/report-form';
 import { PaymentReturnBanner } from '@/components/payment-return';
 import { paymentReturnStatus } from '@/lib/payments/return-status';
 import { BuyTicketButton } from './buy-button';
-import { Slip } from '@/components/slip';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 
 export const dynamic = 'force-dynamic';
@@ -55,11 +54,11 @@ export async function generateMetadata({
 /**
  * One ticket.
  *
- * The ticket fills the page because the ticket is the claim: the legs as the
- * author entered them, drawn by us. The bookmaker's screenshot is never
- * public. It carries the operator's branding and often the author's balance,
- * and it is evidence for the administrator, who settles against it. The
- * author and an administrator can still open the original from this page.
+ * The screenshot fills the page because the screenshot is the claim: the
+ * slip as the author photographed it, every photo of it in the order they
+ * were picked. The author crops the bookmaker's branding and their balance
+ * out before posting (the form says so, and the upload is screened for
+ * logos), so the picture the buyer opens is the record and nothing else.
  *
  * The page serves both shapes of bet. A community ticket has no author and is
  * always readable; an analyst's paid bet keeps its gate, so a direct link
@@ -113,14 +112,16 @@ export default async function TicketPage({
   const locked = ticket.status === 'PENDING' && (!actor || !canView);
 
   /*
-   * Who may open the bookmaker's screenshot: the person who posted it and an
-   * administrator. Everyone else gets the ticket we draw.
+   * The result photo is the author's proof for the administrator, not part
+   * of the public record: only those two see it.
    */
   const canSeeOriginal =
     actor !== null &&
     (actor.role === 'ADMIN' ||
       actor.userId === ticket.postedBy.id ||
       (author !== null && actor.analystProfileId === author.id));
+
+  const screenshots = [ticket.screenshotPath, ...ticket.extraScreenshotPaths];
 
   const feedHref = isPaid ? '/paid' : '/free';
   const feedLabel = isPaid ? 'ფასიანი პროგნოზები' : 'უფასო პროგნოზები';
@@ -211,8 +212,10 @@ export default async function TicketPage({
           {isPaid && author ? (
             <div className="flex flex-wrap items-center gap-3">
               {/*
-               * Two ways in, dearest-first is deliberately NOT the order:
-               * the single ticket is the smaller commitment, so it leads.
+               * One way in from here: the single ticket. The subscription
+               * is bought on the author's page, and the author card below
+               * leads there; a second button on this panel promised a
+               * purchase this page cannot complete.
                */}
               {actor && ticket.priceMinor !== null && ticket.priceMinor > 0 ? (
                 <BuyTicketButton
@@ -223,23 +226,18 @@ export default async function TicketPage({
               {/*
                * A visitor who is not signed in still has to learn that the
                * single ticket exists: the feed said "ყიდვა", and a page that
-               * then offered only the subscription read as a dead end.
+               * then offered nothing read as a dead end.
                */}
               {!actor && ticket.priceMinor !== null && ticket.priceMinor > 0 ? (
                 <ButtonLink href="/login">
                   {`შესვლა და ყიდვა · ${formatMoney(ticket.priceMinor)}`}
                 </ButtonLink>
               ) : null}
-              <ButtonLink
-                href={`/analysts/${author.slug}?subscribe=1`}
-                variant={
-                  ticket.priceMinor !== null && ticket.priceMinor > 0
-                    ? 'secondary'
-                    : 'primary'
-                }
-              >
-                შეძენა გამოწერით
-              </ButtonLink>
+              {ticket.priceMinor === null || ticket.priceMinor <= 0 ? (
+                <ButtonLink href={`/analysts/${author.slug}`} variant="secondary">
+                  ავტორის გვერდი
+                </ButtonLink>
+              ) : null}
             </div>
           ) : !isPaid ? (
             <div className="flex flex-wrap gap-3">
@@ -251,26 +249,62 @@ export default async function TicketPage({
           ) : null}
         </div>
       ) : (
-        <div>
-          <Slip ticket={ticket} />
-          {canSeeOriginal ? (
-            <details className="mt-3 rounded-card border border-line bg-surface">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm text-ink-muted marker:content-none">
-                ორიგინალი სკრინშოტი
-                <span className="text-xs text-ink-faint">
-                  მხოლოდ თქვენ და ადმინი ხედავთ
-                </span>
-              </summary>
-              <div className="relative aspect-[4/3] w-full overflow-hidden border-t border-line bg-canvas">
+        /*
+         * The slip, as photographed. One frame per photo, each at the
+         * picture's own height: a slip is taller than it is wide, and a
+         * fixed box either cropped the last leg or left a bar of empty
+         * ground under a short one.
+         */
+        <div className="overflow-hidden rounded-card border border-line bg-surface">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3 sm:px-5">
+            <p className="text-sm text-ink-muted">
+              ბილეთის სკრინშოტი
+              {screenshots.length > 1 ? (
+                <span className="tabular"> · {screenshots.length} ფოტო</span>
+              ) : null}
+              {ticket.eventAt ? (
+                <>
+                  {' · '}
+                  <span className="tabular">{formatDateTimeKa(ticket.eventAt)}</span>
+                </>
+              ) : null}
+            </p>
+            <StatusBadge status={ticket.status} />
+          </div>
+          <ol className="divide-y divide-line bg-canvas">
+            {screenshots.map((path, index) => (
+              <li key={path} className="p-2 sm:p-3">
+                {/*
+                 * Unsized on purpose: the stored image's dimensions are not
+                 * on the row, and `fill` needs a box. Width is the column;
+                 * height follows the picture.
+                 */}
                 <Image
-                  src={ticket.screenshotPath}
-                  alt={`პროგნოზის სკრინშოტი: ${ticket.titleKa}`}
-                  fill
+                  src={path}
+                  alt={
+                    screenshots.length > 1
+                      ? `${ticket.titleKa}, ფოტო ${index + 1}`
+                      : ticket.titleKa
+                  }
+                  width={1200}
+                  height={1600}
                   sizes="(min-width: 768px) 42rem, 92vw"
-                  className="object-contain"
+                  className="mx-auto h-auto w-full max-w-xl rounded-md"
+                  priority={index === 0}
                 />
-              </div>
-            </details>
+              </li>
+            ))}
+          </ol>
+          {result ? (
+            <p className="flex items-start gap-2 border-t border-line px-4 py-3 text-sm text-ink-muted sm:px-5">
+              <Check className="mt-0.5 size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+              <span>
+                შემოწმებულია ადმინისტრატორის მიერ,{' '}
+                <span className="tabular">{formatDateTimeKa(result.settledAt)}</span>
+                {' · წყარო: '}
+                <span className="text-ink">{result.settlementSource}</span>
+              </span>
+            </p>
           ) : null}
         </div>
       )}

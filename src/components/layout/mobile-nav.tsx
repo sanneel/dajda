@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
+import { Menu, Wallet, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { AuthLinks } from '@/components/auth/auth-buttons';
 import { NAV_ITEMS } from './nav-items';
@@ -19,12 +19,15 @@ export function MobileNav({
   isAdmin,
   isAnalyst = false,
   profileHref,
+  earnings = null,
 }: {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isAnalyst?: boolean;
   /** An analyst's public profile, when they have one. */
   profileHref?: string | null;
+  /** An analyst's earnings balance, already formatted; null for everyone else. */
+  earnings?: string | null;
 }) {
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -102,6 +105,20 @@ export function MobileNav({
                     className="flex min-h-12 items-center rounded-md px-3 text-base text-accent hover:bg-elevated"
                   >
                     პროფილი
+                  </Link>
+                </li>
+              ) : null}
+              {earnings !== null ? (
+                <li>
+                  <Link
+                    href="/analyst/earnings"
+                    className="flex min-h-12 items-center justify-between gap-3 rounded-md px-3 text-base text-ink hover:bg-elevated"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Wallet className="size-4 text-ink-faint" aria-hidden="true" />
+                      ანაზღაურება
+                    </span>
+                    <span className="tabular text-sm">{earnings}</span>
                   </Link>
                 </li>
               ) : null}

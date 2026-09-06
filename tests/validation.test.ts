@@ -186,10 +186,32 @@ describe('bet creation', () => {
       ],
     odds: '1.85',
     titleKa: 'დინამო vs საბურთალო, ტოტალი',
+    descriptionKa: 'ორივე გუნდი ბოლო ხუთ მატჩში სამზე მეტ გოლს აგებს.',
   };
 
   it('accepts a valid payload', () => {
     expect(createPredictionSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it('does not need typed legs: the screenshot is the ticket', () => {
+    const { selections: _omitted, ...withoutLegs } = valid;
+    const parsed = createPredictionSchema.safeParse(withoutLegs);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.selections).toEqual([]);
+  });
+
+  it('requires a name and a comment, because a picture cannot be listed', () => {
+    expect(
+      createPredictionSchema.safeParse({ ...valid, titleKa: '' }).success,
+    ).toBe(false);
+    expect(
+      createPredictionSchema.safeParse({ ...valid, descriptionKa: 'ok' })
+        .success,
+    ).toBe(false);
+    const { descriptionKa: _omitted, ...withoutComment } = valid;
+    expect(createPredictionSchema.safeParse(withoutComment).success).toBe(
+      false,
+    );
   });
 
   it('requires a screenshot, so no bet exists without its evidence', () => {
@@ -225,13 +247,6 @@ describe('bet creation', () => {
     ).toBe(false);
   });
 
-  it('makes the description optional', () => {
-    expect(createPredictionSchema.safeParse(valid).success).toBe(true);
-    expect(
-      createPredictionSchema.safeParse({ ...valid, descriptionKa: 'ტექსტი' })
-        .success,
-    ).toBe(true);
-  });
 
   /*
    * Regression guard. The schema TRANSFORMS odds into their stored integer

@@ -54,12 +54,13 @@ threshold sort below the rest and are labelled "მცირე შერჩე�
   `src/lib/company.json`). Prices in GEL. Every time shown is Tbilisi time
   (UTC+4, no daylight saving); authors type kickoff times in Tbilisi time.
 - Evidence is a photograph: authors post bookmaker slip screenshots from a
-  phone (up to 6 per ticket, re-encoded server-side). The slip is the bet; the
-  written analysis is optional. The screenshot is never shown publicly: it
-  carries the bookmaker's branding and often the author's balance, and the
-  product must not display either. Authors type the legs (match, pick, odds)
-  and the public sees a DAJDA-drawn ticket; the screenshot stays with the
-  author and the administrator, who settles against it. Decided 2026-09-03.
+  phone (up to 6 per ticket, re-encoded server-side). The slip is the bet,
+  and the screenshot IS what a reader with access sees: no typed legs, no
+  DAJDA-drawn ticket. The author crops or covers the bookmaker's branding
+  and their balance before posting, and the upload is screened for logos.
+  A name and a written comment are required alongside the picture, because
+  a picture cannot be listed, searched or read aloud. Decided 2026-09-06,
+  reversing the 2026-09-03 decision to draw the ticket from typed legs.
 - One subscription per author, monthly, at 30, 40 or 50 GEL, chosen by the
   author. Single tickets have their own price. Authors receive 85%
   (`ANALYST_SHARE_PERCENT`, matching the signed agreement) and may withdraw

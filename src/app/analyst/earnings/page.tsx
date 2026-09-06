@@ -37,7 +37,7 @@ export default async function AnalystEarningsPage() {
   const now = new Date();
   const period = payoutPeriod(now);
 
-  const [user, entries, payouts, published] = await Promise.all([
+  const [user, entries, payouts, published, bySource] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: analyst.userId },
       select: { earningsMinor: true },
@@ -76,7 +76,28 @@ export default async function AnalystEarningsPage() {
       },
       select: { publishedAt: true },
     }),
+    /*
+     * Where the money came from: the credits (and their reversals) grouped
+     * by the buyer's payment purpose. Two sums, not a query per row.
+     */
+    prisma.balanceTransaction.findMany({
+      where: {
+        userId: analyst.userId,
+        account: 'EARNINGS',
+        kind: { in: ['ANALYST_EARNING', 'ANALYST_EARNING_REVERSAL'] },
+      },
+      select: { amountMinor: true, payment: { select: { purpose: true } } },
+    }),
   ]);
+
+  const earnedFrom = { tickets: 0, subscriptions: 0 };
+  for (const row of bySource) {
+    if (row.payment?.purpose === 'TICKET') {
+      earnedFrom.tickets += row.amountMinor;
+    } else {
+      earnedFrom.subscriptions += row.amountMinor;
+    }
+  }
 
   const windowOpen = isWithdrawalWindowOpen(now);
   const activity = weeklyActivity({
@@ -97,8 +118,9 @@ export default async function AnalystEarningsPage() {
           ანაზღაურება
         </h1>
         <p className="mt-1.5 text-ink-muted">
-          გამომწერების გადახდებიდან კუთვნილი წილი. აქ ნაჩვენები თანხა შევსებულ
-          ბალანსს არ ერევა: გატანა შესაძლებელია მხოლოდ ნამუშევარი თანხისა.
+          კუთვნილი წილი ბილეთების გაყიდვიდან და გამოწერებიდან. აქ ნაჩვენები
+          თანხა შევსებულ ბალანსს არ ერევა: გატანა შესაძლებელია მხოლოდ
+          ნამუშევარი თანხისა.
         </p>
       </header>
 
@@ -116,6 +138,18 @@ export default async function AnalystEarningsPage() {
               */}
             <div className="text-sm sm:text-right">
               <p className="text-ink-muted">
+                ბილეთებიდან:{' '}
+                <span className="tabular text-ink">
+                  {formatMoney(earnedFrom.tickets, 'GEL')}
+                </span>
+              </p>
+              <p className="mt-0.5 text-ink-muted">
+                გამოწერებიდან:{' '}
+                <span className="tabular text-ink">
+                  {formatMoney(earnedFrom.subscriptions, 'GEL')}
+                </span>
+              </p>
+              <p className="mt-3 text-ink-muted">
                 ამ თვის პუბლიკაციები:{' '}
                 <span className="tabular text-ink">{activity.total}</span>
               </p>

@@ -170,10 +170,10 @@ export async function postBetAction(
       screenshotPath: stored.urlPath,
       extraScreenshotPaths: storedAll.slice(1).map((item) => item.urlPath),
       selections: selectionsFromFormData(formData),
-      // Blank means "no name given", not an empty title: the service derives
-      // one from the sport and the odds.
-      titleKa: formData.get('titleKa') || undefined,
-      descriptionKa: formData.get('descriptionKa') || undefined,
+      // Passed through blank rather than as undefined, so an empty field
+      // gets the schema's Georgian "write a name" rather than a type error.
+      titleKa: formData.get('titleKa') ?? '',
+      descriptionKa: formData.get('descriptionKa') ?? '',
       odds: formData.get('odds'),
       confidence: formData.get('confidence') || 'MEDIUM',
       visibility: formData.get('visibility') || 'PUBLIC',

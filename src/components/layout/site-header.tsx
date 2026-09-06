@@ -1,5 +1,8 @@
 import Link from 'next/link';
+import { Wallet } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth/authorization';
+import { prisma } from '@/lib/db';
+import { formatMoney } from '@/lib/format';
 import { Logo } from '@/components/brand/logo';
 import { Avatar } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -31,6 +34,22 @@ export async function SiteHeader() {
    */
   const profileHref =
     isAnalyst && actor?.analystSlug ? `/analysts/${actor.analystSlug}` : null;
+
+  /*
+   * An analyst's earnings, in the bar on every page. It is the number they
+   * come back to check, and it was three taps away. Read fresh each render:
+   * a webhook can credit it between two page loads, and a stale figure next
+   * to the avatar would be worse than none.
+   */
+  const earningsMinor =
+    isAnalyst && actor
+      ? (
+          await prisma.user.findUnique({
+            where: { id: actor.userId },
+            select: { earningsMinor: true },
+          })
+        )?.earningsMinor ?? null
+      : null;
 
   return (
     <>
@@ -67,6 +86,17 @@ export async function SiteHeader() {
             </Link>
           ) : null}
 
+          {earningsMinor !== null ? (
+            <Link
+              href="/analyst/earnings"
+              title="ანაზღაურება: ბილეთებიდან და გამოწერებიდან"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3 text-sm text-ink transition-colors hover:border-ink-faint"
+            >
+              <Wallet className="size-4 text-ink-faint" aria-hidden="true" />
+              <span className="tabular">{formatMoney(earningsMinor)}</span>
+            </Link>
+          ) : null}
+
           <ThemeToggle />
 
           {actor ? <NotificationBell userId={actor.userId} /> : null}
@@ -97,6 +127,7 @@ export async function SiteHeader() {
             isAdmin={isAdmin}
             isAnalyst={isAnalyst}
             profileHref={profileHref}
+            earnings={earningsMinor === null ? null : formatMoney(earningsMinor)}
           />
         </div>
       </div>
