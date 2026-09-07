@@ -95,6 +95,29 @@ export const resetPasswordSchema = z.object({
  * definition, so accepting one could only ever be an attempt to reach paid
  * bets through a hand-edited query string.
  */
+/**
+ * An administrator setting one author's withdrawal window.
+ *
+ * The note is required for the two overrides and refused for SCHEDULE:
+ * stepping outside the agreement is exactly the decision that has to carry a
+ * reason, and "back to the calendar" carries its own.
+ */
+export const payoutWindowSchema = z
+  .object({
+    analystProfileId: z.uuid(),
+    window: z.enum(['SCHEDULE', 'OPEN', 'CLOSED']),
+    note: z.string().trim().max(300, 'მიზეზი ძალიან გრძელია.').optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.window !== 'SCHEDULE' && (data.note ?? '').length < 3) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['note'],
+        message: 'მიუთითეთ მიზეზი.',
+      });
+    }
+  });
+
 export const ticketFilterSchema = z.object({
   sport: z.string().trim().min(1).max(40).optional(),
   status: z.enum(PredictionStatus).optional(),

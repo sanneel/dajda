@@ -65,6 +65,16 @@ enum AnalystStatus {
   SUSPENDED
 }
 
+/// An administrator's override of the withdrawal calendar, per author.
+enum PayoutWindow {
+  /// The agreement's rule: the last day of the calendar month.
+  SCHEDULE
+  /// Open now, whatever the date.
+  OPEN
+  /// Closed now, even on the last day.
+  CLOSED
+}
+
 /// Outcome of a published prediction.
 /// WON  = "დაჯდა", LOST = "ვერ დაჯდა", PENDING = "მოლოდინში".
 /// VOID/PUSH exist so that returned-stake outcomes are excluded from hit rate
@@ -402,6 +412,18 @@ model AnalystProfile {
   approvedBy   User?     @relation("AnalystApprover", fields: [approvedById], references: [id], onDelete: SetNull)
 
   rejectionReason String?
+
+  /// Whether this author may withdraw right now, overriding the calendar.
+  ///
+  /// SCHEDULE is the agreement's own rule: the last day of the month and no
+  /// other. An administrator can put one author on OPEN (release the money
+  /// today, whatever the date - a correction, an early settlement, somebody
+  /// who could not reach the window) or on CLOSED (an open dispute, an
+  /// unverified identity), and the reason travels with it so the next
+  /// administrator does not have to guess why.
+  payoutWindow      PayoutWindow @default(SCHEDULE)
+  payoutWindowNote  String?
+  payoutWindowSetAt DateTime?
 
   isDemo    Boolean  @default(false)
   createdAt DateTime @default(now())

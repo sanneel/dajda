@@ -111,6 +111,25 @@ describe('withdrawal window', () => {
   });
 });
 
+describe('withdrawal window override', () => {
+  const midMonth = new Date('2026-08-15T09:00:00Z');
+  const lastDay = new Date('2026-08-31T09:00:00Z');
+
+  it('opens any day when an administrator says so', () => {
+    expect(isWithdrawalWindowOpen(midMonth, 'OPEN')).toBe(true);
+  });
+
+  it('closes the last day when an administrator says so', () => {
+    expect(isWithdrawalWindowOpen(lastDay, 'CLOSED')).toBe(false);
+  });
+
+  it('falls back to the calendar without one', () => {
+    expect(isWithdrawalWindowOpen(midMonth, 'SCHEDULE')).toBe(false);
+    expect(isWithdrawalWindowOpen(lastDay, 'SCHEDULE')).toBe(true);
+    expect(isWithdrawalWindowOpen(lastDay)).toBe(true);
+  });
+});
+
 describe('payout period', () => {
   it('spans the Tbilisi calendar month as UTC instants', () => {
     const period = payoutPeriod(new Date('2026-08-15T09:00:00Z'));
@@ -197,6 +216,47 @@ describe('withdrawal checks', () => {
       allowed: false,
       reason: 'PENDING_REQUEST_EXISTS',
     });
+  });
+
+  it('lets an administrator open the window on any day', () => {
+    expect(
+      checkWithdrawal({
+        ...base,
+        now: new Date('2026-08-15T09:00:00Z'),
+        override: 'OPEN',
+      }),
+    ).toEqual({ allowed: true });
+  });
+
+  it('lets an administrator hold the window shut on the last day', () => {
+    // The calendar says yes here; the override is the whole point.
+    expect(checkWithdrawal({ ...base, override: 'CLOSED' })).toEqual({
+      allowed: false,
+      reason: 'WINDOW_HELD',
+    });
+  });
+
+  it('separates a held window from a merely closed one', () => {
+    // Two different sentences for the author: one can be waited out, the
+    // other cannot, and telling a held author to come back on the 31st
+    // would send them away for nothing.
+    expect(
+      checkWithdrawal({
+        ...base,
+        now: new Date('2026-08-15T09:00:00Z'),
+        override: 'CLOSED',
+      }),
+    ).toEqual({ allowed: false, reason: 'WINDOW_HELD' });
+  });
+
+  it('still refuses an opened window everything else fails', () => {
+    // The override moves WHEN, never WHETHER. Every other guard survives it.
+    expect(
+      checkWithdrawal({ ...base, override: 'OPEN', amountMinor: 20000 }),
+    ).toEqual({ allowed: false, reason: 'INSUFFICIENT_EARNINGS' });
+    expect(
+      checkWithdrawal({ ...base, override: 'OPEN', hasPendingRequest: true }),
+    ).toEqual({ allowed: false, reason: 'PENDING_REQUEST_EXISTS' });
   });
 
   it('reports the open request before anything else', () => {

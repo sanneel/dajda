@@ -28,13 +28,32 @@ export function daysInMonth(year: number, month: number): number {
 }
 
 /**
+ * An administrator's override of the calendar, for one author.
+ *
+ * SCHEDULE is the agreement's own rule and the default. The other two exist
+ * because the calendar cannot see the cases a person can: an author who
+ * could not reach the window, a correction owed today, a disputed month that
+ * should not pay out even though it is the 31st. Mirrors the database enum.
+ */
+export type PayoutWindowOverride = 'SCHEDULE' | 'OPEN' | 'CLOSED';
+
+/**
  * Is the withdrawal window open?
  *
- * Open on the last calendar day of the month, in Tbilisi time, for that whole
- * day. Deliberately narrow: it is what the agreement says, and a window that
- * is open all month would make the monthly delivery check meaningless.
+ * By the calendar: the last day of the month, in Tbilisi time, for that whole
+ * day. Deliberately narrow - it is what the agreement says, and a window open
+ * all month would make the monthly delivery check meaningless.
+ *
+ * An override decides it outright in either direction. It is passed in rather
+ * than read here so this file keeps its promise of touching neither the
+ * database nor the clock.
  */
-export function isWithdrawalWindowOpen(now: Date): boolean {
+export function isWithdrawalWindowOpen(
+  now: Date,
+  override: PayoutWindowOverride = 'SCHEDULE',
+): boolean {
+  if (override === 'OPEN') return true;
+  if (override === 'CLOSED') return false;
   const { year, month, day } = tbilisiParts(now);
   return day === daysInMonth(year, month);
 }
@@ -111,6 +130,8 @@ export function maskCardNumber(cardNumber: string): string {
 
 export type WithdrawalRefusal =
   | 'WINDOW_CLOSED'
+  /** Shut by an administrator, not by the calendar. A different sentence. */
+  | 'WINDOW_HELD'
   | 'BELOW_MINIMUM'
   | 'INSUFFICIENT_EARNINGS'
   | 'INVALID_CARD'
@@ -134,12 +155,21 @@ export function checkWithdrawal(input: {
   minimumMinor: number;
   cardNumber: string;
   hasPendingRequest: boolean;
+  /** The administrator's override for this author. Defaults to the calendar. */
+  override?: PayoutWindowOverride;
 }): WithdrawalCheck {
+  const override = input.override ?? 'SCHEDULE';
+
   if (input.hasPendingRequest) {
     return { allowed: false, reason: 'PENDING_REQUEST_EXISTS' };
   }
-  if (!isWithdrawalWindowOpen(input.now)) {
-    return { allowed: false, reason: 'WINDOW_CLOSED' };
+  if (!isWithdrawalWindowOpen(input.now, override)) {
+    return {
+      allowed: false,
+      // A held author is refused on the last day too, and telling them to
+      // come back on the last day would be a lie they cannot act on.
+      reason: override === 'CLOSED' ? 'WINDOW_HELD' : 'WINDOW_CLOSED',
+    };
   }
   if (!Number.isInteger(input.amountMinor) || input.amountMinor < input.minimumMinor) {
     return { allowed: false, reason: 'BELOW_MINIMUM' };
@@ -156,6 +186,8 @@ export function checkWithdrawal(input: {
 export const WITHDRAWAL_REFUSAL_KA: Record<WithdrawalRefusal, string> = {
   WINDOW_CLOSED:
     'გატანა ხელმისაწვდომია მხოლოდ თვის ბოლო დღეს.',
+  WINDOW_HELD:
+    'გატანა თქვენთვის დროებით შეჩერებულია ადმინისტრაციის მიერ. დაგვიკავშირდით დეტალებისთვის.',
   BELOW_MINIMUM: 'მოთხოვნილი თანხა მინიმალურ ოდენობაზე ნაკლებია.',
   INSUFFICIENT_EARNINGS: 'დარიცხულ ნაშთზე მეტის გატანა შეუძლებელია.',
   INVALID_CARD: 'ბარათის ნომერი არასწორია.',

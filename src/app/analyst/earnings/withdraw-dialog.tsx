@@ -16,18 +16,35 @@ import { WithdrawForm } from './withdraw-form';
  * and when; the form appears only when the author decides to take it.
  *
  * Outside the window there is nothing to open, so the button is replaced
- * by the same notice the form used to show.
+ * by the same notice the form used to show. A window an administrator has
+ * held shut says so instead: waiting for the last day of the month would not
+ * help, and telling somebody to do that is worse than telling them nothing.
  */
 export function WithdrawDialog({
   maxGel,
   minGel,
   windowOpen,
+  held = false,
+  heldNote = null,
 }: {
   maxGel: number;
   minGel: number;
   windowOpen: boolean;
+  /** An administrator has closed this author's window, whatever the date. */
+  held?: boolean;
+  heldNote?: string | null;
 }) {
   const [open, setOpen] = useState(false);
+
+  if (held) {
+    return (
+      <Alert tone="warning" title="გატანა დროებით შეჩერებულია">
+        {heldNote
+          ? `${heldNote} დეტალებისთვის დაგვიკავშირდით.`
+          : 'ადმინისტრაციამ დროებით შეაჩერა გატანა. დეტალებისთვის დაგვიკავშირდით.'}
+      </Alert>
+    );
+  }
 
   if (!windowOpen) {
     return (

@@ -7,7 +7,10 @@ import { PAYOUT_STATUS_KA } from '@/lib/labels';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, EmptyState } from '@/components/ui/feedback';
+import { Avatar } from '@/components/ui/avatar';
+import { isWithdrawalWindowOpen, nextWithdrawalWindow } from '@/lib/payouts/rules';
 import { DecidePayoutForm } from './decide-form';
+import { PayoutWindowForm } from './window-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +28,28 @@ export const metadata: Metadata = {
  */
 export default async function AdminPayoutsPage() {
   await requireAdmin();
+
+  const now = new Date();
+  const calendarOpen = isWithdrawalWindowOpen(now);
+
+  /*
+   * Every approved author, so the window can be opened for one who has not
+   * asked yet - which is the whole point of the control. Ordered by what is
+   * unusual first: an override is a state somebody has to remember to undo.
+   */
+  const analysts = await prisma.analystProfile.findMany({
+    where: { status: 'APPROVED' },
+    orderBy: [{ payoutWindow: 'desc' }, { displayName: 'asc' }],
+    select: {
+      id: true,
+      displayName: true,
+      slug: true,
+      payoutWindow: true,
+      payoutWindowNote: true,
+      payoutWindowSetAt: true,
+      user: { select: { email: true, earningsMinor: true } },
+    },
+  });
 
   const payouts = await prisma.analystPayout.findMany({
     orderBy: [{ status: 'asc' }, { requestedAt: 'desc' }],
@@ -205,6 +230,87 @@ export default async function AdminPayoutsPage() {
                     </div>
                   </li>
                 ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card>
+          <CardHeader
+            title="გატანის ფანჯარა"
+            description={
+              calendarOpen
+                ? 'დღეს თვის ბოლო დღეა: გრაფიკზე მყოფ ყველა ავტორს გატანა უკვე შეუძლია.'
+                : `გრაფიკით გატანა იხსნება ${formatDateKa(nextWithdrawalWindow(now))}. აქ შეგიძლიათ ცალკეულ ავტორს ადრე გაუხსნათ ან შეუჩეროთ.`
+            }
+          />
+          <CardBody>
+            {analysts.length === 0 ? (
+              <EmptyState title="დამოწმებული ავტორი არ არის" />
+            ) : (
+              <ul className="divide-y divide-line">
+                {analysts.map((analyst) => {
+                  const open = isWithdrawalWindowOpen(now, analyst.payoutWindow);
+                  return (
+                    <li
+                      key={analyst.id}
+                      className="flex flex-wrap items-start justify-between gap-4 py-4 first:pt-0"
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <Avatar name={analyst.displayName} size="sm" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-ink">
+                            <Link
+                              href={`/analysts/${analyst.slug}`}
+                              className="hover:text-accent"
+                            >
+                              {analyst.displayName}
+                            </Link>
+                          </p>
+                          <p className="text-sm text-ink-muted">
+                            {analyst.user.email}
+                          </p>
+                          <p className="tabular mt-0.5 text-sm text-ink-faint">
+                            ნაშთი:{' '}
+                            {formatMoney(analyst.user.earningsMinor, 'GEL')}
+                          </p>
+                          {/* What the author sees right now, in one line, so
+                              the switch below is judged against an outcome
+                              rather than against the name of a setting. */}
+                          <p className="mt-1 text-sm">
+                            <span
+                              className={open ? 'text-ink' : 'text-ink-muted'}
+                            >
+                              {open
+                                ? 'ახლა გატანა შეუძლია.'
+                                : 'ახლა გატანა არ შეუძლია.'}
+                            </span>
+                            {analyst.payoutWindow !== 'SCHEDULE' &&
+                            analyst.payoutWindowNote ? (
+                              <span className="text-ink-faint">
+                                {' '}
+                                {analyst.payoutWindowNote}
+                                {analyst.payoutWindowSetAt
+                                  ? ` · ${formatDateKa(analyst.payoutWindowSetAt)}`
+                                  : ''}
+                              </span>
+                            ) : null}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="w-full sm:w-72">
+                        <PayoutWindowForm
+                          analystProfileId={analyst.id}
+                          current={analyst.payoutWindow}
+                          note={analyst.payoutWindowNote}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </CardBody>

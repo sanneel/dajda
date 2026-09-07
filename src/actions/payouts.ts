@@ -16,7 +16,13 @@ import {
   rejectPayout,
   requestWithdrawal,
 } from '@/lib/payouts/service';
-import { withdrawalSchema, payoutDecisionSchema } from '@/lib/validation/schemas';
+import {
+  payoutWindowSchema,
+  withdrawalSchema,
+  payoutDecisionSchema,
+} from '@/lib/validation/schemas';
+import { prisma } from '@/lib/db';
+import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 
 /**
  * Ask for earnings to be paid out.
@@ -110,6 +116,77 @@ export async function decidePayoutAction(
 
     revalidatePath('/admin', 'layout');
     return ok({ status: result.status });
+  } catch (error) {
+    return toActionFailure(error);
+  }
+}
+
+/**
+ * Open or hold one author's withdrawal window.
+ *
+ * The agreement's calendar - the last day of the month - stays the default
+ * and the norm. This exists for the cases the calendar cannot see: an author
+ * who could not reach the window, money owed today after a correction, or a
+ * month under dispute that should not pay out even though it is the 31st.
+ *
+ * It changes only WHEN a request may be made. Every other guard is untouched:
+ * the request still holds the earnings, the activity check still travels with
+ * it, and an administrator still has to release the money by hand. Nothing
+ * here moves a tetri.
+ */
+export async function setPayoutWindowAction(
+  _previous: ActionResult<{ window: string }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ window: string }>> {
+  try {
+    const admin = await requireAdmin();
+
+    const parsed = payoutWindowSchema.safeParse({
+      analystProfileId: formData.get('analystProfileId'),
+      window: formData.get('window'),
+      note: formData.get('note') || undefined,
+    });
+    if (!parsed.success) {
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      );
+    }
+
+    const { analystProfileId, window, note } = parsed.data;
+
+    const profile = await prisma.analystProfile.findUnique({
+      where: { id: analystProfileId },
+      select: { id: true, displayName: true, payoutWindow: true },
+    });
+    if (!profile) throw new AppError(ERROR_CODES.NOT_FOUND);
+
+    await prisma.analystProfile.update({
+      where: { id: profile.id },
+      data: {
+        payoutWindow: window,
+        // Back on the calendar carries no note: the reason it was off it has
+        // already been written down, and keeping the old one would read as
+        // though the override were still in force.
+        payoutWindowNote: window === 'SCHEDULE' ? null : (note ?? null),
+        payoutWindowSetAt: window === 'SCHEDULE' ? null : new Date(),
+      },
+    });
+
+    await writeAuditLog({
+      action: AUDIT_ACTIONS.PAYOUT_WINDOW_SET,
+      entityType: 'AnalystProfile',
+      entityId: profile.id,
+      summary: `გატანის ფანჯარა (${profile.displayName}): ${profile.payoutWindow} → ${window}`,
+      actorId: admin.userId,
+      actorRole: 'ADMIN',
+      metadata: { from: profile.payoutWindow, to: window, note: note ?? null },
+    });
+
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/analyst/earnings');
+    return ok({ window });
   } catch (error) {
     return toActionFailure(error);
   }

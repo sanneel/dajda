@@ -66,6 +66,8 @@ export const AUDIT_ACTIONS = {
   BALANCE_CREDITED: 'balance.credited',
   BALANCE_DEBITED: 'balance.debited',
 
+  /// An administrator opened or held one author's withdrawal window.
+  PAYOUT_WINDOW_SET: 'payout.window_set',
   PAYOUT_REQUESTED: 'payout.requested',
   PAYOUT_SENT: 'payout.sent',
   PAYOUT_REJECTED: 'payout.rejected',

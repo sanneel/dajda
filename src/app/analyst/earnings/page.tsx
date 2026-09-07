@@ -37,10 +37,14 @@ export default async function AnalystEarningsPage() {
   const now = new Date();
   const period = payoutPeriod(now);
 
-  const [user, entries, payouts, published, bySource] = await Promise.all([
+  const [user, profile, entries, payouts, published, bySource] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: analyst.userId },
       select: { earningsMinor: true },
+    }),
+    prisma.analystProfile.findUniqueOrThrow({
+      where: { id: analyst.analystProfileId },
+      select: { payoutWindow: true, payoutWindowNote: true },
     }),
     prisma.balanceTransaction.findMany({
       where: { userId: analyst.userId, account: 'EARNINGS' },
@@ -99,7 +103,11 @@ export default async function AnalystEarningsPage() {
     }
   }
 
-  const windowOpen = isWithdrawalWindowOpen(now);
+  /*
+   * The calendar, unless an administrator has decided otherwise for this
+   * author: opened early, or held shut while something is settled.
+   */
+  const windowOpen = isWithdrawalWindowOpen(now, profile.payoutWindow);
   const activity = weeklyActivity({
     period,
     publishedAt: published
@@ -159,9 +167,13 @@ export default async function AnalystEarningsPage() {
                 <span className="tabular">{activity.weeks}</span>
               </p>
               <p className="mt-0.5 text-ink-faint">
-                {windowOpen
-                  ? 'გატანა დღეს ხელმისაწვდომია.'
-                  : `შემდეგი გატანა: ${formatDateKa(nextWithdrawalWindow(now))}`}
+                {profile.payoutWindow === 'OPEN'
+                  ? 'გატანა თქვენთვის ღიაა.'
+                  : profile.payoutWindow === 'CLOSED'
+                    ? 'გატანა დროებით შეჩერებულია.'
+                    : windowOpen
+                      ? 'გატანა დღეს ხელმისაწვდომია.'
+                      : `შემდეგი გატანა: ${formatDateKa(nextWithdrawalWindow(now))}`}
               </p>
             </div>
           </div>
@@ -212,6 +224,8 @@ export default async function AnalystEarningsPage() {
           ) : (
             <WithdrawDialog
               windowOpen={windowOpen}
+              held={profile.payoutWindow === 'CLOSED'}
+              heldNote={profile.payoutWindowNote}
               minGel={env.ANALYST_MIN_PAYOUT_MINOR / 100}
               maxGel={user.earningsMinor / 100}
             />

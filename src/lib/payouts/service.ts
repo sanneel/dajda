@@ -56,7 +56,14 @@ export async function requestWithdrawal(
 
   const profile = await prisma.analystProfile.findUnique({
     where: { userId: actor.userId },
-    select: { id: true, status: true, displayName: true },
+    select: {
+      id: true,
+      status: true,
+      displayName: true,
+      // An administrator may have opened the window for this author early,
+      // or held it shut. Read with the profile, applied by the rules.
+      payoutWindow: true,
+    },
   });
   if (!profile || profile.status !== 'APPROVED') {
     throw new AppError(ERROR_CODES.FORBIDDEN, 'გატანა მხოლოდ დამოწმებულ ანალიტიკოსს შეუძლია.');
@@ -79,6 +86,7 @@ export async function requestWithdrawal(
     minimumMinor: env.ANALYST_MIN_PAYOUT_MINOR,
     cardNumber: input.cardNumber,
     hasPendingRequest: pending > 0,
+    override: profile.payoutWindow,
   });
 
   if (!verdict.allowed) {
