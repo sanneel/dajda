@@ -127,10 +127,11 @@ export default async function AnalystProfilePage({
   );
 
   /*
-   * Open paid bets keep their pick hidden here too. The profile is the public
-   * record, but a record entry is a pick plus an outcome, and while the bet is
-   * still running the pick is what subscribers are paying for. The row itself
-   * stays visible - odds, date, status - so the count can not be gamed.
+   * Paid bets keep their pick hidden here, settled ones included. The profile
+   * is the public record, and it stays checkable without giving the goods
+   * away: every row is listed with its odds, its date and its outcome, and
+   * every row counts in the totals. What a reader who did not pay never sees
+   * is the pick itself.
    */
   const viewer = actor
     ? { role: actor.role, analystProfileId: actor.analystProfileId }
@@ -147,19 +148,17 @@ export default async function AnalystProfilePage({
   );
   const lockedBetIds = new Set(
     predictions
-      .filter(
-        (prediction) =>
-          // A single purchase opens exactly that bet.
-          !purchased.has(prediction.id) &&
-          isTicketLocked(
-            {
-              visibility: prediction.visibility,
-              authorId: profile.id,
-              status: prediction.status,
-            },
-            viewer,
-            grants,
-          ),
+      .filter((prediction) =>
+        isTicketLocked(
+          {
+            visibility: prediction.visibility,
+            authorId: profile.id,
+            status: prediction.status,
+          },
+          viewer,
+          grants,
+          purchased.has(prediction.id),
+        ),
       )
       .map((prediction) => prediction.id),
   );

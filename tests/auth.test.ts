@@ -14,7 +14,7 @@ import {
 import {
   applicableTiers,
   isTicketLocked,
-  satisfiesVisibility,
+  holdsSubscriptionTo,
 } from '@/lib/auth/entitlements';
 
 describe('password hashing', () => {
@@ -115,36 +115,30 @@ describe('opaque tokens', () => {
 });
 
 describe('entitlements', () => {
-  it('lets anyone read public content', () => {
-    expect(satisfiesVisibility([], 'PUBLIC')).toBe(true);
+  it('opens nothing to a viewer with no plan at all', () => {
+    expect(holdsSubscriptionTo([], 'analyst-a')).toBe(false);
   });
 
-  it('locks premium content for anonymous and free users', () => {
-    expect(satisfiesVisibility([], 'PREMIUM')).toBe(false);
-    expect(satisfiesVisibility(['FREE'], 'PREMIUM')).toBe(false);
-    expect(satisfiesVisibility(['FREE'], 'VIP')).toBe(false);
+  it('never conflates FREE with a paid plan', () => {
+    // FREE is a plan somebody can hold without paying, so it is not a key.
+    expect(
+      holdsSubscriptionTo([{ tier: 'FREE', analystProfileId: null }], 'analyst-a'),
+    ).toBe(false);
   });
 
-  it('unlocks premium for premium and above', () => {
-    expect(satisfiesVisibility(['PREMIUM'], 'PREMIUM')).toBe(true);
-    expect(satisfiesVisibility(['VIP'], 'PREMIUM')).toBe(true);
-  });
-
-  /*
-   * PREMIUM and VIP are no longer cheap and expensive tiers: they are
-   * "buyable on its own" and "subscription only", and ONE subscription opens
-   * both. A subscriber locked out of the subscription-only tickets would be
-   * locked out of the thing they subscribed for.
-   */
-  it('lets a subscription unlock subscription-only content', () => {
-    expect(satisfiesVisibility(['PREMIUM'], 'VIP')).toBe(true);
-    expect(satisfiesVisibility(['VIP'], 'VIP')).toBe(true);
-    expect(satisfiesVisibility(['FREE'], 'VIP')).toBe(false);
-  });
-
-  it('never conflates FREE with PUBLIC', () => {
-    // FREE is a plan; PUBLIC is a visibility. Holding FREE grants nothing gated.
-    expect(satisfiesVisibility(['FREE'], 'PREMIUM')).toBe(false);
+  it('accepts any paying plan that covers the author', () => {
+    expect(
+      holdsSubscriptionTo(
+        [{ tier: 'PREMIUM', analystProfileId: 'analyst-a' }],
+        'analyst-a',
+      ),
+    ).toBe(true);
+    expect(
+      holdsSubscriptionTo(
+        [{ tier: 'VIP', analystProfileId: 'analyst-a' }],
+        'analyst-a',
+      ),
+    ).toBe(true);
   });
 
   it('scopes analyst plans to that analyst only', () => {
@@ -156,100 +150,117 @@ describe('entitlements', () => {
     expect(applicableTiers(plans, 'analyst-a')).toEqual(['VIP', 'FREE']);
     // Analyst B's content must not be unlocked by analyst A's plan.
     expect(applicableTiers(plans, 'analyst-b')).toEqual(['FREE']);
-    expect(
-      satisfiesVisibility(applicableTiers(plans, 'analyst-b'), 'PREMIUM'),
-    ).toBe(false);
-    expect(
-      satisfiesVisibility(applicableTiers(plans, 'analyst-a'), 'VIP'),
-    ).toBe(true);
+    expect(holdsSubscriptionTo(plans, 'analyst-a')).toBe(true);
+    expect(holdsSubscriptionTo(plans, 'analyst-b')).toBe(false);
   });
 
-  it('lets a platform-wide plan unlock every analyst', () => {
+  it('lets a platform-wide paid plan cover every analyst', () => {
     const plans = [{ tier: 'PREMIUM' as const, analystProfileId: null }];
-    expect(
-      satisfiesVisibility(applicableTiers(plans, 'anyone'), 'PREMIUM'),
-    ).toBe(true);
+    expect(holdsSubscriptionTo(plans, 'anyone')).toBe(true);
   });
 });
 
 describe('ticket lock', () => {
-  const openPaidBet = {
+  const paidSingle = {
     visibility: 'PREMIUM' as const,
     authorId: 'analyst-a',
     status: 'PENDING' as const,
   };
+  const subscriberOnly = { ...paidSingle, visibility: 'VIP' as const };
+  const stranger = { role: 'USER' as const, analystProfileId: null };
+  const subToA = [{ tier: 'PREMIUM' as const, analystProfileId: 'analyst-a' }];
 
-  it('closes an open paid bet to signed-out and unentitled viewers', () => {
-    expect(isTicketLocked(openPaidBet, null, [])).toBe(true);
+  it('closes a paid ticket to signed-out and unentitled viewers', () => {
+    expect(isTicketLocked(paidSingle, null, [])).toBe(true);
     expect(
-      isTicketLocked(
-        openPaidBet,
-        { role: 'USER', analystProfileId: null },
-        [{ tier: 'FREE', analystProfileId: null }],
-      ),
+      isTicketLocked(paidSingle, stranger, [
+        { tier: 'FREE', analystProfileId: null },
+      ]),
     ).toBe(true);
   });
 
-  it('opens it to a matching subscription', () => {
+  /*
+   * The whole point of the 2026-09-08 rule. A single ticket is its own sale:
+   * the author's subscribers did not buy it, so it does not open for them.
+   */
+  it('opens a singly-sold ticket ONLY to whoever bought that ticket', () => {
+    expect(isTicketLocked(paidSingle, stranger, [], true)).toBe(false);
+    // A subscription to this very author is not a key to it.
+    expect(isTicketLocked(paidSingle, stranger, subToA)).toBe(true);
+  });
+
+  it('opens a subscription-only ticket ONLY to a subscriber', () => {
+    expect(isTicketLocked(subscriberOnly, stranger, subToA)).toBe(false);
+    expect(isTicketLocked(subscriberOnly, stranger, [])).toBe(true);
+    // Another analyst's subscription buys nothing here.
     expect(
-      isTicketLocked(
-        openPaidBet,
-        { role: 'USER', analystProfileId: null },
-        [{ tier: 'PREMIUM', analystProfileId: 'analyst-a' }],
-      ),
-    ).toBe(false);
-    // Another analyst's plan buys nothing here.
-    expect(
-      isTicketLocked(
-        openPaidBet,
-        { role: 'USER', analystProfileId: null },
-        [{ tier: 'VIP', analystProfileId: 'analyst-b' }],
-      ),
+      isTicketLocked(subscriberOnly, stranger, [
+        { tier: 'VIP', analystProfileId: 'analyst-b' },
+      ]),
     ).toBe(true);
   });
 
-  it('never locks a settled bet: the pick becomes public record', () => {
+  /*
+   * Settling used to open every pick, on the theory that a hidden history is
+   * not checkable. It also handed the buyer's purchase to everybody who
+   * waited a day. The record stays checkable through the rows around the
+   * pick - odds, date, outcome - which are never hidden.
+   */
+  it('keeps a paid ticket shut after it settles', () => {
     for (const status of ['WON', 'LOST', 'VOID', 'PUSH'] as const) {
-      expect(isTicketLocked({ ...openPaidBet, status }, null, [])).toBe(false);
+      expect(isTicketLocked({ ...paidSingle, status }, null, [])).toBe(true);
+      expect(isTicketLocked({ ...paidSingle, status }, stranger, [])).toBe(true);
+      expect(isTicketLocked({ ...subscriberOnly, status }, stranger, [])).toBe(
+        true,
+      );
+      // The buyer keeps what they bought, for good.
       expect(
-        isTicketLocked(
-          { ...openPaidBet, visibility: 'PUBLIC', status },
-          null,
-          [],
-        ),
+        isTicketLocked({ ...paidSingle, status }, stranger, [], true),
       ).toBe(false);
     }
   });
 
-  it('asks signed-out viewers for an account even on open free tickets', () => {
+  it('still opens a settled free ticket to everyone', () => {
+    for (const status of ['WON', 'LOST', 'VOID', 'PUSH'] as const) {
+      expect(
+        isTicketLocked({ ...paidSingle, visibility: 'PUBLIC', status }, null, []),
+      ).toBe(false);
+      expect(
+        isTicketLocked({ ...paidSingle, authorId: null, status }, null, []),
+      ).toBe(false);
+    }
+  });
+
+  it('asks signed-out viewers for an account on open free tickets', () => {
     expect(
-      isTicketLocked({ ...openPaidBet, visibility: 'PUBLIC' }, null, []),
+      isTicketLocked({ ...paidSingle, visibility: 'PUBLIC' }, null, []),
     ).toBe(true);
-    expect(isTicketLocked({ ...openPaidBet, authorId: null }, null, [])).toBe(
+    expect(isTicketLocked({ ...paidSingle, authorId: null }, null, [])).toBe(
       true,
     );
   });
 
   it('opens free and community tickets to any signed-in account', () => {
-    const viewer = { role: 'USER' as const, analystProfileId: null };
     expect(
-      isTicketLocked({ ...openPaidBet, visibility: 'PUBLIC' }, viewer, []),
+      isTicketLocked({ ...paidSingle, visibility: 'PUBLIC' }, stranger, []),
     ).toBe(false);
-    expect(
-      isTicketLocked({ ...openPaidBet, authorId: null }, viewer, []),
-    ).toBe(false);
+    expect(isTicketLocked({ ...paidSingle, authorId: null }, stranger, [])).toBe(
+      false,
+    );
   });
 
   it('never locks the author or an admin out of the pick', () => {
-    expect(
-      isTicketLocked(
-        openPaidBet,
-        { role: 'ANALYST', analystProfileId: 'analyst-a' },
-        [],
-      ),
-    ).toBe(false);
-    expect(
-      isTicketLocked(openPaidBet, { role: 'ADMIN', analystProfileId: null }, []),
-    ).toBe(false);
+    for (const ticket of [paidSingle, subscriberOnly]) {
+      expect(
+        isTicketLocked(
+          ticket,
+          { role: 'ANALYST', analystProfileId: 'analyst-a' },
+          [],
+        ),
+      ).toBe(false);
+      expect(
+        isTicketLocked(ticket, { role: 'ADMIN', analystProfileId: null }, []),
+      ).toBe(false);
+    }
   });
 });

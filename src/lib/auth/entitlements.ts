@@ -8,48 +8,41 @@ import type {
  * Entitlement rules.
  *
  * Kept free of Prisma and env imports so the access-control matrix can be
- * unit tested directly, and so there is exactly one definition of "does this
- * plan unlock this content" shared by the page, the API and the tests.
+ * unit tested directly, and so there is exactly one definition of "who may
+ * read this ticket" shared by every page, the public API and the tests.
  *
- * Plan tiers and content visibilities are separate vocabularies that happen to
- * be ordered the same way; ranking them explicitly stops FREE and PUBLIC from
- * being conflated by accident.
+ * `isTicketLocked` below is that definition. Nothing else may decide it: a
+ * caller that ORs in its own exception is how a paywall develops a hole.
  */
 
 /*
- * Three access types, two of which cost the same subscription.
+ * Three access types, and each one has exactly ONE key.
  *
- *   PUBLIC  - უფასო: free to read.
- *   PREMIUM - ფასიანი: buyable on its own for the author's per-ticket price,
- *             and included for their subscribers.
- *   VIP     - გამოწერა: subscribers only. No one-off price exists for it.
+ *   PUBLIC  - უფასო: free to read. An open one costs an account; a settled
+ *             one is public record.
+ *   PREMIUM - ფასიანი: sold singly, at the author's per-ticket price. The
+ *             key is the purchase of THAT ticket and nothing else. A
+ *             subscription to the author does not open it.
+ *   VIP     - გამოწერა: the key is an active subscription to the author.
+ *             It is not sold singly and carries no price.
  *
- * So PREMIUM and VIP rank the SAME here: what separates them is not how much
- * access they need but whether the author also offers the ticket for sale
- * singly. There is one subscription per author, and it opens both. Ranking VIP
- * above PREMIUM - as this did while VIP was a second, pricier tier - locked
- * subscription-only tickets away from the very subscribers they are for.
+ * PREMIUM used to be readable by the author's subscribers as well, on the
+ * theory that a subscription is the dearer product and should contain the
+ * cheaper one. It does not: they are two separate things somebody paid for
+ * separately, and a subscriber reading a ticket they never bought is the
+ * author being paid once for two sales. Decided 2026-09-08.
+ *
+ * There is therefore no ordering between the tiers any more, and no rank
+ * table: a key either fits a lock or it does not.
  */
-const VISIBILITY_RANK: Record<PredictionVisibility, number> = {
-  PUBLIC: 0,
-  PREMIUM: 1,
-  VIP: 1,
-};
 
-const PLAN_TIER_RANK: Record<PlanTier, number> = {
-  FREE: 0,
-  PREMIUM: 1,
-  VIP: 2,
-};
-
-/** Does any held tier reach the required visibility? */
-export function satisfiesVisibility(
-  heldTiers: readonly PlanTier[],
-  visibility: PredictionVisibility,
+/** Does the viewer hold a paying subscription that covers this author? */
+export function holdsSubscriptionTo(
+  plans: readonly { tier: PlanTier; analystProfileId: string | null }[],
+  authorId: string,
 ): boolean {
-  if (visibility === 'PUBLIC') return true;
-  const required = VISIBILITY_RANK[visibility];
-  return heldTiers.some((tier) => PLAN_TIER_RANK[tier] >= required);
+  // FREE is a plan somebody can hold without paying, so it opens nothing.
+  return applicableTiers(plans, authorId).some((tier) => tier !== 'FREE');
 }
 
 /**
@@ -83,38 +76,44 @@ export type TicketViewer = {
 } | null;
 
 /**
- * Is this ticket's CONTENT (the pick: title and slip) closed to this viewer?
+ * Is this ticket's CONTENT (the pick: the slip photos and the title) closed
+ * to this viewer?
  *
- * The rule has a deliberate time axis. A pick is merchandise only while the
- * bet is still open (PENDING); the moment an admin settles it, it becomes part
- * of the public record - a history that hides its entries is not checkable,
- * and the checkable record is the whole product.
+ * Paid work stays paid, for good. Settling the bet does not open it: the
+ * ticket was sold, and handing it to everybody the moment the match ends
+ * would be selling the same thing twice and refunding the first buyer with
+ * their own money. What stays public on a settled paid ticket is the part
+ * that makes the record checkable without giving away the goods - that it
+ * exists, its odds, its date and its outcome - and that lives on the rows
+ * around this decision, not in the pick.
  *
- * While open, the price depends on the ticket: a free or community ticket
- * costs an ACCOUNT (any signed-in viewer may read it, signed-out may not),
- * and a PREMIUM/VIP ticket costs the matching subscription.
+ * A free or community ticket is different, because nobody bought it: while
+ * it is open it costs an account, and once settled it is public record.
  *
- * The written analysis (description) is NOT governed here: that stays behind
- * the subscription even after settlement, which `satisfiesVisibility` already
- * decides.
+ * Three people always get in: an administrator, who has to moderate it; the
+ * author, who wrote it; and whoever paid the right way for it.
  */
 export function isTicketLocked(
   ticket: TicketAccessFacts,
   viewer: TicketViewer,
   plans: readonly { tier: PlanTier; analystProfileId: string | null }[],
+  /** Has this viewer bought THIS ticket outright? The only PREMIUM key. */
+  hasPurchased = false,
 ): boolean {
-  // Settled: the pick is evidence now, not merchandise.
-  if (ticket.status !== 'PENDING') return false;
-  // Every open pick asks for at least an account.
+  // Nobody paid for these, so the old time rule still governs them.
+  if (ticket.visibility === 'PUBLIC' || ticket.authorId === null) {
+    if (ticket.status !== 'PENDING') return false;
+    return viewer === null;
+  }
+
+  // Paid, from here down. Signed out is never enough.
   if (!viewer) return true;
-  // A free bet, or a community ticket, opens to any signed-in viewer.
-  if (ticket.visibility === 'PUBLIC' || ticket.authorId === null) return false;
-  // Admins moderate everything; the author owns their own record.
   if (viewer.role === 'ADMIN') return false;
   if (viewer.analystProfileId === ticket.authorId) return false;
 
-  return !satisfiesVisibility(
-    applicableTiers(plans, ticket.authorId),
-    ticket.visibility,
-  );
+  // ფასიანი: bought this ticket, or nothing. A subscription is not a key.
+  if (ticket.visibility === 'PREMIUM') return !hasPurchased;
+
+  // გამოწერა: subscribed to this author, or nothing.
+  return !holdsSubscriptionTo(plans, ticket.authorId);
 }

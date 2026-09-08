@@ -125,19 +125,17 @@ export default async function PaidTicketsPage({
           lockedIds={
             new Set(
               items
-                .filter(
-                  (ticket) =>
-                    // A single purchase opens exactly that row.
-                    !purchased.has(ticket.id) &&
-                    isTicketLocked(
-                      {
-                        visibility: ticket.visibility,
-                        authorId: ticket.author?.id ?? null,
-                        status: ticket.status,
-                      },
-                      viewer,
-                      grants,
-                    ),
+                .filter((ticket) =>
+                  isTicketLocked(
+                    {
+                      visibility: ticket.visibility,
+                      authorId: ticket.author?.id ?? null,
+                      status: ticket.status,
+                    },
+                    viewer,
+                    grants,
+                    purchased.has(ticket.id),
+                  ),
                 )
                 .map((ticket) => ticket.id),
             )

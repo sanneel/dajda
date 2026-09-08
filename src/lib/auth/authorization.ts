@@ -3,7 +3,7 @@ import { AppError, ERROR_CODES } from '@/lib/errors';
 import { prisma } from '@/lib/db';
 import type { PredictionVisibility } from '@/generated/prisma/enums';
 import { readSession, type SessionActor } from './session';
-import { satisfiesVisibility } from './entitlements';
+import { holdsSubscriptionTo } from './entitlements';
 
 /**
  * Authorization helpers.
@@ -70,7 +70,7 @@ export async function requireAnalystOwnership(
 }
 
 // The pure rule lives in ./entitlements so it is testable without Prisma.
-export { satisfiesVisibility, applicableTiers } from './entitlements';
+export { holdsSubscriptionTo, applicableTiers, isTicketLocked } from './entitlements';
 
 /**
  * Does `actor` hold an active subscription good enough for `visibility` on
@@ -97,8 +97,14 @@ export async function canViewPrediction(
   if (actor.role === 'ADMIN') return true;
   if (actor.analystProfileId === prediction.authorId) return true;
 
-  // A single-ticket purchase opens exactly this bet, subscription or not.
-  if (prediction.id) {
+  /*
+   * ფასიანი opens on the purchase of this exact ticket and on nothing else -
+   * not on a subscription to the author, however dear. Without an id there
+   * is no purchase to look for, so the answer is no: a paywall that opens
+   * when the caller forgot to say which ticket is not a paywall.
+   */
+  if (prediction.visibility === 'PREMIUM') {
+    if (!prediction.id) return false;
     const purchase = await prisma.predictionPurchase.findFirst({
       where: {
         userId: actor.userId,
@@ -107,9 +113,10 @@ export async function canViewPrediction(
       },
       select: { id: true },
     });
-    if (purchase) return true;
+    return purchase !== null;
   }
 
+  // გამოწერა opens on an active subscription that covers this author.
   const subscriptions = await prisma.userSubscription.findMany({
     where: {
       userId: actor.userId,
@@ -126,12 +133,12 @@ export async function canViewPrediction(
         ],
       },
     },
-    select: { plan: { select: { tier: true } } },
+    select: { plan: { select: { tier: true, analystProfileId: true } } },
   });
 
-  return satisfiesVisibility(
-    subscriptions.map((subscription) => subscription.plan.tier),
-    prediction.visibility,
+  return holdsSubscriptionTo(
+    subscriptions.map((subscription) => subscription.plan),
+    prediction.authorId,
   );
 }
 

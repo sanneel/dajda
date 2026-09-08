@@ -3,8 +3,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Check, Lock } from 'lucide-react';
-import { getTicketById } from '@/lib/queries/tickets';
-import { canViewPrediction, getCurrentUser } from '@/lib/auth/authorization';
+import {
+  activePlanGrants,
+  getTicketById,
+  purchasedTicketIds,
+} from '@/lib/queries/tickets';
+import { getCurrentUser } from '@/lib/auth/authorization';
+import { isTicketLocked } from '@/lib/auth/entitlements';
 import { prisma } from '@/lib/db';
 import {
   formatDateTimeKa,
@@ -34,14 +39,20 @@ export async function generateMetadata({
   const ticket = await getTicketById(id);
   if (!ticket) return { title: 'პროგნოზი ვერ მოიძებნა' };
 
-  // A live bet's title IS the pick, and every open pick now costs at least an
-  // account. Metadata is viewer-independent (link previews, crawlers), so
-  // while the bet is open the title is masked for everyone.
-  if (ticket.status === 'PENDING') {
-    const kind =
-      ticket.visibility !== 'PUBLIC' && ticket.authorId !== null
-        ? 'ფასიანი'
-        : 'უფასო';
+  /*
+   * A ticket's title IS the pick, and metadata is viewer-independent: it goes
+   * to link previews, crawlers and the browser tab, where no session exists
+   * to check. So it carries the real title only where the pick is public to
+   * everyone - a settled free ticket - and is masked otherwise.
+   *
+   * A paid ticket is masked forever, settled included. Its buyer already has
+   * the page; a link preview that names the pick would sell it to everyone
+   * else for nothing.
+   */
+  const isPaid = ticket.visibility !== 'PUBLIC' && ticket.authorId !== null;
+
+  if (isPaid || ticket.status === 'PENDING') {
+    const kind = isPaid ? 'ფასიანი' : 'უფასო';
     return { title: `${kind} პროგნოზი · ${ticket.sport.nameKa}` };
   }
 
@@ -82,11 +93,10 @@ export default async function TicketPage({
     (await searchParams).order,
     actor?.userId,
   );
-  const canView = await canViewPrediction(actor, {
-    id: ticket.id,
-    visibility: ticket.visibility,
-    authorId: ticket.authorId,
-  });
+  const [grants, purchased] = await Promise.all([
+    activePlanGrants(actor?.userId),
+    purchasedTicketIds(actor?.userId),
+  ]);
 
   // Record the view for the dashboard's "recently viewed" list.
   if (actor) {
@@ -102,14 +112,27 @@ export default async function TicketPage({
   const { author, result } = ticket;
 
   /*
-   * The pick (title and slip) is closed while the bet is still open: to
-   * everyone without the right subscription on a paid bet, and to signed-out
-   * visitors on any bet, because free tickets cost an account. `canView`
-   * already answers the subscription question; once settled, the pick is
-   * public record and nothing here locks.
+   * One decision for the whole page, taken by the one function that is
+   * allowed to take it. A paid ticket opens for the person who paid the
+   * right way and stays shut for everybody else, settled or not; a free one
+   * costs an account while it is open and is public once it is settled.
+   *
+   * The analysis text rides on the same key rather than a second one. Two
+   * gates over one product is how a reader ends up seeing the pick but not
+   * the reasoning, or worse, the other way round.
    */
   const isPaid = ticket.visibility !== 'PUBLIC' && ticket.authorId !== null;
-  const locked = ticket.status === 'PENDING' && (!actor || !canView);
+  const locked = isTicketLocked(
+    {
+      visibility: ticket.visibility,
+      authorId: ticket.authorId,
+      status: ticket.status,
+    },
+    actor ? { role: actor.role, analystProfileId: actor.analystProfileId } : null,
+    grants,
+    purchased.has(ticket.id),
+  );
+  const canView = !locked;
 
   /*
    * The result photo is the author's proof for the administrator, not part
@@ -181,9 +204,9 @@ export default async function TicketPage({
           <Lock className="size-5 text-ink-faint" aria-hidden="true" />
           <p className="font-medium text-ink">
             {isPaid
-              ? ticket.priceMinor !== null && ticket.priceMinor > 0
-                ? 'ეს პროგნოზი იხსნება ერთჯერადი შეძენით ან გამოწერით'
-                : 'ეს პროგნოზი იხსნება ავტორის გამოწერით'
+              ? ticket.visibility === 'PREMIUM'
+                ? 'ეს ბილეთი იხსნება მხოლოდ შეძენით'
+                : 'ეს ბილეთი იხსნება მხოლოდ ავტორის გამოწერით'
               : 'ეს პროგნოზი იხსნება შესვლის შემდეგ'}
           </p>
 
@@ -205,8 +228,9 @@ export default async function TicketPage({
           </div>
 
           <p className="text-sm text-ink-muted">
-            შედეგის დათვლის შემდეგ პროგნოზი ავტომატურად ხდება საჯარო ჩანაწერის
-            ნაწილი.
+            {isPaid
+              ? 'შედეგის დათვლის შემდეგ საჯარო ხდება კოეფიციენტი, თარიღი და შედეგი. ბილეთის შიგთავსს მხოლოდ მყიდველი ხედავს.'
+              : 'შედეგის დათვლის შემდეგ პროგნოზი ავტომატურად ხდება საჯარო ჩანაწერის ნაწილი.'}
           </p>
 
           {isPaid && author ? (
@@ -309,30 +333,15 @@ export default async function TicketPage({
         </div>
       )}
 
-      {/* Description. Gated with the pick while the ticket is locked - prose
-          can restate the pick, so it must never outlive the slip's gate. On a
-          settled paid bet the pick opens but the analysis stays subscriber-only
-          (`canView`). While locked, the panel above already carries the gate
-          and the CTA, so nothing repeats here. */}
-      {canView && !locked ? (
-        ticket.descriptionKa ? (
-          <p className="mt-5 whitespace-pre-line text-[0.9375rem] leading-relaxed text-ink-muted">
-            {ticket.descriptionKa}
-          </p>
-        ) : null
-      ) : locked ? null : (
-        <div className="mt-5 flex flex-col items-start gap-3 rounded-card border border-dashed border-line bg-surface p-5">
-          <Lock className="size-5 text-ink-faint" aria-hidden="true" />
-          <p className="font-medium text-ink">
-            აღწერა ხელმისაწვდომია გამოწერით
-          </p>
-          {author ? (
-            <ButtonLink href={`/analysts/${author.slug}?subscribe=1`}>
-              გეგმების ნახვა
-            </ButtonLink>
-          ) : null}
-        </div>
-      )}
+      {/* The analysis. Behind the same key as the pick, because prose can
+          restate a pick: a gate the reasoning could outlive would hand the
+          bet away in sentences. While locked, the panel above already carries
+          the gate and the way in, so nothing repeats here. */}
+      {canView && ticket.descriptionKa ? (
+        <p className="mt-5 whitespace-pre-line text-[0.9375rem] leading-relaxed text-ink-muted">
+          {ticket.descriptionKa}
+        </p>
+      ) : null}
 
       {/* Result, once an admin has recorded it. */}
       {result ? (

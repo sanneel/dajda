@@ -506,9 +506,9 @@ export async function setPlanPriceAction(
             analystProfileId: profile.id,
             tier: 'PREMIUM',
             nameKa: `${profile.displayName} · გამოწერა`,
-            descriptionKa: 'ავტორის ყველა პროგნოზი და ანალიზი.',
+            descriptionKa: 'ავტორის სააბონენტო ბილეთები და ანალიზი.',
             featuresKa: [
-              'ავტორის ყველა პროგნოზი',
+              'ავტორის სააბონენტო ბილეთები',
               'სრული აღწერა და დასაბუთება',
               'შეტყობინება ყოველ ახალ პროგნოზზე',
             ],

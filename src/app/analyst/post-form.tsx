@@ -338,13 +338,13 @@ export function PostBetForm({
           </legend>
           {/*
            * Three genuinely different products, not a price switch:
-           *   უფასო    - anyone reads it.
+           *   უფასო    - anyone signed in reads it.
            *   ფასიანი  - sold on its own, at a price this author sets, and
-           *              included for their subscribers.
+           *              opened by that purchase alone. Subscribers do NOT
+           *              get it: it is a separate sale.
            *   გამოწერა - subscribers only; not for sale separately, so it
            *              carries no price at all.
-           * They used to collapse into two because ფასიანი and გამოწერა were
-           * the same form with the same fields.
+           * The three are genuinely different products, not a price switch.
            */}
           <div className="grid grid-cols-3 gap-2">
             {[
@@ -377,8 +377,8 @@ export function PostBetForm({
             {visibility === 'PUBLIC'
               ? 'ხედავს ყველა, ვინც შესულია.'
               : visibility === 'PREMIUM'
-                ? 'იყიდება ცალკე, თქვენს ფასად. თქვენი გამომწერებისთვის ისედაც ღიაა.'
-                : 'მხოლოდ თქვენი გამომწერებისთვის. ცალკე არ იყიდება, ამიტომ ფასი არ სჭირდება.'}
+                ? 'იყიდება ცალკე, თქვენს ფასად. ხედავს მხოლოდ ის, ვინც იყიდის — გამომწერიც კი ვერა.'
+                : 'ხედავს მხოლოდ თქვენი გამომწერი. ცალკე არ იყიდება, ამიტომ ფასი არ სჭირდება.'}
           </p>
         </fieldset>
 
@@ -388,7 +388,7 @@ export function PostBetForm({
             htmlFor="price"
             required
             error={errorFor('price')}
-            hint="მყიდველი გამოწერის გარეშე იხდის; თქვენ 85% გერიცხებათ."
+            hint="ბილეთი მხოლოდ მყიდველისთვის იხსნება; თქვენ 85% გერიცხებათ."
           >
             <div className="space-y-2">
               <Input

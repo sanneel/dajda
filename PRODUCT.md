@@ -62,7 +62,13 @@ threshold sort below the rest and are labelled "მცირე შერჩე�
   a picture cannot be listed, searched or read aloud. Decided 2026-09-06,
   reversing the 2026-09-03 decision to draw the ticket from typed legs.
 - One subscription per author, monthly, at 30, 40 or 50 GEL, chosen by the
-  author. Single tickets have their own price. Authors receive 85%
+  author. Single tickets have their own price and are a SEPARATE sale: a
+  ფასიანი ticket opens for whoever bought that ticket and for nobody else,
+  subscribers included, while a გამოწერა ticket opens for subscribers only.
+  Neither ever opens on settlement - paid work stays paid, and the record
+  stays checkable through the odds, dates and outcomes, which are never
+  hidden. An administrator and the author always see everything.
+  Decided 2026-09-08. Authors receive 85%
   (`ANALYST_SHARE_PERCENT`, matching the signed agreement) and may withdraw
   only on the last calendar day of the month, to a card, after an
   administrator releases it. A weekly activity check is advisory to that

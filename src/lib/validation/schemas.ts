@@ -215,8 +215,9 @@ export const createPredictionSchema = z.object({
   odds: oddsSchema,
   confidence: z.enum(ConfidenceLevel).default('MEDIUM'),
   /**
-   * PUBLIC is free, PREMIUM is buyable singly (and included in the author's
-   * subscription), VIP is subscription-only.
+   * PUBLIC is free, PREMIUM is buyable singly and opens for its buyer alone,
+   * VIP is subscription-only. The two paid kinds are separate sales: a
+   * subscription does not carry PREMIUM tickets.
    */
   visibility: z.enum(PredictionVisibility).default('PUBLIC'),
   eventAt: wallClockSchema('მიუთითეთ პირველი მატჩის დრო.').optional(),

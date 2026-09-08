@@ -545,7 +545,9 @@ model Prediction {
   stakeUnitsCenti Int             @default(100)
   confidence      ConfidenceLevel @default(MEDIUM)
 
-  /// PUBLIC is a free bet. PREMIUM and VIP require a matching subscription.
+  /// PUBLIC is a free bet. PREMIUM is sold singly and opens only for whoever
+  /// bought that ticket; VIP opens only for the author's subscribers. Neither
+  /// opens on settlement. See src/lib/auth/entitlements.ts.
   visibility PredictionVisibility @default(PUBLIC)
 
   /// The single-purchase price of a paid bet, in minor units. A paid bet is
