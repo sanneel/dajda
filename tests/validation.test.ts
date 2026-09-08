@@ -200,18 +200,23 @@ describe('bet creation', () => {
     if (parsed.success) expect(parsed.data.selections).toEqual([]);
   });
 
-  it('requires a name and a comment, because a picture cannot be listed', () => {
+  it('requires a name, because a picture cannot be listed or searched', () => {
     expect(
       createPredictionSchema.safeParse({ ...valid, titleKa: '' }).success,
     ).toBe(false);
     expect(
-      createPredictionSchema.safeParse({ ...valid, descriptionKa: 'ok' })
-        .success,
+      createPredictionSchema.safeParse({ ...valid, titleKa: 'ა' }).success,
     ).toBe(false);
+  });
+
+  it('no longer asks for a comment, but still carries one that is given', () => {
+    // The form stopped asking on 2026-09-09; the field stays optional so the
+    // tickets that already have one keep it and a correction can pass one.
     const { descriptionKa: _omitted, ...withoutComment } = valid;
-    expect(createPredictionSchema.safeParse(withoutComment).success).toBe(
-      false,
-    );
+    expect(createPredictionSchema.safeParse(withoutComment).success).toBe(true);
+    const parsed = createPredictionSchema.safeParse(valid);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.descriptionKa).toBe(valid.descriptionKa);
   });
 
   it('requires a screenshot, so no bet exists without its evidence', () => {

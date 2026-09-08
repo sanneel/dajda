@@ -211,9 +211,12 @@ async function main() {
     { code: 'VOLLEYBALL', slug: 'volleyball', nameKa: 'ფრენბურთი' },
     { code: 'HANDBALL', slug: 'handball', nameKa: 'ხელბურთი' },
     { code: 'ICE_HOCKEY', slug: 'ice-hockey', nameKa: 'ჰოკეი' },
-    { code: 'MMA', slug: 'mma', nameKa: 'ბრძოლის ხელოვნება' },
+    { code: 'MMA', slug: 'mma', nameKa: 'MMA' },
     { code: 'BOXING', slug: 'boxing', nameKa: 'კრივი' },
     { code: 'ESPORTS', slug: 'esports', nameKa: 'კიბერსპორტი' },
+    // A ticket whose legs cross sports belongs to none of them, and filing it
+    // under the first leg's sport made the per-sport records wrong.
+    { code: 'MULTISPORT', slug: 'multisport', nameKa: 'მულტისპორტი' },
   ];
 
   const sports = new Map<string, { id: string }>();

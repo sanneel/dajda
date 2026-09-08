@@ -213,7 +213,7 @@ export async function createPredictionAction(
       screenshotPath: formData.get('screenshotPath'),
       selections: selectionsFromFormData(formData),
       titleKa: formData.get('titleKa') ?? '',
-      descriptionKa: formData.get('descriptionKa') ?? '',
+      descriptionKa: formData.get('descriptionKa') || undefined,
       odds: formData.get('odds'),
       stakeUnits: formData.get('stakeUnits') || 1,
       confidence: formData.get('confidence') || 'MEDIUM',

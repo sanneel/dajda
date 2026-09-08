@@ -173,7 +173,7 @@ export async function postBetAction(
       // Passed through blank rather than as undefined, so an empty field
       // gets the schema's Georgian "write a name" rather than a type error.
       titleKa: formData.get('titleKa') ?? '',
-      descriptionKa: formData.get('descriptionKa') ?? '',
+      descriptionKa: formData.get('descriptionKa') || undefined,
       odds: formData.get('odds'),
       confidence: formData.get('confidence') || 'MEDIUM',
       visibility: formData.get('visibility') || 'PUBLIC',

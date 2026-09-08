@@ -193,9 +193,11 @@ export const createPredictionSchema = z.object({
   /** The bet slip. A bet with no evidence is not a record. */
   screenshotPath: uploadPathSchema,
   /**
-   * Both required. The screenshot is a picture, and a picture cannot be
-   * searched, listed or read aloud: the name is what every feed row prints,
-   * and the comment is what a buyer pays for beyond the pick.
+   * The name is required: a screenshot cannot be searched, listed or read
+   * aloud, and this string is what every feed row, notification and audit
+   * line prints. The written comment is not asked for any more - the slip is
+   * the bet - but the field stays optional so the tickets that already carry
+   * one keep it, and an admin correction can still pass one through.
    */
   titleKa: z
     .string()
@@ -205,8 +207,8 @@ export const createPredictionSchema = z.object({
   descriptionKa: z
     .string()
     .trim()
-    .min(10, 'დაწერეთ კომენტარი, მინიმუმ 10 სიმბოლო.')
-    .max(4000, 'აღწერა ძალიან გრძელია.'),
+    .max(4000, 'აღწერა ძალიან გრძელია.')
+    .optional(),
   /**
    * Photos 2..N of the same slip. The primary one is `screenshotPath`; these
    * are the extra legs that did not fit in one screenshot.

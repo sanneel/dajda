@@ -4,6 +4,7 @@ import {
   Gamepad2,
   Goal,
   Hand,
+  Layers,
   Snowflake,
   Swords,
   Target,
@@ -36,6 +37,8 @@ const GLYPHS: Record<string, React.ComponentType<{ className?: string }>> = {
   MMA: Swords,
   BOXING: Flame,
   ESPORTS: Gamepad2,
+  // Stacked planes: a ticket built from more than one sport.
+  MULTISPORT: Layers,
 };
 
 export function SportTile({

@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { FileImage, ImagePlus, Plus, X } from 'lucide-react';
 import { postBetAction } from '@/actions/analyst';
-import { Field, Input, Select, Textarea } from '@/components/ui/field';
+import { Field, Input, Select } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 import {
@@ -23,9 +23,9 @@ import {
  * in one tight grid rather than as a column of equals.
  *
  * The screenshot IS what the buyer opens, so nothing is typed twice: no
- * per-leg rows, just the total odds off the slip. What a picture cannot
- * carry is typed once - a name (every feed row prints it) and a comment
- * (the analysis a buyer pays for beyond the pick), and both are required.
+ * per-leg rows, just the total odds off the slip. The one thing a picture
+ * cannot carry is a name, and every feed row, notification and audit line
+ * prints one, so that is the single piece of prose asked for.
  *
  * The preview is a local object URL: nothing uploads until submit, so changing
  * your mind leaves nothing behind on the server.
@@ -134,9 +134,9 @@ export function PostBetForm({
       <div className="space-y-4">
         {state.data.published ? (
           <Alert tone="success" title="ბილეთი გამოქვეყნდა">
-            ბილეთი ჩანს ფიდში მატჩის დაწყებამდე და თქვენს პროფილზე მუდმივად.
-            „მოლოდინში“ ნიშნავს, რომ შედეგი ჯერ არ დათვლილა: მატჩის
-            დასრულების შემდეგ მონიშნეთ დასრულებულად.
+            ბილეთი ჩანს ფიდში პირველი მატჩის დაწყებამდე და თქვენს პროფილზე
+            მუდმივად. „მოლოდინში“ ნიშნავს, რომ შედეგი ჯერ არ დათვლილა.
+            ბილეთის დასრულების შემდეგ მონიშნეთ დასრულებულად.
           </Alert>
         ) : (
           <Alert tone="success" title="მონახაზი შენახულია">
@@ -348,9 +348,11 @@ export function PostBetForm({
            */}
           <div className="grid grid-cols-3 gap-2">
             {[
+              // Subscription leads: it is the author's main product, the
+              // default below, and the one they post to most.
+              { value: 'VIP', label: 'გამოწერა' },
               { value: 'PUBLIC', label: 'უფასო' },
               { value: 'PREMIUM', label: 'ფასიანი' },
-              { value: 'VIP', label: 'გამოწერა' },
             ].map((option) => (
               <label
                 key={option.value}
@@ -406,7 +408,7 @@ export function PostBetForm({
               />
               {/* One-tap prices; the field takes any amount up to 500. */}
               <div className="flex flex-wrap gap-1.5">
-                {['10', '20', '30', '50', '100'].map((quick) => (
+                {['10', '20', '30', '40', '50'].map((quick) => (
                   <button
                     key={quick}
                     type="button"
@@ -470,7 +472,7 @@ export function PostBetForm({
 
         <div ref={kickoffRef} className="sm:col-span-2">
           <p className="mb-1.5 text-sm font-medium text-ink">
-            {eventEndAt ? 'პირველი მატჩი იწყება' : 'მატჩი იწყება'}
+            პირველი მატჩის დაწყების დრო
             <span className="ml-1 text-loss" aria-hidden="true">
               *
             </span>
@@ -510,7 +512,7 @@ export function PostBetForm({
             <div className="mt-4 border-t border-line pt-4">
               <div className="mb-1.5 flex items-center justify-between gap-3">
                 <p className="text-sm font-medium text-ink">
-                  ბოლო მატჩი იწყება
+                  ბოლო მატჩის დაწყების დრო
                 </p>
                 <button
                   type="button"
@@ -544,7 +546,7 @@ export function PostBetForm({
               className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-md border border-line px-3 text-sm text-ink-muted transition-colors hover:border-line-strong hover:text-ink"
             >
               <Plus className="size-4" aria-hidden="true" />
-              ბილეთი რამდენიმე დღეზეა
+              ბოლო მატჩის დაწყების დრო
             </button>
           )}
         </div>
@@ -556,7 +558,7 @@ export function PostBetForm({
       {/* ----------------------------------------------------------------- */}
       {/* 5. Optional words                                                  */}
       {/* ----------------------------------------------------------------- */}
-      <div className="space-y-4 rounded-card border border-line bg-canvas p-4">
+      <div className="rounded-card border border-line bg-canvas p-4">
         <Field
           label="ბილეთის სახელი"
           htmlFor="titleKa"
@@ -572,24 +574,6 @@ export function PostBetForm({
             required
             placeholder="მაგ: დინამო vs საბურთალო, ჯამური 2.5+"
             error={Boolean(errorFor('titleKa'))}
-          />
-        </Field>
-
-        <Field
-          label="კომენტარი"
-          htmlFor="descriptionKa"
-          required
-          error={errorFor('descriptionKa')}
-          hint="რატომ ფიქრობთ ასე. მყიდველები სრულად ხედავენ."
-        >
-          <Textarea
-            id="descriptionKa"
-            name="descriptionKa"
-            rows={4}
-            maxLength={4000}
-            minLength={10}
-            required
-            error={Boolean(errorFor('descriptionKa'))}
           />
         </Field>
       </div>

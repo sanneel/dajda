@@ -74,7 +74,7 @@ export async function createPrediction(
       screenshotPath: input.screenshotPath,
       extraScreenshotPaths: input.extraScreenshotPaths,
       titleKa,
-      descriptionKa: input.descriptionKa,
+      descriptionKa: input.descriptionKa ?? null,
       // Already scaled by the schema: oddsSchema returns milli. Multiplying
       // again here would store 1.85 as 1850.00.
       oddsMilli: input.odds,
