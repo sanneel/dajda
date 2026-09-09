@@ -212,7 +212,7 @@ export async function createPredictionAction(
       sportId: formData.get('sportId'),
       screenshotPath: formData.get('screenshotPath'),
       selections: selectionsFromFormData(formData),
-      titleKa: formData.get('titleKa') ?? '',
+      titleKa: formData.get('titleKa') || undefined,
       descriptionKa: formData.get('descriptionKa') || undefined,
       odds: formData.get('odds'),
       stakeUnits: formData.get('stakeUnits') || 1,

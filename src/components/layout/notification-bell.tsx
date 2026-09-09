@@ -24,6 +24,16 @@ export async function NotificationBell({ userId }: { userId: string }) {
         // Only an author still standing: a suspended or rejected profile is
         // gone from the site, and its open tickets should not ring a bell.
         author: { savedBy: { some: { userId } }, status: 'APPROVED' },
+        /*
+         * Not the ones this reader has already opened. The bell used to
+         * keep showing a ticket until it settled, so following two active
+         * authors left a badge that never cleared however many times you
+         * went and looked - which taught people to ignore it.
+         *
+         * PredictionView is written by the ticket page on every visit, so
+         * "seen" needs no separate read/unread table to maintain.
+         */
+        views: { none: { userId } },
       },
       orderBy: { publishedAt: 'desc' },
       take: 60,
@@ -95,7 +105,7 @@ export async function NotificationBell({ userId }: { userId: string }) {
 
       <div className="absolute right-0 top-full z-50 mt-2 w-[19rem] overflow-hidden rounded-card border border-line bg-surface">
         <p className="border-b border-line px-4 py-2.5 text-xs font-medium text-ink-muted">
-          Follow-ში მყოფების ღია ბილეთები
+          ახალი ბილეთები Follow-ში მყოფებისგან
         </p>
 
         <ul className="max-h-96 divide-y divide-line overflow-y-auto">
@@ -137,8 +147,8 @@ export async function NotificationBell({ userId }: { userId: string }) {
 
           {entries.length === 0 && !needsTelegram ? (
             <li className="px-4 py-6 text-center text-sm text-ink-muted">
-              ღია ბილეთი არ არის. გააფოლოვეთ ანალიტიკოსი და ახალი ბილეთები
-              აქ გამოჩნდება.
+              ახალი ბილეთი არ არის. გააფოლოვეთ ანალიტიკოსი და მისი ახალი
+              ბილეთები აქ გამოჩნდება.
             </li>
           ) : null}
         </ul>

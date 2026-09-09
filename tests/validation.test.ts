@@ -200,12 +200,17 @@ describe('bet creation', () => {
     if (parsed.success) expect(parsed.data.selections).toEqual([]);
   });
 
-  it('requires a name, because a picture cannot be listed or searched', () => {
+  it('does not ask for a name: the service derives one when it is blank', () => {
+    // Optional again from 2026-09-10. The column is not nullable, so the
+    // filling in happens in createPrediction rather than here.
+    const { titleKa: _omitted, ...withoutName } = valid;
+    expect(createPredictionSchema.safeParse(withoutName).success).toBe(true);
     expect(
       createPredictionSchema.safeParse({ ...valid, titleKa: '' }).success,
-    ).toBe(false);
+    ).toBe(true);
     expect(
-      createPredictionSchema.safeParse({ ...valid, titleKa: 'ა' }).success,
+      createPredictionSchema.safeParse({ ...valid, titleKa: 'x'.repeat(200) })
+        .success,
     ).toBe(false);
   });
 

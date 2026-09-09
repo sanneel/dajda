@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { sortAnalysts, type AnalystListItem } from '@/lib/stats/ranking';
 import {
   summarizePerformance,
-  isLowSample,
   type PerformanceRecord,
 } from '@/lib/stats/performance';
 
@@ -53,27 +52,25 @@ function analyst(
     stats: summary,
     avgPerWeek: 0,
     activeBets: 0,
-    lowSample: isLowSample(summary),
     cheapestPlan: null,
   };
 }
 
 describe('analyst ordering', () => {
-  it('places an adequately-sampled analyst above a hot short record', () => {
-    // The exact case seen in the seeded data: 7-2 at long odds turns a much
-    // better profit per unit staked than 26-13, on far less evidence.
+  /*
+   * Sample size stopped being a tiebreak on 2026-09-10, when the "მცირე
+   * შერჩევა" label and the function behind it were removed at the owner's
+   * request. The ordering is now the selected metric and nothing else, so a
+   * short hot record CAN lead the list. The count is printed beside every
+   * figure, which is what a reader has to judge it by.
+   */
+  it('orders purely by the selected metric, short records included', () => {
     const hotStreak = analyst('short record', 7, 2, 3000);
     const established = analyst('long record', 26, 13, 2000);
 
-    expect(hotStreak.lowSample).toBe(true);
-    expect(established.lowSample).toBe(false);
-    const perUnit = (a: typeof hotStreak) =>
-      a.stats.profitUnitsCenti / a.stats.stakedUnitsCenti;
-    expect(perUnit(hotStreak)).toBeGreaterThan(perUnit(established));
-
     const sorted = sortAnalysts([hotStreak, established], 'accuracy');
-    expect(sorted[0]?.displayName).toBe('long record');
-    // Still listed, not hidden.
+    expect(sorted[0]?.displayName).toBe('short record');
+    // Both listed, neither hidden.
     expect(sorted).toHaveLength(2);
   });
 

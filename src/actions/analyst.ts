@@ -21,6 +21,8 @@ import {
   screenSlipForBookmakerBranding,
 } from '@/lib/slip-screening';
 import { enqueueForAnalystAudience } from '@/lib/notifications/outbox';
+import { flushTelegramOutbox } from '@/lib/notifications/telegram-sender';
+import { flushEmailOutbox } from '@/lib/notifications/email-sender';
 import { notifyAdminsBetFinished } from '@/lib/notifications/admin-alerts';
 import { selectionsFromFormData } from '@/lib/predictions/slip';
 import { formatOdds } from '@/lib/format';
@@ -86,18 +88,43 @@ async function notifyNewBet(
      * The audience includes followers who are not subscribers, and a paid
      * pick's title IS the merchandise - so a paid bet announces itself
      * without the title, and only a free one carries it.
+     *
+     * Three products, three sentences. A subscription ticket announced as
+     * "ფასიანი" sent a subscriber off to buy something they already had, and
+     * left a non-subscriber expecting a price that does not exist.
      */
     const free = prediction.visibility === 'PUBLIC';
-    await enqueueForAnalystAudience(analystProfileId, 'NEW_BET', {
+    const kind =
+      prediction.visibility === 'PUBLIC'
+        ? 'უფასო ბილეთი'
+        : prediction.visibility === 'PREMIUM'
+          ? 'ახალი ფასიანი ბილეთი'
+          : 'ახალი ბილეთი გამოწერაში';
+
+    const queued = await enqueueForAnalystAudience(analystProfileId, 'NEW_BET', {
       subjectKa: free
-        ? `უფასო ბილეთი ${profile.displayName}სგან`
-        : `ახალი ფასიანი პროგნოზი: ${profile.displayName}`,
+        ? `${kind} ${profile.displayName}სგან`
+        : `${kind}: ${profile.displayName}`,
       bodyKa: free
         ? `${prediction.titleKa}\nკოეფიციენტი: ${formatOdds(prediction.oddsMilli)}`
         : `კოეფიციენტი: ${formatOdds(prediction.oddsMilli)}\nდეტალები ბმულზე.`,
       linkPath: `/free/${prediction.id}`,
       predictionId: prediction.id,
     });
+
+    /*
+     * Delivered here rather than left for the sweep. The cron runs once a
+     * day, which for "an author you follow just posted" is not a late
+     * notification, it is no notification: by the time it fired the match had
+     * usually kicked off and the ticket had left the feed. The sweep still
+     * exists and still retries whatever this call could not send.
+     */
+    if (queued.queued > 0) {
+      await Promise.allSettled([
+        flushTelegramOutbox({ predictionId: prediction.id, limit: 100 }),
+        flushEmailOutbox({ predictionId: prediction.id, limit: 100 }),
+      ]);
+    }
   } catch (error) {
     console.error('[dajda] new-bet notification enqueue failed', error);
   }
@@ -170,9 +197,9 @@ export async function postBetAction(
       screenshotPath: stored.urlPath,
       extraScreenshotPaths: storedAll.slice(1).map((item) => item.urlPath),
       selections: selectionsFromFormData(formData),
-      // Passed through blank rather than as undefined, so an empty field
-      // gets the schema's Georgian "write a name" rather than a type error.
-      titleKa: formData.get('titleKa') ?? '',
+      // Blank means "no name given", not an empty title: the service
+      // derives one from the first leg, or the sport and the odds.
+      titleKa: formData.get('titleKa') || undefined,
       descriptionKa: formData.get('descriptionKa') || undefined,
       odds: formData.get('odds'),
       confidence: formData.get('confidence') || 'MEDIUM',

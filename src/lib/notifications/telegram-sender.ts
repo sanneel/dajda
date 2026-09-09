@@ -83,6 +83,7 @@ export async function flushTelegramOutbox(options?: {
   limit?: number;
   broadcastId?: string;
   ids?: string[];
+  predictionId?: string;
 }): Promise<{ sent: number; failed: number }> {
   // Without a token every send is a guaranteed failure; burning attempts on
   // rows that could succeed once it is configured would be worse than waiting.
@@ -93,6 +94,7 @@ export async function flushTelegramOutbox(options?: {
     limit: options?.limit,
     broadcastId: options?.broadcastId,
     ids: options?.ids,
+    predictionId: options?.predictionId,
     send: (message) =>
       sendTelegramMessage(message.destination, renderMessage(message)),
   });

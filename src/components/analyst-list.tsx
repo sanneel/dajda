@@ -33,12 +33,12 @@ export function AnalystRow({
   const settled = stats.decided > 0;
 
   /*
-   * Accuracy and profit are withheld until the record is long enough to mean
-   * anything. A brand-new author with one settled tip reads "100%" otherwise,
-   * which is the exact impression the responsible-use page promises not to
-   * create - and no reader can tell it apart from a real hit rate.
+   * Every settled record is shown, however short. Withholding the figures
+   * below a threshold left a new author's row as a line of dashes that a
+   * reader could not tell from an author who had simply never won; the
+   * count printed beside each figure is what puts it in proportion.
    */
-  const judgeable = settled && !analyst.lowSample;
+  const judgeable = settled;
 
   const metrics: { label: string; value: string; tone?: 'win' | 'loss' }[] = [
     {
@@ -47,14 +47,17 @@ export function AnalystRow({
     },
     {
       /*
-       * The author's DECLARED monthly floor (terms 6.4), not a measured
-       * average. It has to be visible before a subscription is bought, and
-       * a rate computed from three weeks of history was neither a promise
-       * nor a number anybody could hold them to.
+       * The author's DECLARED floor (terms 6.4), not a measured average. It
+       * has to be visible before a subscription is bought, and a rate
+       * computed from three weeks of history was neither a promise nor a
+       * number anybody could hold them to. Declared by the month, shown by
+       * the week, because a week is the span a subscriber actually feels.
        */
-      label: 'პროგნოზი/თვე',
+      label: 'პროგნოზი/კვირა',
       value:
-        analyst.monthlyMinimum !== null ? `${analyst.monthlyMinimum}+` : '·',
+        analyst.monthlyMinimum !== null
+          ? `${Math.max(1, Math.round(analyst.monthlyMinimum / 4))}+`
+          : '·',
     },
     {
       label: 'სიზუსტე',
@@ -101,11 +104,6 @@ export function AnalystRow({
                * strip below need a reason. Without it a new author just looks
                * like one with no results.
                */}
-              {!analyst.isDemo && analyst.lowSample ? (
-                <span className="shrink-0 rounded-full border border-line-strong px-2 py-0.5 text-xs text-ink-muted">
-                  ახალი ავტორი
-                </span>
-              ) : null}
             </div>
 
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">

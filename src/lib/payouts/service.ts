@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/db';
 import { getEnv } from '@/lib/env';
-import { AppError, ERROR_CODES } from '@/lib/errors';
+import { AppError, ERROR_CODES, errorDiagnostic } from '@/lib/errors';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { applyEarningsMovement } from '@/lib/balance/ledger';
 import { formatMoney } from '@/lib/format';
@@ -35,6 +35,17 @@ import {
  * row the moment the request is decided, whichever way. What stays for good
  * is the mask.
  */
+
+/**
+ * What the analyst is told when a payout does not go through. Their money is
+ * already back, and neither case is anything they can act on, so the sentence
+ * says that and stops. The provider's own words go to `failureDetail` and the
+ * server log, for the admin who has to decide what to do next.
+ */
+const PAYOUT_FAILURE_KA = {
+  DECLINED: 'გატანა ვერ შესრულდა: ბანკმა უარი თქვა. თანხა დაგიბრუნდათ, სცადეთ ხელახლა.',
+  TECHNICAL: 'გატანა ვერ შესრულდა ტექნიკური მიზეზით. თანხა დაგიბრუნდათ, ვნახავთ და დაგიკავშირდებით.',
+} as const;
 
 /** The key the open requests' card numbers are sealed under right now. */
 function payoutCardKey(): Buffer {
@@ -345,6 +356,19 @@ export async function approvePayout(
       receiverCardNumber: cardNumber,
     });
 
+    // A refusal the provider answered with is a fact about this card or this
+    // merchant account, and it is the only thing that says which. It goes to
+    // the log before anything else touches the row.
+    const declinedDetail =
+      result.status === 'FAILED'
+        ? [result.rawStatus, result.message].filter(Boolean).join(' ').trim()
+        : null;
+    if (declinedDetail) {
+      console.error(
+        `[dajda] payout ${payout.id} declined by ${provider.code}: ${declinedDetail}`,
+      );
+    }
+
     // The provider has the number now; the row does not need it any more.
     await prisma.analystPayout.update({
       where: { id: payout.id },
@@ -353,7 +377,9 @@ export async function approvePayout(
         cardCipher: null,
         providerPayoutId: result.providerPaymentId,
         rawStatus: result.rawStatus,
-        failureReason: result.status === 'FAILED' ? (result.message ?? null) : null,
+        failureReason:
+          result.status === 'FAILED' ? PAYOUT_FAILURE_KA.DECLINED : null,
+        failureDetail: declinedDetail?.slice(0, 1000) ?? null,
       },
     });
 
@@ -373,7 +399,10 @@ export async function approvePayout(
       summary: `გატანა გაიგზავნა პროვაიდერთან: ${result.status}`,
       actorId: admin.userId,
       actorRole: 'ADMIN',
-      metadata: { rawStatus: result.rawStatus },
+      metadata: {
+        rawStatus: result.rawStatus,
+        ...(declinedDetail ? { detail: declinedDetail } : {}),
+      },
     });
 
     return {
@@ -394,14 +423,28 @@ export async function approvePayout(
      * is the failure mode worth preferring over silently keeping an analyst's
      * money held forever.
      */
-    const detail = error instanceof Error ? error.message : String(error);
+    /*
+     * `errorDiagnostic`, not `error.message`: an AppError from the adapter
+     * carries the client-safe Georgian sentence as its message and the reason
+     * the gateway gave as `internalDetail`. Taking the message wrote the former
+     * into the row and lost the latter, so a payout that Flitt had refused for
+     * a nameable reason was recorded as "could not process payment" and nothing
+     * else. This path swallows the error rather than rethrowing it, so it is
+     * also the only chance to log: `toActionFailure` never sees it.
+     */
+    const detail = errorDiagnostic(error);
+    console.error(
+      `[dajda] payout ${payout.id} failed against ${provider.code}: ${detail}`,
+      error,
+    );
 
     await prisma.analystPayout.update({
       where: { id: payout.id },
       data: {
         status: 'FAILED',
         cardCipher: null,
-        failureReason: detail.slice(0, 500),
+        failureReason: PAYOUT_FAILURE_KA.TECHNICAL,
+        failureDetail: detail.slice(0, 1000),
       },
     });
     await returnEarnings(

@@ -562,16 +562,13 @@ export function PostBetForm({
         <Field
           label="ბილეთის სახელი"
           htmlFor="titleKa"
-          required
           error={errorFor('titleKa')}
-          hint="ასე გამოჩნდება სიაში და შეტყობინებებში."
+          hint="არასავალდებულო. ცარიელი თუ დატოვეთ, სპორტისა და კოეფიციენტის მიხედვით დაერქმევა."
         >
           <Input
             id="titleKa"
             name="titleKa"
             maxLength={160}
-            minLength={3}
-            required
             placeholder="მაგ: დინამო vs საბურთალო, ჯამური 2.5+"
             error={Boolean(errorFor('titleKa'))}
           />

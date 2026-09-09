@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MIN_SAMPLE_FOR_RANKING,
   cumulativeUnits,
-  isLowSample,
   monthlyPerformance,
   oddsBucketPerformance,
   rankingScore,
@@ -232,13 +230,6 @@ describe('chart series', () => {
 describe('ranking', () => {
   const many = (count: number, status: PerformanceRecord['status']) =>
     Array.from({ length: count }, () => record({ status, oddsMilli: 2000 }));
-
-  it('flags a short record as low sample', () => {
-    expect(isLowSample(summarizePerformance(many(3, 'WON')))).toBe(true);
-    expect(
-      isLowSample(summarizePerformance(many(MIN_SAMPLE_FOR_RANKING, 'WON'))),
-    ).toBe(false);
-  });
 
   it('does not let a perfect 3-for-3 outrank a strong long record', () => {
     // This is the central ranking guarantee: sample size must matter.

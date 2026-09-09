@@ -193,17 +193,16 @@ export const createPredictionSchema = z.object({
   /** The bet slip. A bet with no evidence is not a record. */
   screenshotPath: uploadPathSchema,
   /**
-   * The name is required: a screenshot cannot be searched, listed or read
-   * aloud, and this string is what every feed row, notification and audit
-   * line prints. The written comment is not asked for any more - the slip is
-   * the bet - but the field stays optional so the tickets that already carry
-   * one keep it, and an admin correction can still pass one through.
+   * Optional again, as of 2026-09-10. The column is not nullable and the
+   * string is what every feed row, notification and audit line prints, so a
+   * blank one is filled by the service from the sport and the odds rather
+   * than being refused here - see createPrediction.
    */
   titleKa: z
     .string()
     .trim()
-    .min(3, 'დაარქვით ბილეთს სახელი.')
-    .max(160, 'სახელი ძალიან გრძელია.'),
+    .max(160, 'სახელი ძალიან გრძელია.')
+    .optional(),
   descriptionKa: z
     .string()
     .trim()

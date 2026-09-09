@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { Lock, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { getAnalystBySlug } from '@/lib/queries/analysts';
 import { activePlanGrants, purchasedTicketIds } from '@/lib/queries/tickets';
 import { getCurrentUser } from '@/lib/auth/authorization';
@@ -11,17 +10,12 @@ import { prisma } from '@/lib/db';
 import {
   monthlyPerformance,
   oddsBucketPerformance,
-  MIN_SAMPLE_FOR_RANKING,
 } from '@/lib/stats/performance';
 import {
-  formatDateTimeKa,
   formatMoney,
-  formatOdds,
-  formatUnitsSigned,
 } from '@/lib/format';
-import { Badge, DemoBadge, StatusBadge } from '@/components/ui/badge';
+import { Badge, DemoBadge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
-import { Alert } from '@/components/ui/feedback';
 import { RecordTabs } from './record-tabs';
 import { ReportForm } from '@/components/report-form';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
@@ -90,7 +84,6 @@ export default async function AnalystProfilePage({
   const {
     profile,
     predictions,
-    allTime,
     freeAllTime,
     paidAllTime,
     subscriptionAllTime,
@@ -199,16 +192,6 @@ export default async function AnalystProfilePage({
   const paidCharts = chartsFor((visibility) => visibility === 'PREMIUM');
   const subscriptionCharts = chartsFor((visibility) => visibility === 'VIP');
 
-  // Newest pin first. The cap is enforced at pin time; the slice here is
-  // only a belt against rows pinned before the cap existed.
-  const pinned = predictions
-    .filter((prediction) => prediction.pinnedAt !== null)
-    .sort(
-      (a, b) =>
-        (b.pinnedAt as Date).getTime() - (a.pinnedAt as Date).getTime(),
-    )
-    .slice(0, 3);
-
   return (
     <div className="mx-auto max-w-page px-4 py-10 sm:px-6">
       {/* ------------------------------------------------------------- */}
@@ -302,15 +285,6 @@ export default async function AnalystProfilePage({
         </p>
       ) : null}
 
-      {allTime.decided < MIN_SAMPLE_FOR_RANKING ? (
-        <div className="mt-5">
-          <Alert tone="warning" title="მცირე შერჩევა">
-            ამ ავტორს ჯერ {allTime.decided} დათვლილი პროგნოზი აქვს. ასეთ
-            რაოდენობაზე დაყრდნობით სიზუსტის შეფასება არასაიმედოა.
-          </Alert>
-        </div>
-      ) : null}
-
       {/* ------------------------------------------------------------- */}
       {/* The record: one panel, switched between free, paid and plans.   */}
       {/* ------------------------------------------------------------- */}
@@ -330,105 +304,6 @@ export default async function AnalystProfilePage({
         />
       </section>
 
-      {/* ------------------------------------------------------------- */}
-      {/* ტოპ ბილეთები: what the author chose to feature                   */}
-      {/* ------------------------------------------------------------- */}
-      {/*
-       * Replaced the full history table. The complete record still exists -
-       * the stats above are computed from every published bet and the feed
-       * shows them chronologically - but the strip here is editorial: up to
-       * three bets the author pinned from their workspace.
-       */}
-      {pinned.length > 0 ? (
-        <section className="mt-10" aria-labelledby="pinned-heading">
-          <h2
-            id="pinned-heading"
-            className="text-2xl font-semibold tracking-tight text-ink"
-          >
-            ტოპ ბილეთები
-          </h2>
-          <p className="mt-1.5 text-sm text-ink-muted">
-            ავტორის მიერ არჩეული ბილეთები საკუთარი ჩანაწერიდან.
-          </p>
-
-          <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {pinned.map((prediction) => {
-              const locked = lockedBetIds.has(prediction.id);
-              const units = prediction.result?.profitUnitsCenti ?? null;
-
-              return (
-                <li
-                  key={prediction.id}
-                  className="overflow-hidden rounded-card border border-line bg-surface"
-                >
-                  {locked ? (
-                    <span className="flex h-36 items-center justify-center border-b border-line bg-elevated">
-                      <Lock
-                        className="size-6 text-ink-faint"
-                        aria-hidden="true"
-                      />
-                    </span>
-                  ) : (
-                    <div className="relative h-36 border-b border-line bg-canvas">
-                      <Image
-                        src={prediction.screenshotPath}
-                        alt=""
-                        fill
-                        sizes="(min-width: 1024px) 20rem, (min-width: 640px) 45vw, 92vw"
-                        className="object-cover object-top"
-                      />
-                    </div>
-                  )}
-
-                  <div className="p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <a
-                        href={`/free/${prediction.id}`}
-                        className="min-w-0 font-medium text-ink hover:text-accent"
-                      >
-                        {locked ? 'დახურული პროგნოზი' : prediction.titleKa}
-                      </a>
-                      <StatusBadge status={prediction.status} />
-                    </div>
-
-                    <p className="mt-1.5 text-xs text-ink-muted">
-                      {prediction.sport.nameKa}
-                      {' · კოეფ. '}
-                      <span className="tabular">
-                        {formatOdds(prediction.oddsMilli)}
-                      </span>
-                      {prediction.publishedAt ? (
-                        <>
-                          {' · '}
-                          <span className="tabular">
-                            {formatDateTimeKa(prediction.publishedAt)}
-                          </span>
-                        </>
-                      ) : null}
-                      {units !== null ? (
-                        <>
-                          {' · '}
-                          <span
-                            className={`tabular font-medium ${
-                              units > 0
-                                ? 'text-win'
-                                : units < 0
-                                  ? 'text-loss'
-                                  : 'text-ink-muted'
-                            }`}
-                          >
-                            {formatUnitsSigned(units)}
-                          </span>
-                        </>
-                      ) : null}
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
 
       {/* Reporting is for readers. An author looking at their own page has an
           edit route for anything wrong on it, not a complaints box aimed at

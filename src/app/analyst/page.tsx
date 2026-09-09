@@ -17,9 +17,10 @@ import {
   broadcastAllowance,
 } from '@/lib/notifications/broadcast';
 import { audienceFor } from '@/lib/notifications/outbox';
-import { Card, CardBody, CardHeader } from '@/components/ui/card';
+import { Card, CardBody } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge, StatusBadge } from '@/components/ui/badge';
+import { PREDICTION_VISIBILITY_KA } from '@/lib/labels';
 import { Alert, EmptyState } from '@/components/ui/feedback';
 import { ShowMoreList } from '@/components/ui/show-more';
 import { analystFeed } from '@/lib/queries/feed';
@@ -28,10 +29,8 @@ import { publishBetAction } from '@/actions/analyst';
 import { ActionButton } from '@/components/admin/action-button';
 import { PlanPriceForm } from './plan-price-form';
 import { FinishBetForm } from './finish-form';
-import { PinBetButton } from './pin-button';
 import { CreateActions } from './create-actions';
 import { WorkspaceTabs } from './workspace-tabs';
-import { LiveSessionControls } from './live-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +56,7 @@ export const metadata: Metadata = {
 export default async function AnalystPage() {
   const analyst = await requireApprovedAnalyst();
 
-  const [profile, sports, bets, feed, runningLive, audience, allowance, plan] =
+  const [profile, sports, bets, feed, , audience, allowance, plan] =
     await Promise.all([
       prisma.analystProfile.findUniqueOrThrow({
         where: { id: analyst.analystProfileId },
@@ -301,25 +300,6 @@ export default async function AnalystPage() {
         </Alert>
       ) : null}
 
-      {/* A running session outranks everything: during one it is the only
-          control the author needs. */}
-      {runningLive.map((session) => (
-        <Card as="section" key={session.id}>
-          <CardHeader
-            title={`ლაივი მიმდინარეობს: ${session.liveLabelKa ?? ''}`}
-            level={2}
-            description={
-              session.liveAt
-                ? `დაწყება ${formatDateTimeKa(session.liveAt)}`
-                : undefined
-            }
-          />
-          <CardBody>
-            <LiveSessionControls postId={session.id} />
-          </CardBody>
-        </Card>
-      ))}
-
       {/* ----------------------------------------------------------------- */}
       {/* Everything the analyst has posted, one panel at a time             */}
       {/* ----------------------------------------------------------------- */}
@@ -351,7 +331,7 @@ export default async function AnalystPage() {
               },
               {
                 id: 'feed',
-                label: 'ფიდი',
+                label: 'ისტორია',
                 panel: (
                   <Feed entries={feed} emptyText="ჯერ არაფერი დაგიპოსტავთ." />
                 ),
@@ -509,9 +489,16 @@ function BetRow({ bet, showFinish }: { bet: Bet; showFinish: boolean }) {
               {bet.titleKa}
             </Link>
           )}
-          {bet.visibility === 'PUBLIC' ? (
-            <Badge tone="accent">უფასო</Badge>
-          ) : bet.priceMinor !== null ? (
+          {/*
+           * Which of the three products this ticket is, named rather than
+           * implied by whether a price happens to be printed. An author
+           * scanning their open tickets could not tell a subscription one
+           * from a free one at a glance.
+           */}
+          <Badge tone={bet.visibility === 'PUBLIC' ? 'accent' : undefined}>
+            {PREDICTION_VISIBILITY_KA[bet.visibility]}
+          </Badge>
+          {bet.visibility === 'PREMIUM' && bet.priceMinor !== null ? (
             <Badge>{formatMoney(bet.priceMinor, 'GEL')}</Badge>
           ) : null}
           {bet.publishedAt === null ? <Badge>მონახაზი</Badge> : null}
@@ -567,14 +554,7 @@ function BetRow({ bet, showFinish }: { bet: Bet; showFinish: boolean }) {
               confirm="გამოვაქვეყნოთ? გამოქვეყნების შემდეგ ბილეთი საჯარო ჩანაწერის ნაწილია და აღარ იშლება."
             />
           </div>
-        ) : (
-          <div className="mt-3">
-            <PinBetButton
-              predictionId={bet.id}
-              pinned={bet.pinnedAt !== null}
-            />
-          </div>
-        )}
+        ) : null}
       </div>
     </li>
   );

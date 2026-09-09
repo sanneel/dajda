@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useSyncExternalStore } from 'react';
-import { Megaphone, MessageSquare, Plus, Radio, MoreHorizontal } from 'lucide-react';
+import { Megaphone, Plus, MoreHorizontal } from 'lucide-react';
 import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { PostBetForm } from './post-form';
-import { NoteForm, LiveForm } from './composer';
 import { BroadcastForm } from './broadcast-form';
 
-type Sheet = 'ticket' | 'note' | 'live' | 'broadcast' | null;
+type Sheet = 'ticket' | 'broadcast' | null;
 
 /**
  * True once React has attached its handlers. Server HTML arrives with the
@@ -29,14 +28,17 @@ function useHydrated(): boolean {
 /**
  * The workspace's action bar: one strong CTA, everything else behind a menu.
  *
- * Posting a ticket is why an analyst opens this page; writing a status,
- * announcing a live session and messaging subscribers are things they do
- * occasionally. Giving all four equal billing as a tab strip - which is what
- * this was - made the common case cost a decision. Now the common case is a
- * button and the rest live under one "more" control.
+ * Posting a ticket is why an analyst opens this page; messaging subscribers
+ * is something they do occasionally. Giving both equal billing as a tab strip
+ * - which is what this was - made the common case cost a decision. Now the
+ * common case is a button and the rest lives under one "more" control.
  *
- * All four open in a drawer rather than inline. A composer that pushes the
- * page down loses the reader's place and, on a phone, hides the very list they
+ * The status note and the live announcement were removed on 2026-09-10: this
+ * is a record of bets, and a second stream of chatter beside it was neither
+ * read nor part of what a subscription promises.
+ *
+ * Both open in a drawer rather than inline. A composer that pushes the page
+ * down loses the reader's place and, on a phone, hides the very list they
  * were looking at; a sheet leaves the workspace where it was.
  */
 export function CreateActions({
@@ -103,18 +105,6 @@ export function CreateActions({
                 className="absolute right-0 z-20 mt-1.5 w-56 overflow-hidden rounded-card border border-line bg-surface py-1 shadow-panel"
               >
                 <MenuItem
-                  onSelect={() => open('note')}
-                  icon={<MessageSquare className="size-4" aria-hidden="true" />}
-                  label="სტატუსი"
-                  hint="ჩანს ფიდზე"
-                />
-                <MenuItem
-                  onSelect={() => open('live')}
-                  icon={<Radio className="size-4" aria-hidden="true" />}
-                  label="ლაივის გამოცხადება"
-                  hint="შეტყობინება მიდის"
-                />
-                <MenuItem
                   onSelect={() => open('broadcast')}
                   icon={<Megaphone className="size-4" aria-hidden="true" />}
                   label="შეტყობინება"
@@ -137,24 +127,6 @@ export function CreateActions({
           defaultSportId={defaultSportId}
           onPosted={close}
         />
-      </Drawer>
-
-      <Drawer
-        open={sheet === 'note'}
-        onClose={close}
-        title="სტატუსი"
-        description="ჩანს თქვენს ფიდზე. შეტყობინება არავის მიდის."
-      >
-        <NoteForm />
-      </Drawer>
-
-      <Drawer
-        open={sheet === 'live'}
-        onClose={close}
-        title="ლაივის გამოცხადება"
-        description="გამომწერებსა და შემნახველებს მიუვათ შეტყობინება."
-      >
-        <LiveForm />
       </Drawer>
 
       <Drawer

@@ -7,7 +7,6 @@ import {
   type AnalystSort,
 } from '@/lib/stats/ranking';
 import {
-  isLowSample,
   summarizePerformance,
   withinDays,
   type PerformanceRecord,
@@ -159,7 +158,6 @@ export async function listAnalysts(options?: {
       avgPerWeek,
       /* Clause 6.4: the floor this author committed to, shown before purchase. */
       monthlyMinimum: profile.monthlyMinimum,
-      lowSample: isLowSample(stats),
       /*
        * "Active tips": published, not yet finished by the author and not yet
        * settled. It is what a buyer is actually getting access to right now,

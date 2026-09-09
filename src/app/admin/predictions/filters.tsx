@@ -65,7 +65,7 @@ export function PredictionFilters({
             options={[
               { value: 'PENDING', label: 'მოლოდინში' },
               { value: 'WON', label: 'დაჯდა' },
-              { value: 'LOST', label: 'ვერ დაჯდა' },
+              { value: 'LOST', label: 'არ დაჯდა' },
               { value: 'VOID', label: 'ბათილი' },
               { value: 'PUSH', label: 'დაბრუნებული' },
             ]}

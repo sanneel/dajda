@@ -67,6 +67,29 @@ export class AppError extends Error {
   }
 }
 
+/**
+ * The one string worth logging about a thrown value.
+ *
+ * An AppError carries two texts and they are not interchangeable: `message` is
+ * the Georgian sentence written for whoever is looking at the screen, and
+ * `internalDetail` is the reason the thing that failed actually gave. Only the
+ * second one diagnoses anything. A caller that reaches for `.message` records
+ * the fallback sentence instead, which is how a payout came to fail with
+ * "გადახდის დამუშავება ვერ მოხერხდა." and no trace anywhere of what the
+ * gateway had said.
+ */
+export function errorDiagnostic(error: unknown): string {
+  if (error instanceof AppError) {
+    return error.internalDetail
+      ? `${error.code}: ${error.internalDetail}`
+      : `${error.code}: ${error.message}`;
+  }
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+  return String(error);
+}
+
 export type ActionSuccess<T> = { ok: true; data: T };
 export type ActionFailure = {
   ok: false;

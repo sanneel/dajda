@@ -1,0 +1,16 @@
+-- What the provider said when a payout did not go through.
+--
+-- Until now a failed payout kept one text, and both the analyst and the admin
+-- read it. Since the analyst must not be shown gateway internals, the column
+-- held the client-safe sentence, and the provider's own words were dropped on
+-- the floor: a refusal reached the earnings page as "payment could not be
+-- processed" with nothing behind it in the row, the audit log, or the runtime
+-- log. Nobody could say why 25.00 GEL failed.
+--
+-- So failure now has two registers. failureReason stays the analyst's sentence.
+-- failureDetail carries the diagnosis for the admin who decides whether to
+-- release the request again.
+--
+-- Nullable, because a payout that has not failed has nothing to put here, and
+-- because the failures recorded before this column existed cannot be recovered.
+ALTER TABLE "AnalystPayout" ADD COLUMN "failureDetail" TEXT;

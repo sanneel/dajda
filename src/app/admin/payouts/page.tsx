@@ -70,6 +70,9 @@ export default async function AdminPayoutsPage() {
       weeksMeetingMinimum: true,
       activityCheckPassed: true,
       failureReason: true,
+      // The provider's own words. Admin-only: this is the page where somebody
+      // decides whether releasing the request again could possibly work.
+      failureDetail: true,
       rawStatus: true,
       requestedAt: true,
       decidedAt: true,
@@ -208,6 +211,11 @@ export default async function AdminPayoutsPage() {
                       {payout.failureReason ? (
                         <p className="mt-0.5 text-sm text-loss">
                           {payout.failureReason}
+                        </p>
+                      ) : null}
+                      {payout.failureDetail ? (
+                        <p className="mt-0.5 text-xs break-words text-ink-faint">
+                          {payout.failureDetail}
                         </p>
                       ) : null}
                     </div>

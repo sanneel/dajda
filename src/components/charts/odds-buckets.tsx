@@ -5,7 +5,6 @@ import type { OddsBucket } from '@/lib/stats/performance';
 import {
   formatGelSigned,
   formatPercentBps,
-  formatPercentBpsSigned,
 } from '@/lib/format';
 
 /**
@@ -29,11 +28,6 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
     );
   }
 
-  const roiBps = (bucket: OddsBucket) =>
-    bucket.stakedUnitsCenti > 0
-      ? Math.round((bucket.profitUnitsCenti * 10_000) / bucket.stakedUnitsCenti)
-      : null;
-
   return (
     <div>
       {/* The same ranges as numbers: the reference's table, in units. */}
@@ -51,17 +45,13 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
               <th scope="col" className="tabular py-1.5 pr-2 text-right font-medium text-ink-muted">
                 მოგების %
               </th>
-              <th scope="col" className="tabular py-1.5 pr-2 text-right font-medium text-ink-muted">
-                მოგება
-              </th>
               <th scope="col" className="tabular py-1.5 text-right font-medium text-ink-muted">
-                ROI
+                მოგება
               </th>
             </tr>
           </thead>
           <tbody>
             {buckets.map((bucket, index) => {
-              const roi = roiBps(bucket);
               return (
                 <tr
                   key={bucket.label}
@@ -84,7 +74,7 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
                       : '·'}
                   </td>
                   <td
-                    className={`tabular py-1.5 pr-2 text-right font-medium ${
+                    className={`tabular py-1.5 text-right font-medium ${
                       bucket.profitUnitsCenti > 0
                         ? 'text-win'
                         : bucket.profitUnitsCenti < 0
@@ -95,19 +85,6 @@ export function OddsBucketsChart({ buckets }: { buckets: OddsBucket[] }) {
                     {bucket.decided > 0
                       ? formatGelSigned(bucket.profitUnitsCenti)
                       : '·'}
-                  </td>
-                  <td
-                    className={`tabular py-1.5 text-right ${
-                      roi === null
-                        ? 'text-ink-muted'
-                        : roi > 0
-                          ? 'text-win'
-                          : roi < 0
-                            ? 'text-loss'
-                            : 'text-ink-muted'
-                    }`}
-                  >
-                    {roi === null ? '·' : formatPercentBpsSigned(roi)}
                   </td>
                 </tr>
               );

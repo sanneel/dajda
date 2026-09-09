@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 
 const OUTCOMES = [
   { value: 'WON', label: 'დაჯდა' },
-  { value: 'LOST', label: 'ვერ დაჯდა' },
+  { value: 'LOST', label: 'არ დაჯდა' },
   { value: 'VOID', label: 'ბათილი' },
   { value: 'PUSH', label: 'დაბრუნებული' },
 ];

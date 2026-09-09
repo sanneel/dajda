@@ -58,6 +58,8 @@ export type DrainOptions = {
    * it created and wants nothing else sent on its request.
    */
   ids?: string[];
+  /** Narrow to one bet's announcements, for the same reason as `ids`. */
+  predictionId?: string;
 };
 
 /**
@@ -73,6 +75,7 @@ export async function drainOutbox({
   limit = 50,
   broadcastId,
   ids,
+  predictionId,
 }: DrainOptions): Promise<{ sent: number; failed: number }> {
   const rows = await prisma.notification.findMany({
     where: {
@@ -82,6 +85,7 @@ export async function drainOutbox({
       attempts: { lt: MAX_ATTEMPTS },
       ...(broadcastId ? { broadcastId } : {}),
       ...(ids ? { id: { in: ids } } : {}),
+      ...(predictionId ? { predictionId } : {}),
     },
     orderBy: { createdAt: 'asc' },
     take: limit,

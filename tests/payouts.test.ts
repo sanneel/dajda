@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analystShareMinor } from '@/lib/balance/ledger';
+import { AppError, ERROR_CODES, errorDiagnostic } from '@/lib/errors';
 import {
   checkWithdrawal,
   daysInMonth,
@@ -396,5 +397,42 @@ describe('weekly activity', () => {
 
     expect(activity.total).toBe(1);
     expect(activity.perWeek[0]).toBe(1);
+  });
+});
+
+describe('payout failure diagnosis', () => {
+  /*
+   * The regression this guards: a payout refused by Flitt was recorded as
+   * "გადახდის დამუშავება ვერ მოხერხდა." because the failure path read
+   * `error.message`, which on an AppError is the client-safe fallback. The
+   * reason the gateway gave sat in `internalDetail` and reached neither the row
+   * nor the log, so a real failed withdrawal could not be explained afterwards.
+   */
+  it('prefers the internal detail over the client-safe message', () => {
+    const error = new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
+      internalDetail: 'Flitt payout failed: 1014 Invalid signature',
+    });
+
+    expect(error.message).toBe('გადახდის დამუშავება ვერ მოხერხდა.');
+    expect(errorDiagnostic(error)).toBe(
+      'PAYMENT_ERROR: Flitt payout failed: 1014 Invalid signature',
+    );
+  });
+
+  it('names the code when an AppError carries no detail', () => {
+    expect(errorDiagnostic(new AppError(ERROR_CODES.CONFLICT))).toBe(
+      'CONFLICT: ეს მოქმედება ეწინააღმდეგება არსებულ ჩანაწერს.',
+    );
+  });
+
+  it('keeps a plain error identifiable', () => {
+    expect(errorDiagnostic(new TypeError('fetch failed'))).toBe(
+      'TypeError: fetch failed',
+    );
+  });
+
+  it('does not throw on a value that is not an error at all', () => {
+    expect(errorDiagnostic('ECONNRESET')).toBe('ECONNRESET');
+    expect(errorDiagnostic(undefined)).toBe('undefined');
   });
 });

@@ -316,10 +316,6 @@ export function rankingScore(summary: PerformanceSummary): number {
   return Math.round((summary.profitUnitsCenti * 10_000) / denominator);
 }
 
-/** True when the record is still too short to read much into. */
-export function isLowSample(summary: PerformanceSummary): boolean {
-  return summary.decided < MIN_SAMPLE_FOR_RANKING;
-}
 
 /** Restrict a record to a trailing window, e.g. "ბოლო 30 დღე". */
 export function withinDays(

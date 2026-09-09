@@ -27,7 +27,7 @@ import {
 export const PREDICTION_STATUS_KA: Record<PredictionStatus, string> = {
   PENDING: 'მოლოდინში',
   WON: 'დაჯდა',
-  LOST: 'ვერ დაჯდა',
+  LOST: 'არ დაჯდა',
   VOID: 'ბათილი',
   PUSH: 'დაბრუნებული',
 };

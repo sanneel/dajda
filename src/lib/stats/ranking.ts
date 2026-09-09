@@ -21,7 +21,6 @@ export type AnalystListItem = {
   stats: PerformanceSummary;
   /** Published tickets per week, averaged over the selected period. */
   avgPerWeek: number;
-  lowSample: boolean;
   /** Predictions per month the author declared when applying. */
   monthlyMinimum: number | null;
   /** Published bets still running: what a new subscriber gets access to now. */
@@ -63,7 +62,6 @@ export function sortAnalysts(
     case 'accuracy':
       sorted.sort(
         (a, b) =>
-          Number(a.lowSample) - Number(b.lowSample) ||
           b.stats.hitRateBps - a.stats.hitRateBps ||
           b.stats.decided - a.stats.decided,
       );

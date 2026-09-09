@@ -41,7 +41,6 @@ export async function GET(request: Request) {
         units: formatUnits(analyst.stats.profitUnitsCenti),
         currentStreak: analyst.stats.currentStreak,
         // Consumers must be able to see that a rate is thin before quoting it.
-        lowSample: analyst.lowSample,
       })),
     });
   } catch (error) {

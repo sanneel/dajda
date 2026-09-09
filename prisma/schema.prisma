@@ -980,7 +980,16 @@ model AnalystPayout {
   providerCode     String?
   providerPayoutId String?
   rawStatus        String?
+
+  /// Why it did not pay, in the two registers that failure has.
+  ///
+  /// `failureReason` is the sentence the analyst reads on their earnings page,
+  /// so it says what happened to their money and nothing about our plumbing.
+  /// `failureDetail` is what the provider actually said, kept for the admin who
+  /// has to decide whether to release the request again; it is never rendered
+  /// to the author.
   failureReason    String?
+  failureDetail    String?
 
   /// The activity check taken at request time: what the platform looked at
   /// when deciding whether the content was actually delivered.
