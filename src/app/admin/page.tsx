@@ -97,8 +97,8 @@ export default async function AdminQueuePage() {
         id: true,
         amountMinor: true,
         currency: true,
-        maskedCard: true,
-        cardCipher: true,
+        maskedAccount: true,
+        accountCipher: true,
         activityCheckPassed: true,
         weeksInPeriod: true,
         weeksMeetingMinimum: true,
@@ -375,7 +375,7 @@ export default async function AdminQueuePage() {
                         </span>
                       </p>
                       <p className="tabular mt-0.5 text-sm text-ink-muted">
-                        {payout.maskedCard} · {formatDateTimeKa(payout.requestedAt)}
+                        {payout.maskedAccount} · {formatDateTimeKa(payout.requestedAt)}
                       </p>
                       <p
                         className={`mt-0.5 text-xs ${
@@ -392,8 +392,8 @@ export default async function AdminQueuePage() {
                     </div>
                     <DecidePayoutForm
                       payoutId={payout.id}
-                      maskedCard={payout.maskedCard}
-                      hasStoredCard={payout.cardCipher !== null}
+                      maskedAccount={payout.maskedAccount}
+                      hasStoredAccount={payout.accountCipher !== null}
                       amountLabel={formatMoney(payout.amountMinor, payout.currency)}
                     />
                   </div>

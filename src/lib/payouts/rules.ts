@@ -84,48 +84,57 @@ export function payoutPeriod(now: Date): { start: Date; end: Date } {
   };
 }
 
-/** Digits only, so spaces and dashes a person types are not a rejection. */
-export function normaliseCardNumber(input: string): string {
-  return input.replace(/\D/g, '');
+/**
+ * Upper case, with every separator stripped out. An IBAN is case-insensitive
+ * and is normally printed in groups of four, so neither the case nor whatever
+ * a bank statement put between the groups is a reason to refuse what somebody
+ * copied across. Stripping is safe because what is left still has to satisfy
+ * the shape and the check digits.
+ */
+export function normaliseIban(input: string): string {
+  return input.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 }
 
 /**
- * The Luhn check digit.
+ * The IBAN check digits (ISO 13616 / ISO 7064 mod-97-10).
  *
- * Catches a mistyped number before it becomes a failed payout that the analyst
- * has to chase. It says nothing about whether the card exists.
+ * Catches a mistyped account before it becomes a failed payout the analyst has
+ * to chase. It says nothing about whether the account exists.
+ *
+ * Georgian only, deliberately: Flitt credits an IBAN in GEL and nothing else,
+ * so a foreign account is refused at the gateway anyway. Refusing it here, with
+ * a sentence that says why, beats holding somebody's earnings for a week.
  */
-export function luhnValid(cardNumber: string): boolean {
-  const digits = normaliseCardNumber(cardNumber);
-  if (digits.length < 13 || digits.length > 19) return false;
+export function ibanValid(input: string): boolean {
+  const iban = normaliseIban(input);
+  if (!/^GE\d{2}[A-Z0-9]{18}$/.test(iban)) return false;
 
-  let sum = 0;
-  let double = false;
-  for (let i = digits.length - 1; i >= 0; i -= 1) {
-    let value = digits.charCodeAt(i) - 48;
-    if (double) {
-      value *= 2;
-      if (value > 9) value -= 9;
+  // Move the country code and check digits to the end, letters become their
+  // position in the alphabet plus nine, and the whole number must be 1 mod 97.
+  const rearranged = iban.slice(4) + iban.slice(0, 4);
+  let remainder = 0;
+  for (const char of rearranged) {
+    const chunk =
+      char >= 'A' ? String(char.charCodeAt(0) - 55) : char;
+    for (const digit of chunk) {
+      remainder = (remainder * 10 + (digit.charCodeAt(0) - 48)) % 97;
     }
-    sum += value;
-    double = !double;
   }
-  return sum % 10 === 0;
+  return remainder === 1;
 }
 
 /**
- * The only form of the card that is ever written down.
+ * The only form of the account that is ever written down.
  *
- * First six and last four, which is what the card schemes permit storing and
- * what an analyst needs to recognise which card was paid. The number itself
- * goes to the provider for one credit call and is never persisted.
+ * The country code, the check digits and the last four, which is what an
+ * analyst needs to recognise which account was paid without the row becoming a
+ * copy of their banking details. The IBAN itself goes to the provider for one
+ * credit call and is not persisted past the decision.
  */
-export function maskCardNumber(cardNumber: string): string {
-  const digits = normaliseCardNumber(cardNumber);
-  if (digits.length < 10) return '*'.repeat(Math.max(0, digits.length));
-  const head = digits.slice(0, 6);
-  const tail = digits.slice(-4);
-  return `${head}${'*'.repeat(digits.length - 10)}${tail}`;
+export function maskIban(input: string): string {
+  const iban = normaliseIban(input);
+  if (iban.length < 8) return '*'.repeat(iban.length);
+  return `${iban.slice(0, 4)}${'*'.repeat(iban.length - 8)}${iban.slice(-4)}`;
 }
 
 export type WithdrawalRefusal =
@@ -134,7 +143,7 @@ export type WithdrawalRefusal =
   | 'WINDOW_HELD'
   | 'BELOW_MINIMUM'
   | 'INSUFFICIENT_EARNINGS'
-  | 'INVALID_CARD'
+  | 'INVALID_IBAN'
   | 'PENDING_REQUEST_EXISTS';
 
 export type WithdrawalCheck =
@@ -153,7 +162,7 @@ export function checkWithdrawal(input: {
   amountMinor: number;
   earningsMinor: number;
   minimumMinor: number;
-  cardNumber: string;
+  iban: string;
   hasPendingRequest: boolean;
   /** The administrator's override for this author. Defaults to the calendar. */
   override?: PayoutWindowOverride;
@@ -177,8 +186,8 @@ export function checkWithdrawal(input: {
   if (input.amountMinor > input.earningsMinor) {
     return { allowed: false, reason: 'INSUFFICIENT_EARNINGS' };
   }
-  if (!luhnValid(input.cardNumber)) {
-    return { allowed: false, reason: 'INVALID_CARD' };
+  if (!ibanValid(input.iban)) {
+    return { allowed: false, reason: 'INVALID_IBAN' };
   }
   return { allowed: true };
 }
@@ -190,7 +199,8 @@ export const WITHDRAWAL_REFUSAL_KA: Record<WithdrawalRefusal, string> = {
     'გატანა თქვენთვის დროებით შეჩერებულია ადმინისტრაციის მიერ. დაგვიკავშირდით დეტალებისთვის.',
   BELOW_MINIMUM: 'მოთხოვნილი თანხა მინიმალურ ოდენობაზე ნაკლებია.',
   INSUFFICIENT_EARNINGS: 'დარიცხულ ნაშთზე მეტის გატანა შეუძლებელია.',
-  INVALID_CARD: 'ბარათის ნომერი არასწორია.',
+  INVALID_IBAN:
+    'IBAN არასწორია. შეიყვანეთ ქართული საბანკო ანგარიშის ნომერი, მაგალითად GE95TB0000000123456789.',
   PENDING_REQUEST_EXISTS:
     'თქვენ უკვე გაქვთ განსახილველი მოთხოვნა. დაელოდეთ მის დამუშავებას.',
 };

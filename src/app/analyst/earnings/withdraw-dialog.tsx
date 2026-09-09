@@ -10,8 +10,8 @@ import { WithdrawForm } from './withdraw-form';
 /**
  * Withdrawal, behind a button.
  *
- * The request is a two-field form, but one of the fields is a card number,
- * and an always-open card-number input on the earnings page read as a
+ * The request is a two-field form, but one of the fields is a bank account,
+ * and an always-open account-number input on the earnings page read as a
  * demand rather than an option. The page now states what can be taken out
  * and when; the form appears only when the author decides to take it.
  *

@@ -9,8 +9,9 @@ import { getPaymentProvider } from '@/lib/payments';
 import { deriveCardKey, openCard, sealCard } from './card-vault';
 import {
   checkWithdrawal,
-  maskCardNumber,
-  normaliseCardNumber,
+  ibanValid,
+  maskIban,
+  normaliseIban,
   payoutPeriod,
   weeklyActivity,
   WITHDRAWAL_REFUSAL_KA,
@@ -30,10 +31,13 @@ import {
  *      approves or refuses. A refusal or a provider failure puts the earnings
  *      straight back.
  *
- * The card number is typed once, by the analyst. It travels to the
- * administrator's approval sealed (see ./card-vault) and is wiped from the
- * row the moment the request is decided, whichever way. What stays for good
- * is the mask.
+ * The IBAN is typed once, by the analyst. It travels to the administrator's
+ * approval sealed (see ./card-vault) and is wiped from the row the moment the
+ * request is decided, whichever way. What stays for good is the mask.
+ *
+ * An account and not a card, because Flitt's card payout credits only a card
+ * that has already bought something from this merchant. See
+ * ../payments/flitt.ts#createPayout.
  */
 
 /**
@@ -47,7 +51,7 @@ const PAYOUT_FAILURE_KA = {
   TECHNICAL: 'გატანა ვერ შესრულდა ტექნიკური მიზეზით. თანხა დაგიბრუნდათ, ვნახავთ და დაგიკავშირდებით.',
 } as const;
 
-/** The key the open requests' card numbers are sealed under right now. */
+/** The key the open requests' account numbers are sealed under right now. */
 function payoutCardKey(): Buffer {
   const env = getEnv();
   return deriveCardKey(env.PAYOUT_CARD_KEY ?? env.AUTH_SECRET);
@@ -55,7 +59,7 @@ function payoutCardKey(): Buffer {
 
 export type WithdrawalRequest = {
   amountMinor: number;
-  cardNumber: string;
+  iban: string;
 };
 
 export async function requestWithdrawal(
@@ -95,7 +99,7 @@ export async function requestWithdrawal(
     amountMinor: input.amountMinor,
     earningsMinor: user.earningsMinor,
     minimumMinor: env.ANALYST_MIN_PAYOUT_MINOR,
-    cardNumber: input.cardNumber,
+    iban: input.iban,
     hasPendingRequest: pending > 0,
     override: profile.payoutWindow,
   });
@@ -126,9 +130,9 @@ export async function requestWithdrawal(
     minimumPerWeek: env.ANALYST_MIN_PUBLICATIONS_PER_WEEK,
   });
 
-  const maskedCard = maskCardNumber(input.cardNumber);
-  const cardCipher = sealCard(
-    normaliseCardNumber(input.cardNumber),
+  const maskedAccount = maskIban(input.iban);
+  const accountCipher = sealCard(
+    normaliseIban(input.iban),
     payoutCardKey(),
   );
 
@@ -153,8 +157,8 @@ export async function requestWithdrawal(
         amountMinor: input.amountMinor,
         currency: 'GEL',
         status: 'REQUESTED',
-        maskedCard,
-        cardCipher,
+        maskedAccount,
+        accountCipher,
         providerOrderId: `dajda-payout-${randomUUID()}`,
         periodStart: period.start,
         periodEnd: period.end,
@@ -180,7 +184,7 @@ export async function requestWithdrawal(
         currency: 'GEL',
         balanceAfterMinor: after.earningsMinor,
         payoutId: payout.id,
-        note: `გატანის მოთხოვნა: ${maskedCard}`,
+        note: `გატანის მოთხოვნა: ${maskedAccount}`,
       },
     });
 
@@ -198,7 +202,7 @@ export async function requestWithdrawal(
           weeksMet: activity.weeksMet,
           weeks: activity.weeks,
           activityCheckPassed: activity.passed,
-          maskedCard,
+          maskedAccount,
         },
       },
       tx,
@@ -251,7 +255,7 @@ export async function rejectPayout(
     where: { id: payout.id, status: 'REQUESTED' },
     data: {
       status: 'REJECTED',
-      cardCipher: null,
+      accountCipher: null,
       failureReason: reason,
       decidedAt: new Date(),
       decidedById: admin.userId,
@@ -279,17 +283,17 @@ export async function rejectPayout(
 /**
  * Release a request to the provider.
  *
- * The card number comes from the sealed copy the analyst's request carries.
- * An administrator may still type one - it is the only way to release a
- * request made before sealing existed, or one sealed under a key that has
- * since been rotated - and anything typed is checked against the mask taken
- * at request time, so an approval cannot quietly redirect the money to a
- * different card.
+ * The IBAN comes from the sealed copy the analyst's request carries. An
+ * administrator may still type one - it is the only way to release a request
+ * made before sealing existed, or one sealed under a key that has since been
+ * rotated - and anything typed is checked against the mask taken at request
+ * time, so an approval cannot quietly redirect the money to a different
+ * account.
  */
 export async function approvePayout(
   payoutId: string,
   admin: { userId: string },
-  typedCardNumber?: string,
+  typedIban?: string,
 ): Promise<{ status: 'PAID' | 'APPROVED' | 'FAILED'; message?: string }> {
   const payout = await prisma.analystPayout.findUnique({
     where: { id: payoutId },
@@ -299,8 +303,8 @@ export async function approvePayout(
       amountMinor: true,
       currency: true,
       status: true,
-      maskedCard: true,
-      cardCipher: true,
+      maskedAccount: true,
+      accountCipher: true,
       providerOrderId: true,
       analystProfile: { select: { displayName: true } },
     },
@@ -310,24 +314,36 @@ export async function approvePayout(
     throw new AppError(ERROR_CODES.CONFLICT, 'მოთხოვნა უკვე დამუშავებულია.');
   }
 
-  let cardNumber: string | null = null;
+  let iban: string | null = null;
 
-  if (typedCardNumber) {
-    if (maskCardNumber(typedCardNumber) !== payout.maskedCard) {
+  if (typedIban) {
+    if (maskIban(typedIban) !== payout.maskedAccount) {
       throw new AppError(
         ERROR_CODES.VALIDATION_ERROR,
-        'ბარათი არ ემთხვევა მოთხოვნაში მითითებულს.',
+        'ანგარიში არ ემთხვევა მოთხოვნაში მითითებულს.',
       );
     }
-    cardNumber = normaliseCardNumber(typedCardNumber);
-  } else if (payout.cardCipher) {
-    cardNumber = openCard(payout.cardCipher, payoutCardKey());
+    iban = normaliseIban(typedIban);
+  } else if (payout.accountCipher) {
+    iban = openCard(payout.accountCipher, payoutCardKey());
   }
 
-  if (!cardNumber) {
+  if (!iban) {
     throw new AppError(
       ERROR_CODES.VALIDATION_ERROR,
-      'ამ მოთხოვნას ბარათის ნომერი აღარ ახლავს. შეიყვანეთ ნომერი ხელით, ან უარყავით და სთხოვეთ ავტორს მოთხოვნის ხელახლა შეტანა.',
+      'ამ მოთხოვნას ანგარიშის ნომერი აღარ ახლავს. შეიყვანეთ IBAN ხელით, ან უარყავით და სთხოვეთ ავტორს მოთხოვნის ხელახლა შეტანა.',
+    );
+  }
+
+  /*
+   * A number that was sealed before the check digits were verified, or one an
+   * admin has just typed, must still be a real IBAN: the gateway's refusal for
+   * a malformed account costs a round trip and reads as a technical failure.
+   */
+  if (!ibanValid(iban)) {
+    throw new AppError(
+      ERROR_CODES.VALIDATION_ERROR,
+      WITHDRAWAL_REFUSAL_KA.INVALID_IBAN,
     );
   }
 
@@ -353,7 +369,8 @@ export async function approvePayout(
       amountMinor: payout.amountMinor,
       currency: payout.currency,
       description: `DAJDA: ანაზღაურება ${payout.analystProfile.displayName}`,
-      receiverCardNumber: cardNumber,
+      receiverIban: iban,
+      receiverName: payout.analystProfile.displayName,
     });
 
     // A refusal the provider answered with is a fact about this card or this
@@ -369,12 +386,12 @@ export async function approvePayout(
       );
     }
 
-    // The provider has the number now; the row does not need it any more.
+    // The provider has the account now; the row does not need it any more.
     await prisma.analystPayout.update({
       where: { id: payout.id },
       data: {
         status: result.status === 'SUCCEEDED' ? 'PAID' : result.status === 'FAILED' ? 'FAILED' : 'APPROVED',
-        cardCipher: null,
+        accountCipher: null,
         providerPayoutId: result.providerPaymentId,
         rawStatus: result.rawStatus,
         failureReason:
@@ -442,7 +459,7 @@ export async function approvePayout(
       where: { id: payout.id },
       data: {
         status: 'FAILED',
-        cardCipher: null,
+        accountCipher: null,
         failureReason: PAYOUT_FAILURE_KA.TECHNICAL,
         failureDetail: detail.slice(0, 1000),
       },

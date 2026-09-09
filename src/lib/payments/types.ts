@@ -146,9 +146,13 @@ export type SubscriptionActionResult = {
 };
 
 /**
- * Credit funds to a card (e.g. paying an analyst out). Exactly one of
- * `receiverCardToken` / `receiverCardNumber` must be set; prefer the token so
- * the PAN never crosses this server.
+ * Credit funds to a bank account (e.g. paying an analyst out).
+ *
+ * An IBAN rather than a card, because a card payout is not a thing this rail
+ * offers us: Flitt credits a card only through a token issued by an earlier
+ * purchase on that same card, which for somebody who is owed money rather than
+ * spending it means "pay us first and we will pay you back". See
+ * ./flitt.ts#createPayout.
  */
 export type PayoutInput = {
   /** Our identifier for the payout; becomes the provider's order_id. */
@@ -156,8 +160,10 @@ export type PayoutInput = {
   amountMinor: number;
   currency: string;
   description: string;
-  receiverCardToken?: string;
-  receiverCardNumber?: string;
+  /** The receiving account, normalised and check-digit verified by the caller. */
+  receiverIban: string;
+  /** The payee, when known. Optional at the gateway. */
+  receiverName?: string;
 };
 
 export type PayoutResult = {

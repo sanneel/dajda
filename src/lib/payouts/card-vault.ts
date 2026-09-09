@@ -40,10 +40,10 @@ export function deriveCardKey(secret: string): Buffer {
   );
 }
 
-export function sealCard(cardNumber: string, key: Buffer): string {
+export function sealCard(secret: string, key: Buffer): string {
   const nonce = randomBytes(NONCE_BYTES);
   const cipher = createCipheriv(ALGORITHM, key, nonce);
-  const body = Buffer.concat([cipher.update(cardNumber, 'utf8'), cipher.final()]);
+  const body = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
   return [
     VERSION,

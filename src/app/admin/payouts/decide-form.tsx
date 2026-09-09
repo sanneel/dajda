@@ -17,19 +17,19 @@ import { Alert } from '@/components/ui/feedback';
  * author nothing.
  *
  * The card number travels sealed with the request, so approval is one press.
- * A request that carries no sealed number (made before sealing existed, or
+ * A request that carries no sealed account (made before sealing existed, or
  * sealed under a key since rotated) shows a field to type it, and the service
  * checks what is typed against the mask taken at request time.
  */
 export function DecidePayoutForm({
   payoutId,
-  maskedCard,
-  hasStoredCard,
+  maskedAccount,
+  hasStoredAccount,
   amountLabel,
 }: {
   payoutId: string;
-  maskedCard: string;
-  hasStoredCard: boolean;
+  maskedAccount: string;
+  hasStoredAccount: boolean;
   /** Already formatted, e.g. "120.00 ₾": what the confirm names. */
   amountLabel: string;
 }) {
@@ -70,7 +70,7 @@ export function DecidePayoutForm({
 
         if (
           decision === 'APPROVE' &&
-          !window.confirm(`გავიტანოთ ${amountLabel} ბარათზე ${maskedCard}?`)
+          !window.confirm(`გავიტანოთ ${amountLabel} ანგარიშზე ${maskedAccount}?`)
         ) {
           event.preventDefault();
         }
@@ -80,29 +80,29 @@ export function DecidePayoutForm({
       <input type="hidden" name="payoutId" value={payoutId} />
 
       {generalError ? <Alert tone="error">{generalError}</Alert> : null}
-      {fieldErrors?.cardNumber?.[0] ? (
-        <Alert tone="error">{fieldErrors.cardNumber[0]}</Alert>
+      {fieldErrors?.iban?.[0] ? (
+        <Alert tone="error">{fieldErrors.iban[0]}</Alert>
       ) : null}
 
-      {!hasStoredCard ? (
+      {!hasStoredAccount ? (
         <div>
           <label
-            htmlFor={`card-${payoutId}`}
+            htmlFor={`iban-${payoutId}`}
             className="mb-1 block text-xs font-medium text-ink-muted"
           >
-            ბარათის ნომერი
+            IBAN
           </label>
           <input
-            id={`card-${payoutId}`}
-            name="cardNumber"
-            inputMode="numeric"
+            id={`iban-${payoutId}`}
+            name="iban"
+            autoCapitalize="characters"
             autoComplete="off"
-            placeholder={maskedCard}
-            aria-describedby={`card-${payoutId}-hint`}
+            placeholder={maskedAccount}
+            aria-describedby={`iban-${payoutId}-hint`}
             className="tabular min-h-11 w-full rounded-md border border-line bg-surface px-3 text-sm text-ink sm:w-64"
           />
-          <p id={`card-${payoutId}-hint`} className="mt-1 text-xs text-ink-faint">
-            ამ მოთხოვნას ნომერი არ ახლავს: შეიყვანეთ ხელით, ნიღბის მიხედვით.
+          <p id={`iban-${payoutId}-hint`} className="mt-1 text-xs text-ink-faint">
+            ამ მოთხოვნას ანგარიში არ ახლავს: შეიყვანეთ ხელით, ნიღბის მიხედვით.
           </p>
         </div>
       ) : null}
@@ -117,9 +117,9 @@ export function DecidePayoutForm({
         >
           {pending ? 'მუშავდება…' : `გატანა · ${amountLabel}`}
         </Button>
-        {hasStoredCard ? (
+        {hasStoredAccount ? (
           <span className="tabular text-sm text-ink-muted">
-            ბარათზე {maskedCard}
+            ანგარიშზე {maskedAccount}
           </span>
         ) : null}
       </div>

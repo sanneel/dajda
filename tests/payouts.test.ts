@@ -4,11 +4,11 @@ import { AppError, ERROR_CODES, errorDiagnostic } from '@/lib/errors';
 import {
   checkWithdrawal,
   daysInMonth,
+  ibanValid,
   isWithdrawalWindowOpen,
-  luhnValid,
-  maskCardNumber,
+  maskIban,
   nextWithdrawalWindow,
-  normaliseCardNumber,
+  normaliseIban,
   payoutPeriod,
   tbilisiParts,
   weeklyActivity,
@@ -145,30 +145,44 @@ describe('payout period', () => {
   });
 });
 
-describe('card handling', () => {
-  it('accepts a valid number, spaces and all', () => {
-    expect(luhnValid('4242 4242 4242 4242')).toBe(true);
-    expect(luhnValid('4111111111111111')).toBe(true);
+describe('IBAN handling', () => {
+  // GE95TB0000000123456789 and GE61TB7777777777777777 both satisfy mod-97.
+  it('accepts a valid account, spaces and all', () => {
+    expect(ibanValid('GE95TB0000000123456789')).toBe(true);
+    expect(ibanValid('GE95 TB00 0000 0123 4567 89')).toBe(true);
+    expect(ibanValid('ge95tb0000000123456789')).toBe(true);
   });
 
-  it('rejects a mistyped digit', () => {
-    expect(luhnValid('4242424242424241')).toBe(false);
+  it('rejects a mistyped character', () => {
+    expect(ibanValid('GE94TB0000000123456789')).toBe(false);
+    expect(ibanValid('GE95TB0000000123456798')).toBe(false);
   });
 
-  it('rejects lengths no card has', () => {
-    expect(luhnValid('42424242')).toBe(false);
-    expect(luhnValid('42424242424242424242')).toBe(false);
+  it('rejects lengths no Georgian IBAN has', () => {
+    expect(ibanValid('GE95TB00000001234567')).toBe(false);
+    expect(ibanValid('GE95TB000000012345678901')).toBe(false);
   });
 
-  it('strips separators before checking', () => {
-    expect(normaliseCardNumber('4242-4242 4242.4242')).toBe('4242424242424242');
+  /*
+   * Flitt credits an IBAN in GEL and nothing else, so a foreign account would
+   * be refused at the gateway after the earnings had already been held.
+   */
+  it('rejects an account outside Georgia even when its check digits are right', () => {
+    expect(ibanValid('GB82WEST12345698765432')).toBe(false);
+    expect(ibanValid('DE89370400440532013000')).toBe(false);
   });
 
-  it('keeps only the first six and last four when masking', () => {
-    expect(maskCardNumber('4242424242424242')).toBe('424242******4242');
-    // The mask is what identifies the card later, so it must be stable
-    // whatever separators the analyst typed.
-    expect(maskCardNumber('4242 4242 4242 4242')).toBe('424242******4242');
+  it('strips separators and upper-cases before checking', () => {
+    expect(normaliseIban('ge95-tb00 0000 0123.456789')).toBe(
+      'GE95TB0000000123456789',
+    );
+  });
+
+  it('keeps the country code, the check digits and the last four when masking', () => {
+    expect(maskIban('GE95TB0000000123456789')).toBe('GE95**************6789');
+    // The mask is what identifies the account later, so it must be stable
+    // whatever the analyst typed.
+    expect(maskIban('ge95 tb00 0000 0123 4567 89')).toBe('GE95**************6789');
   });
 });
 
@@ -178,7 +192,7 @@ describe('withdrawal checks', () => {
     amountMinor: 5000,
     earningsMinor: 12000,
     minimumMinor: 2000,
-    cardNumber: '4242424242424242',
+    iban: 'GE95TB0000000123456789',
     hasPendingRequest: false,
   };
 
@@ -206,10 +220,10 @@ describe('withdrawal checks', () => {
     });
   });
 
-  it('refuses a card number that fails its check digit', () => {
+  it('refuses an account that fails its check digits', () => {
     expect(
-      checkWithdrawal({ ...base, cardNumber: '4242424242424241' }),
-    ).toEqual({ allowed: false, reason: 'INVALID_CARD' });
+      checkWithdrawal({ ...base, iban: 'GE94TB0000000123456789' }),
+    ).toEqual({ allowed: false, reason: 'INVALID_IBAN' });
   });
 
   it('refuses a second request while one is still open', () => {

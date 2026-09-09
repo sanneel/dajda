@@ -5,7 +5,6 @@ import { requestWithdrawalAction } from '@/actions/payouts';
 import { Field, Input } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
-import { PaymentMarks } from '@/components/payment-marks';
 
 export function WithdrawForm({
   maxGel,
@@ -68,20 +67,20 @@ export function WithdrawForm({
       </Field>
 
       <Field
-        label="ბარათის ნომერი"
-        htmlFor="cardNumber"
+        label="IBAN"
+        htmlFor="iban"
         required
-        hint="თანხა ჩაირიცხება ამ ბარათზე. ნომერი ინახება დაშიფრული მხოლოდ მოთხოვნის დამუშავებამდე; შემდეგ რჩება მარტო დაფარული სახე."
-        error={errorFor('cardNumber')}
+        hint="თანხა ჩაირიცხება ამ ანგარიშზე. ნომერი ინახება დაშიფრული მხოლოდ მოთხოვნის დამუშავებამდე; შემდეგ რჩება მარტო დაფარული სახე."
+        error={errorFor('iban')}
       >
         <Input
-          id="cardNumber"
-          name="cardNumber"
-          inputMode="numeric"
+          id="iban"
+          name="iban"
+          autoCapitalize="characters"
           autoComplete="off"
-          placeholder="4444 5555 6666 1111"
+          placeholder="GE95TB0000000123456789"
           required
-          error={Boolean(errorFor('cardNumber'))}
+          error={Boolean(errorFor('iban'))}
         />
       </Field>
 
@@ -89,10 +88,9 @@ export function WithdrawForm({
         {pending ? 'იგზავნება…' : 'გატანის მოთხოვნა'}
       </Button>
 
-      <div className="flex items-center gap-2 text-xs text-ink-faint">
-        <span>ჩარიცხვა ბარათზე:</span>
-        <PaymentMarks />
-      </div>
+      <p className="text-xs text-ink-faint">
+        ჩარიცხვა ქართულ საბანკო ანგარიშზე, ლარით.
+      </p>
     </form>
   );
 }

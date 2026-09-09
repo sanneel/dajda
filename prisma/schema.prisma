@@ -966,14 +966,16 @@ model AnalystPayout {
   status      PayoutStatus @default(REQUESTED)
 
   /// The masked form, kept for good: what the analyst and the admin see.
-  maskedCard String
+  /// Country code, check digits and the last four of the receiving IBAN. Rows
+  /// written before payouts moved off cards hold a card mask instead.
+  maskedAccount String
 
-  /// The full number, sealed with AES-256-GCM under the payout card key, and
+  /// The full IBAN, sealed with AES-256-GCM under the payout card key, and
   /// held ONLY while the request is open. It is what the provider is given
   /// when an admin releases the payout, so the admin never has to obtain the
-  /// number a second time through some other channel. Cleared to null the
+  /// account a second time through some other channel. Cleared to null the
   /// moment the request is decided - paid, failed or refused.
-  cardCipher String?
+  accountCipher String?
 
   /// Our identifier for the payout, sent as the provider's order_id.
   providerOrderId  String  @unique

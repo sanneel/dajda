@@ -68,7 +68,7 @@ export default async function AnalystEarningsPage() {
         amountMinor: true,
         currency: true,
         status: true,
-        maskedCard: true,
+        maskedAccount: true,
         failureReason: true,
         requestedAt: true,
       },
@@ -250,7 +250,7 @@ export default async function AnalystEarningsPage() {
                       {formatMoney(payout.amountMinor, payout.currency)}
                     </p>
                     <p className="tabular mt-0.5 text-sm text-ink-faint">
-                      {payout.maskedCard} · {formatDateTimeKa(payout.requestedAt)}
+                      {payout.maskedAccount} · {formatDateTimeKa(payout.requestedAt)}
                     </p>
                     {payout.failureReason ? (
                       <p className="mt-0.5 text-sm text-loss">

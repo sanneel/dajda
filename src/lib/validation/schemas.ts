@@ -464,18 +464,21 @@ export const withdrawalSchema = z.object({
     .number('შეიყვანეთ თანხა.')
     .positive('თანხა უნდა იყოს დადებითი.')
     .max(100000, 'ერთ მოთხოვნაზე მაქსიმუმი 100000 ლარია.'),
-  /** Spaces and other separators are stripped before the Luhn check. */
-  cardNumber: z
+  /**
+   * Spaces and dashes are stripped before the check digits are verified. Only
+   * the shape is checked here; ibanValid() in payouts/rules does the mod-97.
+   */
+  iban: z
     .string()
     .trim()
-    .min(13, 'ბარათის ნომერი არასწორია.')
-    .max(32, 'ბარათის ნომერი არასწორია.'),
+    .min(22, 'IBAN არასწორია.')
+    .max(34, 'IBAN არასწორია.'),
 });
 
 export const payoutDecisionSchema = z.object({
   payoutId: z.uuid(),
   decision: z.enum(['APPROVE', 'REJECT']),
-  /** Required to approve: the number is never stored, so it is re-entered. */
-  cardNumber: z.string().trim().min(13).max(32).optional(),
+  /** Only for a request whose sealed IBAN can no longer be opened. */
+  iban: z.string().trim().min(22).max(34).optional(),
   reason: z.string().trim().max(300).optional(),
 });

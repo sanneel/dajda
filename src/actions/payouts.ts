@@ -27,9 +27,8 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 /**
  * Ask for earnings to be paid out.
  *
- * The card number reaches this action, goes to the provider on approval, and
- * is never stored: only its masked form is written down. That is why the
- * administrator has to re-enter it to release the payout.
+ * The IBAN reaches this action, is sealed with the request, and goes to the
+ * provider on approval. Only its masked form outlives the decision.
  */
 export async function requestWithdrawalAction(
   _previous: ActionResult<{ payoutId: string }> | null,
@@ -46,7 +45,7 @@ export async function requestWithdrawalAction(
 
     const parsed = withdrawalSchema.safeParse({
       amountGel: formData.get('amountGel'),
-      cardNumber: formData.get('cardNumber'),
+      iban: formData.get('iban'),
     });
     if (!parsed.success) {
       return fail(
@@ -59,7 +58,7 @@ export async function requestWithdrawalAction(
     const result = await requestWithdrawal(
       {
         amountMinor: Math.round(parsed.data.amountGel * 100),
-        cardNumber: parsed.data.cardNumber,
+        iban: parsed.data.iban,
       },
       { userId: actor.userId, role: actor.role },
     );
@@ -83,7 +82,7 @@ export async function decidePayoutAction(
     const parsed = payoutDecisionSchema.safeParse({
       payoutId: formData.get('payoutId'),
       decision: formData.get('decision'),
-      cardNumber: formData.get('cardNumber') || undefined,
+      iban: formData.get('iban') || undefined,
       reason: formData.get('reason') || undefined,
     });
     if (!parsed.success) {
@@ -106,12 +105,12 @@ export async function decidePayoutAction(
       return ok({ status: 'REJECTED' });
     }
 
-    // The number normally comes sealed with the request; a typed one is the
+    // The account normally comes sealed with the request; a typed one is the
     // fallback for requests that carry none, and is checked against the mask.
     const result = await approvePayout(
       input.payoutId,
       { userId: admin.userId },
-      input.cardNumber,
+      input.iban,
     );
 
     revalidatePath('/admin', 'layout');

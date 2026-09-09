@@ -150,7 +150,7 @@ await expectReject(
   'AnalystPayout_amount_positive: a withdrawal of a negative sum',
   CHECK_VIOLATION,
   `INSERT INTO "AnalystPayout"
-     (id,"analystProfileId","userId","amountMinor","maskedCard","providerOrderId",
+     (id,"analystProfileId","userId","amountMinor","maskedAccount","providerOrderId",
       "periodStart","periodEnd","publicationsInPeriod","activityCheckPassed")
    VALUES ('aaaaaaaa-0000-4000-8000-000000000002','${ANALYST}','${USER}',-1,'4444**1111',
       'payout-1',now(),now(),0,true);`,
