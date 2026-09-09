@@ -17,6 +17,7 @@ import { CancelSubscriptionButton } from "./cancel-button";
 import { ResendVerificationButton } from "./resend-verification-button";
 import { VerifyCodeForm } from "./verify-code-form";
 import { Avatar } from "@/components/ui/avatar";
+import { Crown, Receipt, Ticket, Wallet } from "lucide-react";
 import { PaymentReturnBanner } from "@/components/payment-return";
 import { paymentReturnStatus } from "@/lib/payments/return-status";
 
@@ -221,7 +222,12 @@ export default async function DashboardPage({
         className="scroll-mt-24 rounded-card border border-line bg-surface"
       >
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 marker:content-none sm:px-5">
-          <span className="font-display text-base text-ink">გამოწერები</span>
+          {/* An icon per section, so the page reads as a set of places
+              rather than four identical bars of text. */}
+          <span className="flex items-center gap-2.5">
+            <Crown className="size-4 text-ink-faint" aria-hidden="true" />
+            <span className="font-display text-base text-ink">გამოწერები</span>
+          </span>
           <span className="tabular text-sm text-ink-faint">
             {subscriptions.length}
           </span>
@@ -394,8 +400,11 @@ export default async function DashboardPage({
       {purchases.length > 0 ? (
         <details open className="rounded-card border border-line bg-surface">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 marker:content-none sm:px-5">
-            <span className="font-display text-base text-ink">
-              შეძენილი ბილეთები
+            <span className="flex items-center gap-2.5">
+              <Ticket className="size-4 text-ink-faint" aria-hidden="true" />
+              <span className="font-display text-base text-ink">
+                შეძენილი ბილეთები
+              </span>
             </span>
             <span className="tabular text-sm text-ink-faint">
               {purchases.length}
@@ -457,7 +466,10 @@ export default async function DashboardPage({
         <CardBody>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm text-ink-muted">ბალანსი</h2>
+              <h2 className="flex items-center gap-2 text-sm text-ink-muted">
+                <Wallet className="size-4 text-ink-faint" aria-hidden="true" />
+                ბალანსი
+              </h2>
               <p className="font-display text-3xl text-ink tabular">
                 {formatMoney(balance.balanceMinor, "GEL")}
               </p>
@@ -513,8 +525,11 @@ export default async function DashboardPage({
        */}
       <details className="rounded-card border border-line bg-surface">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 marker:content-none sm:px-5">
-          <span className="font-display text-base text-ink">
-            გადახდების ისტორია
+          <span className="flex items-center gap-2.5">
+            <Receipt className="size-4 text-ink-faint" aria-hidden="true" />
+            <span className="font-display text-base text-ink">
+              გადახდების ისტორია
+            </span>
           </span>
           <span className="tabular text-sm text-ink-faint">
             {payments.length}

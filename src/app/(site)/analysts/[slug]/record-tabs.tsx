@@ -13,7 +13,7 @@ import type { PlanView } from '@/components/plan-card';
 import { OddsBucketsChart } from '@/components/charts/odds-buckets';
 import { MonthlyBars } from '@/components/charts/monthly-bars';
 
-type Tab = 'FREE' | 'PAID' | 'PLANS';
+type Tab = 'SUB' | 'PAID' | 'FREE';
 
 export type PanelPlan = PlanView & {
   /** Set when the viewer already holds this plan. */
@@ -35,22 +35,29 @@ export type TabCharts = {
  * time, and the switch is which question: what the free tickets returned, what
  * the paid ones returned, or what the paid ones cost.
  *
- * Subscription is a position in the same switch rather than a section further
- * down, because it is the answer to a question the other two positions
- * provoke. It is absent entirely when nothing here is for sale.
+ * There are three positions because there are three products, and the switch
+ * leads with the subscription because that is the author's main one. The
+ * subscription tickets and the singly-sold ones used to share a position, so
+ * both showed the same numbers - a reader comparing "what do the paid ones
+ * return" against "what does the subscription return" was reading one answer
+ * twice. They are separate sales with separate records.
  */
 export function RecordTabs({
   free,
   paid,
+  subscription,
   freeCharts,
   paidCharts,
+  subscriptionCharts,
   plans,
-  initialTab = 'FREE',
+  initialTab = 'SUB',
 }: {
   free: PerformanceSummary;
   paid: PerformanceSummary;
+  subscription: PerformanceSummary;
   freeCharts: TabCharts;
   paidCharts: TabCharts;
+  subscriptionCharts: TabCharts;
   plans: PanelPlan[];
   /** Chosen by the page from ?tab=, so a deep link opens the right panel. */
   initialTab?: Tab;
@@ -58,15 +65,22 @@ export function RecordTabs({
   /*
    * "Sells subscriptions" means a plan that costs money. An analyst whose only
    * plans are free gets no subscription position - offering to sell something
-   * with nothing behind it is worse than staying quiet.
+   * with nothing behind it is worse than staying quiet - unless they have
+   * posted subscription tickets, in which case the record exists and is worth
+   * showing even while nothing is on sale.
    */
   const sellable = plans.filter((plan) => plan.priceMinor > 0);
-  const hasSubscription = sellable.length > 0;
+  const hasSubscription = sellable.length > 0 || subscription.total > 0;
 
   // Never open on a panel that is not there to open.
   const [tab, setTab] = useState<Tab>(
-    initialTab === 'PLANS' && !hasSubscription ? 'FREE' : initialTab,
+    initialTab === 'SUB' && !hasSubscription ? 'FREE' : initialTab,
   );
+
+  const summary =
+    tab === 'FREE' ? free : tab === 'PAID' ? paid : subscription;
+  const charts =
+    tab === 'FREE' ? freeCharts : tab === 'PAID' ? paidCharts : subscriptionCharts;
 
   return (
     <Card as="section">
@@ -82,24 +96,21 @@ export function RecordTabs({
           role="tablist"
           aria-label="ჩანაწერის კატეგორია"
         >
-          <TabButton selected={tab === 'FREE'} onSelect={() => setTab('FREE')}>
-            უფასო
-          </TabButton>
-          <TabButton selected={tab === 'PAID'} onSelect={() => setTab('PAID')}>
-            ფასიანი
-          </TabButton>
           {hasSubscription ? (
-            <TabButton
-              selected={tab === 'PLANS'}
-              onSelect={() => setTab('PLANS')}
-            >
+            <TabButton selected={tab === 'SUB'} onSelect={() => setTab('SUB')}>
               გამოწერა
             </TabButton>
           ) : null}
+          <TabButton selected={tab === 'PAID'} onSelect={() => setTab('PAID')}>
+            ფასიანი
+          </TabButton>
+          <TabButton selected={tab === 'FREE'} onSelect={() => setTab('FREE')}>
+            უფასო
+          </TabButton>
         </div>
 
         <h2 id="plans-heading" className="font-display text-base text-ink">
-          {tab === 'PLANS' ? 'გამოწერა' : 'პროგნოზების ჩანაწერი'}
+          პროგნოზების ჩანაწერი
         </h2>
       </div>
 
@@ -107,20 +118,16 @@ export function RecordTabs({
         {/*
          * Statistics only, on every tab. The subscription itself is bought
          * from the button in the profile header, not from inside the
-         * record: this panel answers "how did the bets go", and the price
-         * is a different question.
+         * record: this panel answers "how did the bets go" for one product
+         * at a time, and the price is a different question.
          */}
         <div>
-          <RecordStats summary={tab === 'FREE' ? free : paid} />
+          <RecordStats summary={summary} />
           {/*
-           * The charts belong to the slice the switch selected: the free
-           * tab charts the free record, the paid tab the paid one, so a
-           * number and its picture can never disagree.
+           * The charts belong to the slice the switch selected, so a number
+           * and its picture can never disagree.
            */}
-          <ChartPair
-            tab={tab}
-            charts={tab === 'FREE' ? freeCharts : paidCharts}
-          />
+          <ChartPair tab={tab} charts={charts} />
         </div>
       </CardBody>
     </Card>

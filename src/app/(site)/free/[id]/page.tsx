@@ -404,7 +404,7 @@ export default async function TicketPage({
             href={`/analysts/${author.slug}?tab=${isPaid ? 'paid' : 'free'}`}
             className="flex items-center gap-3"
           >
-            <Avatar name={author.displayName} size="md" />
+            <Avatar name={author.displayName} src={author.photoPath} size="md" />
             <div>
               <p className="font-medium text-ink">{author.displayName}</p>
               <p className="text-sm text-ink-muted">

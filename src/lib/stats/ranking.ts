@@ -12,6 +12,8 @@ export type AnalystListItem = {
   id: string;
   slug: string;
   displayName: string;
+  /** The author's photograph, when their profile carries one. */
+  photoPath: string | null;
   headline: string | null;
   isDemo: boolean;
   sports: { code: string; nameKa: string }[];

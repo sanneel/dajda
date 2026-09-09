@@ -79,6 +79,7 @@ export async function listAnalysts(options?: {
       id: true,
       slug: true,
       displayName: true,
+      photoPath: true,
       headline: true,
       isDemo: true,
       monthlyMinimum: true,
@@ -150,6 +151,7 @@ export async function listAnalysts(options?: {
       id: profile.id,
       slug: profile.slug,
       displayName: profile.displayName,
+      photoPath: profile.photoPath,
       headline: profile.headline,
       isDemo: profile.isDemo,
       sports: profile.sports.map((entry) => entry.sport),
@@ -185,6 +187,7 @@ export async function getAnalystBySlug(slug: string) {
       id: true,
       slug: true,
       displayName: true,
+      photoPath: true,
       headline: true,
       bio: true,
       status: true,
@@ -258,8 +261,17 @@ export async function getAnalystBySlug(slug: string) {
     freeAllTime: summarizePerformance(
       toRecords(predictions.filter((p) => p.visibility === 'PUBLIC')),
     ),
+    /*
+     * One summary per product. A singly-sold ticket and a subscription
+     * ticket are two different sales, so folding them into one "paid"
+     * figure answered neither question - and made the two panels on the
+     * profile show the same numbers.
+     */
     paidAllTime: summarizePerformance(
-      toRecords(predictions.filter((p) => p.visibility !== 'PUBLIC')),
+      toRecords(predictions.filter((p) => p.visibility === 'PREMIUM')),
+    ),
+    subscriptionAllTime: summarizePerformance(
+      toRecords(predictions.filter((p) => p.visibility === 'VIP')),
     ),
     records,
   };

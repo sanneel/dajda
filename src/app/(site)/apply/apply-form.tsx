@@ -160,6 +160,23 @@ export function AnalystApplyForm({ sports }: { sports: SportOption[] }) {
       </Field>
 
       <Field
+        label="პროფილის ფოტო"
+        htmlFor="photo"
+        required
+        hint="თქვენი ფოტო, რომელიც გამოჩნდება პროფილზე და ყველა ბილეთთან. საჯაროა."
+        error={errorFor('photo')}
+      >
+        <input
+          id="photo"
+          name="photo"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          required
+          className="block w-full text-sm text-ink-muted file:mr-3 file:rounded-md file:border file:border-line file:bg-surface file:px-3 file:py-1.5 file:text-sm file:text-ink"
+        />
+      </Field>
+
+      <Field
         label="პირადობის დამადასტურებელი დოკუმენტი"
         htmlFor="identityDocument"
         required

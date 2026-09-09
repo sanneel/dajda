@@ -363,16 +363,34 @@ export async function applyAsAnalystAction(
       });
     }
 
+    /*
+     * The public photograph and the private document are two different
+     * things and are checked together, so an applicant who forgot one is
+     * told about both at once rather than one per attempt.
+     */
+    const photo = formData.get('photo');
     const document = formData.get('identityDocument');
+    const missing: Record<string, string[]> = {};
+    if (!(photo instanceof File) || photo.size === 0) {
+      missing.photo = ['ატვირთეთ პროფილის ფოტო.'];
+    }
     if (!(document instanceof File) || document.size === 0) {
-      return fail(ERROR_CODES.VALIDATION_ERROR, undefined, {
-        identityDocument: ['ატვირთეთ პირადობის დამადასტურებელი დოკუმენტი.'],
-      });
+      missing.identityDocument = [
+        'ატვირთეთ პირადობის დამადასტურებელი დოკუმენტი.',
+      ];
+    }
+    if (Object.keys(missing).length > 0) {
+      return fail(ERROR_CODES.VALIDATION_ERROR, undefined, missing);
     }
 
-    // Stored before the profile row, so a rejected image never leaves a
-    // half-built application behind.
-    const identityDocumentId = await storeIdentityDocument(document);
+    /*
+     * Both stored before the profile row, so a rejected image never leaves a
+     * half-built application behind. The photograph goes through the same
+     * re-encoder as a bet slip - it is a public image and is stripped of its
+     * metadata on the way in; the document goes to the private store.
+     */
+    const photoPath = (await storeScreenshot(photo as File)).urlPath;
+    const identityDocumentId = await storeIdentityDocument(document as File);
 
     const profile = await prisma.$transaction(async (tx) => {
       const created = await tx.analystProfile.create({
@@ -389,6 +407,7 @@ export async function applyAsAnalystAction(
           bio: input.bio,
           status: 'PENDING',
           termsAcceptedAt: new Date(),
+          photoPath,
           identityDocumentId,
         },
         select: { id: true },

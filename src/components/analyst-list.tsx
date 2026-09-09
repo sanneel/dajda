@@ -83,7 +83,7 @@ export function AnalystRow({
        */}
       <div className="min-w-0">
         <div className="flex items-start gap-3">
-          <Avatar name={analyst.displayName} size="md" />
+          <Avatar name={analyst.displayName} src={analyst.photoPath ?? null} size="md" />
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">

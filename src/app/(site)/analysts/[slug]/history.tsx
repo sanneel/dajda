@@ -36,20 +36,21 @@ export type HistoryEntry = {
 };
 
 const TABS = [
-  { id: 'PUBLIC', label: 'უფასო' },
-  { id: 'PREMIUM', label: 'ფასიანი' },
+  // Subscription leads, as it does on the record switch above.
   { id: 'VIP', label: 'გამოწერა' },
+  { id: 'PREMIUM', label: 'ფასიანი' },
+  { id: 'PUBLIC', label: 'უფასო' },
 ] as const;
 
 export function AnalystHistory({ entries }: { entries: HistoryEntry[] }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]['id']>('PUBLIC');
+  const [tab, setTab] = useState<(typeof TABS)[number]['id']>('VIP');
   const shown = entries.filter((entry) => entry.visibility === tab);
 
   return (
     <div>
       <div
         role="tablist"
-        aria-label="ბილეთების ისტორია"
+        aria-label="აქტიური ბილეთები"
         className="-mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
       >
         {TABS.map((entry) => {

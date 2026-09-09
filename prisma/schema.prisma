@@ -402,6 +402,12 @@ model AnalystProfile {
   /// When the applicant accepted the platform's terms.
   termsAcceptedAt DateTime?
 
+  /// The author's face, shown wherever their name is. Required on every new
+  /// application: a record is a person's record, and a page of initials made
+  /// four analysts look like one directory entry repeated. Nullable only for
+  /// the profiles approved before the rule existed.
+  photoPath String?
+
   /// Identity document supporting the application. Never publicly reachable:
   /// see IdentityDocument and the admin only route that serves it.
   identityDocumentId String?           @unique @db.Uuid

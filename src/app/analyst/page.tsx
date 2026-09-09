@@ -63,6 +63,7 @@ export default async function AnalystPage() {
         where: { id: analyst.analystProfileId },
         select: {
           displayName: true,
+          photoPath: true,
           slug: true,
           headline: true,
           primarySportId: true,
@@ -163,7 +164,7 @@ export default async function AnalystPage() {
         <CardBody>
           <div className="flex flex-col gap-5">
             <div className="flex items-start gap-4">
-              <Avatar name={profile.displayName} size="lg" />
+              <Avatar name={profile.displayName} src={profile.photoPath} size="lg" />
 
               <div className="min-w-0 flex-1">
                 <h1 className="font-display text-2xl leading-tight text-ink sm:text-3xl">

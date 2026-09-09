@@ -41,7 +41,13 @@ const publicTicketSelect = {
   version: true,
   sport: { select: { code: true, nameKa: true } },
   author: {
-    select: { id: true, slug: true, displayName: true, isDemo: true },
+    select: {
+      id: true,
+      slug: true,
+      displayName: true,
+      isDemo: true,
+      photoPath: true,
+    },
   },
   postedBy: { select: { id: true, name: true } },
   result: {
@@ -110,8 +116,27 @@ async function listTicketFeed(kind: 'FREE' | 'PAID', filter: TicketFilter) {
     supersededAt: null,
     status: 'PENDING',
     finishedAt: null,
-    OR: [{ eventAt: null }, { eventAt: { gt: new Date() } }],
     visibility: kind === 'FREE' ? 'PUBLIC' : { in: ['PREMIUM', 'VIP'] },
+    AND: [
+      // Still to come, or with no kickoff recorded at all.
+      { OR: [{ eventAt: null }, { eventAt: { gt: new Date() } }] },
+      /*
+       * Somebody who is no longer on the site takes their open tickets with
+       * them, and there are two ways to be gone.
+       *
+       * An analyst profile that is suspended or rejected disappears from the
+       * analyst list and from its own public page, yet its tickets went on
+       * sitting in the feed under a name nobody could look up. And a closed
+       * account is tombstoned rather than deleted - the rows have to stay,
+       * because a settled record must remain checkable - so its community
+       * tickets kept advertising a person who had left.
+       *
+       * The record itself is untouched by either: this is the shop window,
+       * and the history stays where the statistics are computed from it.
+       */
+      { OR: [{ authorId: null }, { author: { status: 'APPROVED' } }] },
+      { postedBy: { status: 'ACTIVE' } },
+    ],
     ...(filter.sport ? { sport: { code: filter.sport } } : {}),
   };
 

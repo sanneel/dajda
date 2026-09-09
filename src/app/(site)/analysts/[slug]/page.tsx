@@ -37,10 +37,11 @@ export const dynamic = 'force-dynamic';
  * typo, a stale link, nothing at all - falls back to the free record rather
  * than erroring: a bad query string is not worth a broken page.
  */
-const TAB_BY_PARAM: Record<string, 'FREE' | 'PAID' | 'PLANS' | undefined> = {
+const TAB_BY_PARAM: Record<string, 'FREE' | 'PAID' | 'SUB' | undefined> = {
   free: 'FREE',
   paid: 'PAID',
-  plans: 'PLANS',
+  plans: 'SUB',
+  subscribe: 'SUB',
 };
 
 export async function generateMetadata({
@@ -86,7 +87,14 @@ export default async function AnalystProfilePage({
 
   if (!data) notFound();
 
-  const { profile, predictions, allTime, freeAllTime, paidAllTime } = data;
+  const {
+    profile,
+    predictions,
+    allTime,
+    freeAllTime,
+    paidAllTime,
+    subscriptionAllTime,
+  } = data;
   const actor = await getCurrentUser();
 
   const isOwnerEarly = actor?.analystProfileId === profile.id;
@@ -186,7 +194,10 @@ export default async function AnalystProfilePage({
     };
   };
   const freeCharts = chartsFor((visibility) => visibility === 'PUBLIC');
-  const paidCharts = chartsFor((visibility) => visibility !== 'PUBLIC');
+  // Three products, three slices. PREMIUM and VIP shared one until
+  // 2026-09-10, which made the paid and subscription panels identical.
+  const paidCharts = chartsFor((visibility) => visibility === 'PREMIUM');
+  const subscriptionCharts = chartsFor((visibility) => visibility === 'VIP');
 
   // Newest pin first. The cap is enforced at pin time; the slice here is
   // only a belt against rows pinned before the cap existed.
@@ -204,7 +215,7 @@ export default async function AnalystProfilePage({
       {/* Identity                                                        */}
       {/* ------------------------------------------------------------- */}
       <header className="flex flex-col gap-5 sm:flex-row sm:items-start">
-        <Avatar name={profile.displayName} size="lg" />
+        <Avatar name={profile.displayName} src={profile.photoPath} size="lg" />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -307,8 +318,10 @@ export default async function AnalystProfilePage({
         <RecordTabs
           free={freeAllTime}
           paid={paidAllTime}
+          subscription={subscriptionAllTime}
           freeCharts={freeCharts}
           paidCharts={paidCharts}
+          subscriptionCharts={subscriptionCharts}
           plans={profile.plans.map((plan) => ({
             ...plan,
             currentStatus: statusByPlan.get(plan.id),
@@ -434,17 +447,25 @@ export default async function AnalystProfilePage({
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* The full history, split by how each ticket was sold              */}
+      {/* What is running right now, split by how each ticket is sold      */}
       {/* ------------------------------------------------------------- */}
+      {/*
+       * Open tickets only. This used to be the full history, which put a
+       * settled bet from August next to one kicking off tonight and answered
+       * neither "what can I buy" nor "how has this author done". The second
+       * question is the panel above, computed from every published ticket
+       * including these; this list is the first.
+       */}
       <section className="mt-10" aria-labelledby="history-heading">
         <h2
           id="history-heading"
           className="text-2xl font-semibold tracking-tight text-ink"
         >
-          ბილეთების ისტორია
+          აქტიური ბილეთები
         </h2>
         <p className="mt-1.5 text-sm text-ink-muted">
-          ყველაფერი, რაც ავტორს გამოუქვეყნებია, ტიპის მიხედვით.
+          რაც ავტორს ახლა აქვს გაშვებული, ტიპის მიხედვით. დათვლილი ბილეთები
+          ზემოთ, ჩანაწერში ითვლება.
         </p>
 
         <div className="mt-5">
@@ -453,7 +474,8 @@ export default async function AnalystProfilePage({
               .filter(
                 (prediction) =>
                   prediction.publishedAt !== null &&
-                  prediction.supersededAt === null,
+                  prediction.supersededAt === null &&
+                  prediction.status === 'PENDING',
               )
               .map((prediction) => ({
                 id: prediction.id,

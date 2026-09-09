@@ -45,6 +45,7 @@ function analyst(
     id: displayName,
     slug: displayName,
     displayName,
+    photoPath: null,
     headline: null,
     isDemo: true,
     monthlyMinimum: null,

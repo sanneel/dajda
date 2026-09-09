@@ -21,7 +21,9 @@ export async function NotificationBell({ userId }: { userId: string }) {
         status: 'PENDING',
         publishedAt: { not: null },
         supersededAt: null,
-        author: { savedBy: { some: { userId } } },
+        // Only an author still standing: a suspended or rejected profile is
+        // gone from the site, and its open tickets should not ring a bell.
+        author: { savedBy: { some: { userId } }, status: 'APPROVED' },
       },
       orderBy: { publishedAt: 'desc' },
       take: 60,
@@ -41,19 +43,31 @@ export async function NotificationBell({ userId }: { userId: string }) {
    * One line per author-and-kind, not one per ticket: the bell answers
    * "who has something open for me", and "+3" says how much without three
    * rows saying the same name. An entry vanishes as its tickets settle.
+   *
+   * Three kinds, not two. A subscription ticket and a singly-sold one are
+   * separate purchases, so "ფასიანი ბილეთი" on a row a subscriber already
+   * has access to - or on one they would have to buy despite subscribing -
+   * was telling them the wrong thing about what to do next.
    */
+  const KIND: Record<string, { label: string; tab: string }> = {
+    PUBLIC: { label: 'უფასო ბილეთი', tab: 'free' },
+    PREMIUM: { label: 'ფასიანი ბილეთი', tab: 'paid' },
+    VIP: { label: 'გამოწერის ბილეთი', tab: 'subscribe' },
+  };
+
   const groups = new Map<
     string,
-    { name: string; slug: string; paid: boolean; count: number }
+    { name: string; slug: string; label: string; tab: string; count: number }
   >();
   for (const ticket of tickets) {
     if (!ticket.author) continue;
-    const paid = ticket.visibility !== 'PUBLIC';
-    const key = `${ticket.author.slug}:${paid ? 'paid' : 'free'}`;
+    const kind = KIND[ticket.visibility] ?? KIND.PUBLIC!;
+    const key = `${ticket.author.slug}:${ticket.visibility}`;
     const group = groups.get(key) ?? {
       name: ticket.author.displayName,
       slug: ticket.author.slug,
-      paid,
+      label: kind.label,
+      tab: kind.tab,
       count: 0,
     };
     group.count += 1;
@@ -105,17 +119,14 @@ export async function NotificationBell({ userId }: { userId: string }) {
           ) : null}
 
           {entries.map((entry) => (
-            <li key={`${entry.slug}:${entry.paid}`}>
+            <li key={`${entry.slug}:${entry.label}`}>
               <Link
-                href={`/analysts/${entry.slug}?tab=${entry.paid ? 'paid' : 'free'}`}
+                href={`/analysts/${entry.slug}?tab=${entry.tab}`}
                 className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-elevated"
               >
                 <span className="min-w-0 text-sm">
                   <span className="font-medium text-ink">{entry.name}</span>
-                  <span className="text-ink-muted">
-                    {' '}
-                    · {entry.paid ? 'ფასიანი ბილეთი' : 'უფასო ბილეთი'}
-                  </span>
+                  <span className="text-ink-muted"> · {entry.label}</span>
                 </span>
                 <span className="tabular shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent">
                   +{entry.count}
