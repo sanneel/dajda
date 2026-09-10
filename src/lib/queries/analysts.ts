@@ -59,9 +59,21 @@ export async function listAnalysts(options?: {
   /** Case-insensitive name search, from the list's search box. */
   query?: string;
 }): Promise<AnalystListItem[]> {
+  /*
+   * The analyst list is a list of SUBSCRIPTIONS for sale, so it is built from
+   * subscription tickets alone, decided 2026-09-11.
+   *
+   * An author who has never published a subscription ticket has nothing on
+   * offer here and does not appear, however many free or single tickets they
+   * post: those are reached through the free and paid feeds. And the record
+   * printed on each row is the subscription record, because that is the
+   * product the row's button sells. A row mixing in free tips would advertise
+   * a hit rate the subscriber is not buying.
+   */
   const profiles = await prisma.analystProfile.findMany({
     where: {
       status: 'APPROVED',
+      predictions: { some: { visibility: 'VIP', ...PUBLISHED } },
       ...(options?.sportCode
         ? { sports: { some: { sport: { code: options.sportCode } } } }
         : {}),
@@ -100,9 +112,14 @@ export async function listAnalysts(options?: {
 
   if (profiles.length === 0) return [];
 
-  // One query for every analyst's record, grouped in memory - avoids N+1.
+  // One query for every analyst's subscription record, grouped in memory -
+  // avoids N+1. Stats, weekly volume and active count all read from this.
   const predictions = await prisma.prediction.findMany({
-    where: { authorId: { in: profiles.map((p) => p.id) }, ...PUBLISHED },
+    where: {
+      authorId: { in: profiles.map((p) => p.id) },
+      visibility: 'VIP',
+      ...PUBLISHED,
+    },
     select: {
       authorId: true,
       status: true,

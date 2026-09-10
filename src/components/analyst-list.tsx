@@ -169,7 +169,7 @@ export function AnalystRow({
          * analysis" were the same click.
          */}
         <Link
-          href={`/analysts/${analyst.slug}?tab=free`}
+          href={`/analysts/${analyst.slug}?tab=subscribe`}
           className="inline-flex min-h-11 w-full items-center justify-center rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-ink-faint"
         >
           გადახედე
@@ -177,7 +177,7 @@ export function AnalystRow({
 
         {subscribed ? (
           <Link
-            href={`/analysts/${analyst.slug}?tab=paid`}
+            href={`/analysts/${analyst.slug}?tab=subscribe`}
             className="inline-flex min-h-11 w-full items-center justify-center rounded-control border border-accent/40 bg-accent/10 px-4 text-sm font-medium text-accent"
           >
             გამოწერილია
@@ -199,7 +199,7 @@ export function AnalystRow({
           {subscribed ? (
             'აქტიური გამოწერა · მართვა პროფილის გვერდზე'
           ) : cheapestPlan === null || cheapestPlan.priceMinor === 0 ? (
-            'გამოწერა გაძლევთ წვდომას ავტორის ფსონებზე.'
+            'გამოწერა გაძლევთ წვდომას ავტორის გამოწერის ბილეთებზე.'
           ) : (
             <>
               განახლდება{' '}

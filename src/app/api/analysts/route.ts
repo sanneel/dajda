@@ -2,7 +2,13 @@ import { listAnalysts, type AnalystSort } from '@/lib/queries/analysts';
 import { errorResponse, jsonResponse } from '@/lib/errors';
 import { formatPercentBps, formatUnits } from '@/lib/format';
 
-/** Public analyst leaderboard. Sample size travels with every rate. */
+/**
+ * Public analyst leaderboard. Sample size travels with every rate.
+ *
+ * Subscription tickets only, like the page it mirrors: an author with none
+ * is not listed, and `record` counts nothing else. Stated here because an API
+ * consumer cannot see the page to find out.
+ */
 export const dynamic = 'force-dynamic';
 
 const SORTS: AnalystSort[] = ['profit', 'accuracy', 'odds-high', 'volume'];

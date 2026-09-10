@@ -259,7 +259,7 @@ export default async function HomePage({
           <EmptyState
             icon={<Users className="size-8" aria-hidden="true" />}
             title="ავტორები ჯერ არ არიან"
-            description="პირველი ანალიტიკოსების ჩანაწერები აქ გამოჩნდება, როგორც კი პროგნოზებს გამოაქვეყნებენ."
+            description="ანალიტიკოსი აქ გამოჩნდება, როგორც კი პირველ გამოწერის ბილეთს გამოაქვეყნებს."
           />
         ) : (
           <EmptyState
