@@ -108,6 +108,8 @@ export async function requestWithdrawal(
     where: {
       authorId: profile.id,
       publishedAt: { gte: period.start, lt: period.end },
+      // A corrected ticket is one publication, not two.
+      supersededAt: null,
     },
     select: { publishedAt: true },
   });

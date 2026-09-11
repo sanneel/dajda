@@ -5,6 +5,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { getAnalystBySlug } from '@/lib/queries/analysts';
 import { activePlanGrants, purchasedTicketIds } from '@/lib/queries/tickets';
 import { isTicketStillActive } from '@/lib/tickets/active';
+import { payoutPeriod } from '@/lib/payouts/rules';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { isTicketLocked } from '@/lib/auth/entitlements';
 import { prisma } from '@/lib/db';
@@ -149,6 +150,16 @@ export default async function AnalystProfilePage({
     ...profile.plans.filter((plan) => plan.priceMinor > 0).map((plan) => plan.priceMinor),
   );
   const now = new Date();
+  // This Tbilisi calendar month: the same period a payout is judged on, and
+  // the same rows (a corrected ticket counts once).
+  const month = payoutPeriod(now);
+  const publishedThisMonth = predictions.filter(
+    (prediction) =>
+      prediction.publishedAt !== null &&
+      prediction.supersededAt === null &&
+      prediction.publishedAt >= month.start &&
+      prediction.publishedAt < month.end,
+  ).length;
   const lockedBetIds = new Set(
     predictions
       .filter((prediction) =>
@@ -219,6 +230,23 @@ export default async function AnalystProfilePage({
               <Badge key={entry.sport.code}>{entry.sport.nameKa}</Badge>
             ))}
           </div>
+
+          {/*
+           * The promise and how it is going, where a buyer reads it before
+           * paying: what the author declared for a month, and how many they
+           * have published in this calendar month so far.
+           */}
+          <p className="mt-3 text-sm text-ink-muted">
+            {profile.monthlyMinimum !== null ? (
+              <>
+                თვეში მინიმუმ{' '}
+                <span className="tabular text-ink">{profile.monthlyMinimum}</span>{' '}
+                პროგნოზი ·{' '}
+              </>
+            ) : null}
+            ამ თვეში გამოქვეყნდა{' '}
+            <span className="tabular text-ink">{publishedThisMonth}</span>
+          </p>
         </div>
 
         {/* The owner gets the action that belongs to them; everyone else gets

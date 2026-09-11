@@ -77,6 +77,8 @@ export default async function AnalystEarningsPage() {
       where: {
         authorId: analyst.analystProfileId,
         publishedAt: { gte: period.start, lt: period.end },
+        // A corrected ticket is one publication, not two.
+        supersededAt: null,
       },
       select: { publishedAt: true },
     }),

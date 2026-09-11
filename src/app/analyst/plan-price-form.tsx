@@ -19,12 +19,14 @@ const PRICES = [
  * names exactly these. Radio buttons drawn as buttons: the choice is the
  * whole form, so it should look like one.
  *
- * Opening the subscription is also where the author declares how many
- * predictions a month they will publish (terms 6.4). That number is a promise
- * about the subscription, printed on their page before anyone pays, and every
- * payout is judged against it. Once declared it is shown rather than edited:
- * a change applies only from the following month, with notice to the
- * platform, so it goes through the administration.
+ * Activating the subscription is also where the author declares how many
+ * predictions a month they will publish (terms 6.4): 8 or any number above
+ * it. That number is a promise about the subscription, printed on their page
+ * before anyone pays, and every payout is judged against it. While the
+ * subscription is not active the field is open, pre-filled with what they
+ * gave before; once it is active the number is shown rather than edited,
+ * because a change applies only from the following month, with notice to
+ * the platform.
  */
 export function PlanPriceForm({
   currentPriceMinor,
@@ -35,6 +37,8 @@ export function PlanPriceForm({
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(setPlanPriceAction, null);
+  // No current price means the subscription is being activated now.
+  const declaring = currentPriceMinor === null;
 
   // The page around this form renders the saved price server-side, so a
   // successful save refreshes it rather than duplicating that rendering here.
@@ -72,12 +76,12 @@ export function PlanPriceForm({
         ))}
       </div>
 
-      {currentMonthlyMinimum === null ? (
+      {declaring ? (
         <Field
           label="თვეში მინიმუმ რამდენ პროგნოზს გამოაქვეყნებთ"
           htmlFor="monthlyMinimum"
           required
-          hint="მინიმუმ 8. რიცხვი საჯაროდ ჩანს თქვენს გვერდზე და გამომწერის წინაშე ვალდებულებაა. შეცვლა შემდეგ შესაძლებელია მხოლოდ მომდევნო თვიდან, ადმინისტრაციისთვის შეტყობინებით."
+          hint="8 ან მეტი, რამდენიც გინდათ. რიცხვი საჯაროდ ჩანს თქვენს გვერდზე და გამომწერის წინაშე ვალდებულებაა. გამოწერის გააქტიურების შემდეგ შეცვლა შესაძლებელია მხოლოდ მომდევნო თვიდან, ადმინისტრაციისთვის შეტყობინებით."
         >
           <Input
             id="monthlyMinimum"
@@ -87,7 +91,7 @@ export function PlanPriceForm({
             max="200"
             step="1"
             inputMode="numeric"
-            defaultValue="8"
+            defaultValue={String(currentMonthlyMinimum ?? 8)}
             required
             className="w-28"
           />

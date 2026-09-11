@@ -532,15 +532,22 @@ export async function setPlanPriceAction(
       select: { id: true, displayName: true, monthlyMinimum: true },
     });
 
+    const existing = await prisma.subscriptionPlan.findFirst({
+      where: { analystProfileId: profile.id, tier: 'PREMIUM' },
+      select: { id: true, priceMinor: true, isActive: true },
+    });
+
     /*
-     * Terms 6.4 / agreement 3.5: the declared monthly number is set when the
-     * subscription is opened, and it is required then. Once set it is not
-     * changed from here: a change applies only from the following month and
-     * with notice to the platform (3.5.3), so it goes through the
-     * administration rather than a form that would apply it mid-month.
+     * Terms 6.4 / agreement 3.5: the author declares the monthly number when
+     * the subscription is activated, any number from 8 up, and it is required
+     * then, including for an author who gave one on the old application form.
+     * While the subscription is active it is not changed from here: a change
+     * applies only from the following month and with notice to the platform
+     * (3.5.3), so it goes through the administration rather than a form that
+     * would apply it mid-month.
      */
     let declaredMinimum: number | null = null;
-    if (profile.monthlyMinimum === null) {
+    if (!existing || !existing.isActive) {
       const parsedMinimum = monthlyMinimumSchema.safeParse(
         formData.get('monthlyMinimum'),
       );
@@ -557,11 +564,6 @@ export async function setPlanPriceAction(
         data: { monthlyMinimum: declaredMinimum },
       });
     }
-
-    const existing = await prisma.subscriptionPlan.findFirst({
-      where: { analystProfileId: profile.id, tier: 'PREMIUM' },
-      select: { id: true, priceMinor: true },
-    });
 
     const plan = existing
       ? await prisma.subscriptionPlan.update({
