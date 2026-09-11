@@ -541,13 +541,15 @@ export async function setPlanPriceAction(
      * Terms 6.4 / agreement 3.5: the author declares the monthly number when
      * the subscription is activated, any number from 8 up, and it is required
      * then, including for an author who gave one on the old application form.
-     * While the subscription is active it is not changed from here: a change
+     * An author whose subscription was already active before the number
+     * existed declares it once here, too. After that, while the subscription
+     * is active, it is not changed from here: a change
      * applies only from the following month and with notice to the platform
      * (3.5.3), so it goes through the administration rather than a form that
      * would apply it mid-month.
      */
     let declaredMinimum: number | null = null;
-    if (!existing || !existing.isActive) {
+    if (!existing || !existing.isActive || profile.monthlyMinimum === null) {
       const parsedMinimum = monthlyMinimumSchema.safeParse(
         formData.get('monthlyMinimum'),
       );

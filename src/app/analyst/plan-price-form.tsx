@@ -37,8 +37,10 @@ export function PlanPriceForm({
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(setPlanPriceAction, null);
-  // No current price means the subscription is being activated now.
-  const declaring = currentPriceMinor === null;
+  // Entered when the subscription is activated, and once by an author whose
+  // subscription predates the declared number and who never gave one.
+  const declaring =
+    currentPriceMinor === null || currentMonthlyMinimum === null;
 
   // The page around this form renders the saved price server-side, so a
   // successful save refreshes it rather than duplicating that rendering here.
