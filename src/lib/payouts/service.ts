@@ -1,19 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/db';
 import { getEnv } from '@/lib/env';
-import { AppError, ERROR_CODES, errorDiagnostic } from '@/lib/errors';
+import { AppError, ERROR_CODES } from '@/lib/errors';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { applyEarningsMovement } from '@/lib/balance/ledger';
 import { formatMoney } from '@/lib/format';
-import { getPaymentProvider } from '@/lib/payments';
 import { deriveCardKey, openCard, sealCard } from './card-vault';
 import {
   checkWithdrawal,
-  ibanValid,
   maskIban,
+  monthlyActivity,
   normaliseIban,
   payoutPeriod,
-  weeklyActivity,
   WITHDRAWAL_REFUSAL_KA,
 } from './rules';
 
@@ -23,33 +21,21 @@ import {
  * Two deliberate properties:
  *
  *   1. The earnings leave the analyst's balance when the request is MADE, not
- *      when it is approved. Otherwise the same money could be requested again
+ *      when it is paid. Otherwise the same money could be requested again
  *      while an administrator is looking at the first request, and only the
- *      second failure would reveal it.
- *   2. Money never leaves without a person releasing it. The analyst asks, the
- *      platform records what it saw of their month, and an administrator
- *      approves or refuses. A refusal or a provider failure puts the earnings
- *      straight back.
+ *      second transfer would reveal it.
+ *   2. Money never leaves without a person moving it. The payment contract
+ *      covers taking payments, not sending them, and settles every payment to
+ *      the merchant bank account within a day. So the analyst asks, the
+ *      administrators are told on Telegram, one of them transfers the amount
+ *      from that bank account, and then marks the request paid here. A refusal
+ *      puts the earnings straight back.
  *
- * The IBAN is typed once, by the analyst. It travels to the administrator's
- * approval sealed (see ./card-vault) and is wiped from the row the moment the
- * request is decided, whichever way. What stays for good is the mask.
- *
- * An account and not a card, because Flitt's card payout credits only a card
- * that has already bought something from this merchant. See
- * ../payments/flitt.ts#createPayout.
+ * The IBAN is typed once, by the analyst. It travels sealed (see ./card-vault)
+ * to the one page where an administrator has to read it to make the transfer,
+ * and is wiped from the row the moment the request is decided, whichever way.
+ * What stays for good is the mask.
  */
-
-/**
- * What the analyst is told when a payout does not go through. Their money is
- * already back, and neither case is anything they can act on, so the sentence
- * says that and stops. The provider's own words go to `failureDetail` and the
- * server log, for the admin who has to decide what to do next.
- */
-const PAYOUT_FAILURE_KA = {
-  DECLINED: 'გატანა ვერ შესრულდა: ბანკმა უარი თქვა. თანხა დაგიბრუნდათ, სცადეთ ხელახლა.',
-  TECHNICAL: 'გატანა ვერ შესრულდა ტექნიკური მიზეზით. თანხა დაგიბრუნდათ, ვნახავთ და დაგიკავშირდებით.',
-} as const;
 
 /** The key the open requests' account numbers are sealed under right now. */
 function payoutCardKey(): Buffer {
@@ -78,6 +64,9 @@ export async function requestWithdrawal(
       // An administrator may have opened the window for this author early,
       // or held it shut. Read with the profile, applied by the rules.
       payoutWindow: true,
+      // The author's own promise for a month (agreement 3.5), which is what
+      // the month is judged against.
+      monthlyMinimum: true,
     },
   });
   if (!profile || profile.status !== 'APPROVED') {
@@ -113,7 +102,7 @@ export async function requestWithdrawal(
 
   // What the platform saw of this month, recorded at request time so the
   // administrator judges the same figures the analyst was judged on. The
-  // dates are read rather than counted, because the check is per week.
+  // dates are read rather than counted, because an empty week is a breach.
   const period = payoutPeriod(now);
   const published = await prisma.prediction.findMany({
     where: {
@@ -122,19 +111,16 @@ export async function requestWithdrawal(
     },
     select: { publishedAt: true },
   });
-  const activity = weeklyActivity({
+  const activity = monthlyActivity({
     period,
     publishedAt: published
       .map((row) => row.publishedAt)
       .filter((value): value is Date => value !== null),
-    minimumPerWeek: env.ANALYST_MIN_PUBLICATIONS_PER_WEEK,
+    declaredMinimum: profile.monthlyMinimum,
   });
 
   const maskedAccount = maskIban(input.iban);
-  const accountCipher = sealCard(
-    normaliseIban(input.iban),
-    payoutCardKey(),
-  );
+  const accountCipher = sealCard(normaliseIban(input.iban), payoutCardKey());
 
   return prisma.$transaction(async (tx) => {
     // Conditional decrement, so two requests racing cannot both take the
@@ -164,8 +150,9 @@ export async function requestWithdrawal(
         periodEnd: period.end,
         publicationsInPeriod: activity.total,
         weeksInPeriod: activity.weeks,
-        weeksMeetingMinimum: activity.weeksMet,
+        weeksMeetingMinimum: activity.weeks - activity.emptyWeeks,
         activityCheckPassed: activity.passed,
+        declaredMonthlyMinimum: activity.declaredMinimum,
       },
       select: { id: true },
     });
@@ -198,8 +185,9 @@ export async function requestWithdrawal(
         actorRole: actor.role,
         metadata: {
           publications: activity.total,
+          declaredMinimum: activity.declaredMinimum,
           perWeek: activity.perWeek,
-          weeksMet: activity.weeksMet,
+          emptyWeeks: activity.emptyWeeks,
           weeks: activity.weeks,
           activityCheckPassed: activity.passed,
           maskedAccount,
@@ -212,7 +200,7 @@ export async function requestWithdrawal(
   });
 }
 
-/** Put held earnings back, for a refusal or a failed provider call. */
+/** Put held earnings back, for a refusal. */
 async function returnEarnings(
   payoutId: string,
   userId: string,
@@ -229,6 +217,15 @@ async function returnEarnings(
       note: reason,
     });
   });
+}
+
+/**
+ * The full IBAN of an open request, for the administrator who is about to
+ * transfer the money. Null when the row no longer carries a sealed account,
+ * or carries one sealed under a key that has since been rotated.
+ */
+export function revealPayoutIban(accountCipher: string | null): string | null {
+  return accountCipher ? openCard(accountCipher, payoutCardKey()) : null;
 }
 
 /**
@@ -250,7 +247,7 @@ export async function rejectPayout(
   }
 
   // Guarded by status so a double click decides once. Decided means the
-  // sealed card number has no reader left, so it goes with the decision.
+  // sealed account has no reader left, so it goes with the decision.
   const claimed = await prisma.analystPayout.updateMany({
     where: { id: payout.id, status: 'REQUESTED' },
     data: {
@@ -281,32 +278,27 @@ export async function rejectPayout(
 }
 
 /**
- * Release a request to the provider.
+ * Record that an administrator has transferred the money.
  *
- * The IBAN comes from the sealed copy the analyst's request carries. An
- * administrator may still type one - it is the only way to release a request
- * made before sealing existed, or one sealed under a key that has since been
- * rotated - and anything typed is checked against the mask taken at request
- * time, so an approval cannot quietly redirect the money to a different
- * account.
+ * The transfer itself happens in the bank, not here. This is the statement
+ * that it did, with the bank's reference when there is one, and it is what
+ * closes the request. Nothing moves in the ledger: the earnings were held out
+ * of the balance when the request was made. The sealed IBAN is wiped, because
+ * nobody needs to read it again.
  */
-export async function approvePayout(
+export async function markPayoutPaid(
   payoutId: string,
   admin: { userId: string },
-  typedIban?: string,
-): Promise<{ status: 'PAID' | 'APPROVED' | 'FAILED'; message?: string }> {
+  paymentReference?: string,
+): Promise<void> {
   const payout = await prisma.analystPayout.findUnique({
     where: { id: payoutId },
     select: {
       id: true,
-      userId: true,
       amountMinor: true,
       currency: true,
       status: true,
       maskedAccount: true,
-      accountCipher: true,
-      providerOrderId: true,
-      analystProfile: { select: { displayName: true } },
     },
   });
   if (!payout) throw new AppError(ERROR_CODES.NOT_FOUND);
@@ -314,47 +306,14 @@ export async function approvePayout(
     throw new AppError(ERROR_CODES.CONFLICT, 'მოთხოვნა უკვე დამუშავებულია.');
   }
 
-  let iban: string | null = null;
-
-  if (typedIban) {
-    if (maskIban(typedIban) !== payout.maskedAccount) {
-      throw new AppError(
-        ERROR_CODES.VALIDATION_ERROR,
-        'ანგარიში არ ემთხვევა მოთხოვნაში მითითებულს.',
-      );
-    }
-    iban = normaliseIban(typedIban);
-  } else if (payout.accountCipher) {
-    iban = openCard(payout.accountCipher, payoutCardKey());
-  }
-
-  if (!iban) {
-    throw new AppError(
-      ERROR_CODES.VALIDATION_ERROR,
-      'ამ მოთხოვნას ანგარიშის ნომერი აღარ ახლავს. შეიყვანეთ IBAN ხელით, ან უარყავით და სთხოვეთ ავტორს მოთხოვნის ხელახლა შეტანა.',
-    );
-  }
-
-  /*
-   * A number that was sealed before the check digits were verified, or one an
-   * admin has just typed, must still be a real IBAN: the gateway's refusal for
-   * a malformed account costs a round trip and reads as a technical failure.
-   */
-  if (!ibanValid(iban)) {
-    throw new AppError(
-      ERROR_CODES.VALIDATION_ERROR,
-      WITHDRAWAL_REFUSAL_KA.INVALID_IBAN,
-    );
-  }
-
-  const provider = getPaymentProvider();
-
-  // Claim it before the network call, so a retry cannot send twice.
+  // Guarded by status so a double click records one transfer, not two.
   const claimed = await prisma.analystPayout.updateMany({
     where: { id: payout.id, status: 'REQUESTED' },
     data: {
-      status: 'APPROVED',
-      providerCode: provider.code,
+      status: 'PAID',
+      accountCipher: null,
+      providerCode: 'bank_transfer',
+      paymentReference: paymentReference || null,
       decidedAt: new Date(),
       decidedById: admin.userId,
     },
@@ -363,124 +322,13 @@ export async function approvePayout(
     throw new AppError(ERROR_CODES.CONFLICT, 'მოთხოვნა უკვე დამუშავებულია.');
   }
 
-  try {
-    const result = await provider.createPayout({
-      orderId: payout.providerOrderId,
-      amountMinor: payout.amountMinor,
-      currency: payout.currency,
-      description: `DAJDA: ანაზღაურება ${payout.analystProfile.displayName}`,
-      receiverIban: iban,
-      receiverName: payout.analystProfile.displayName,
-    });
-
-    // A refusal the provider answered with is a fact about this card or this
-    // merchant account, and it is the only thing that says which. It goes to
-    // the log before anything else touches the row.
-    const declinedDetail =
-      result.status === 'FAILED'
-        ? [result.rawStatus, result.message].filter(Boolean).join(' ').trim()
-        : null;
-    if (declinedDetail) {
-      console.error(
-        `[dajda] payout ${payout.id} declined by ${provider.code}: ${declinedDetail}`,
-      );
-    }
-
-    // The provider has the account now; the row does not need it any more.
-    await prisma.analystPayout.update({
-      where: { id: payout.id },
-      data: {
-        status: result.status === 'SUCCEEDED' ? 'PAID' : result.status === 'FAILED' ? 'FAILED' : 'APPROVED',
-        accountCipher: null,
-        providerPayoutId: result.providerPaymentId,
-        rawStatus: result.rawStatus,
-        failureReason:
-          result.status === 'FAILED' ? PAYOUT_FAILURE_KA.DECLINED : null,
-        failureDetail: declinedDetail?.slice(0, 1000) ?? null,
-      },
-    });
-
-    if (result.status === 'FAILED') {
-      await returnEarnings(
-        payout.id,
-        payout.userId,
-        payout.amountMinor,
-        `გატანა ვერ შესრულდა: ${result.message ?? result.rawStatus}`,
-      );
-    }
-
-    await writeAuditLog({
-      action: AUDIT_ACTIONS.PAYOUT_SENT,
-      entityType: 'AnalystPayout',
-      entityId: payout.id,
-      summary: `გატანა გაიგზავნა პროვაიდერთან: ${result.status}`,
-      actorId: admin.userId,
-      actorRole: 'ADMIN',
-      metadata: {
-        rawStatus: result.rawStatus,
-        ...(declinedDetail ? { detail: declinedDetail } : {}),
-      },
-    });
-
-    return {
-      status:
-        result.status === 'SUCCEEDED'
-          ? 'PAID'
-          : result.status === 'FAILED'
-            ? 'FAILED'
-            : 'APPROVED',
-      message: result.message,
-    };
-  } catch (error) {
-    /*
-     * The provider call did not complete. It is not safe to assume the credit
-     * did not happen, so the request is marked FAILED with the reason and the
-     * earnings are returned; a payout that did go through despite the error
-     * shows up as a provider-side discrepancy for a human to reconcile, which
-     * is the failure mode worth preferring over silently keeping an analyst's
-     * money held forever.
-     */
-    /*
-     * `errorDiagnostic`, not `error.message`: an AppError from the adapter
-     * carries the client-safe Georgian sentence as its message and the reason
-     * the gateway gave as `internalDetail`. Taking the message wrote the former
-     * into the row and lost the latter, so a payout that Flitt had refused for
-     * a nameable reason was recorded as "could not process payment" and nothing
-     * else. This path swallows the error rather than rethrowing it, so it is
-     * also the only chance to log: `toActionFailure` never sees it.
-     */
-    const detail = errorDiagnostic(error);
-    console.error(
-      `[dajda] payout ${payout.id} failed against ${provider.code}: ${detail}`,
-      error,
-    );
-
-    await prisma.analystPayout.update({
-      where: { id: payout.id },
-      data: {
-        status: 'FAILED',
-        accountCipher: null,
-        failureReason: PAYOUT_FAILURE_KA.TECHNICAL,
-        failureDetail: detail.slice(0, 1000),
-      },
-    });
-    await returnEarnings(
-      payout.id,
-      payout.userId,
-      payout.amountMinor,
-      'გატანა ვერ შესრულდა ტექნიკური შეცდომით',
-    );
-
-    await writeAuditLog({
-      action: AUDIT_ACTIONS.PAYOUT_FAILED,
-      entityType: 'AnalystPayout',
-      entityId: payout.id,
-      summary: 'გატანა ვერ შესრულდა',
-      actorId: admin.userId,
-      actorRole: 'ADMIN',
-      metadata: { detail },
-    });
-
-    return { status: 'FAILED', message: detail };
-  }
+  await writeAuditLog({
+    action: AUDIT_ACTIONS.PAYOUT_SENT,
+    entityType: 'AnalystPayout',
+    entityId: payout.id,
+    summary: `გატანა გადარიცხულია: ${formatMoney(payout.amountMinor, payout.currency)}, ${payout.maskedAccount}`,
+    actorId: admin.userId,
+    actorRole: 'ADMIN',
+    metadata: { paymentReference: paymentReference || null },
+  });
 }

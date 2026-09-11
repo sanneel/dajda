@@ -5,12 +5,11 @@ import {
   FlittPaymentProvider,
   flittSignature,
   type FlittConfig,
-  type FlittParams,
 } from '@/lib/payments/flitt';
 import { AppError } from '@/lib/errors';
 
 /**
- * The Flitt adapter's subscription, recurring-charge and payout paths,
+ * The Flitt adapter's subscription and recurring-charge paths,
  * exercised against a mocked HTTP layer. What is asserted here is the
  * request contract: endpoint, parameters, and - critically - which key
  * signed the request and what the signature covers.
@@ -20,7 +19,6 @@ const CONFIG: FlittConfig = {
   merchantId: '1549901',
   secretKey: 'payment-key',
   webhookSecret: 'payment-key',
-  creditKey: 'credit-key',
   apiUrl: 'https://pay.flitt.test',
 };
 
@@ -270,136 +268,6 @@ describe('subscription start/stop', () => {
 
     expect(outcome.status).toBe('REJECTED');
     expect(outcome.message).toBe('Order not found');
-  });
-});
-
-describe('payout (IBAN credit)', () => {
-  it('signs with the credit key, not the payment key', async () => {
-    const sent = mockGateway({
-      response_status: 'success',
-      order_status: 'approved',
-      payment_id: 800001,
-    });
-
-    const provider = new FlittPaymentProvider(CONFIG);
-    const payout = await provider.createPayout({
-      orderId: 'dajda-payout-1',
-      amountMinor: 50000,
-      currency: 'GEL',
-      description: 'Analyst payout',
-      receiverIban: 'GE95TB0000000123456789',
-      receiverName: 'gulfishdog8',
-    });
-
-    expect(sent[0]?.url).toBe('https://pay.flitt.test/api/ibancredit');
-    expect(sent[0]?.request.receiver_iban).toBe('GE95TB0000000123456789');
-    expect(sent[0]?.request.receiver_name).toBe('gulfishdog8');
-    expect(payout.status).toBe('SUCCEEDED');
-
-    const { signature, ...params } = sent[0]?.request as Record<
-      string,
-      unknown
-    > & { signature: string };
-    expect(signature).toBe(
-      flittSignature(params as FlittParams, 'credit-key'),
-    );
-    expect(signature).not.toBe(
-      flittSignature(params as FlittParams, CONFIG.secretKey),
-    );
-  });
-
-  /*
-   * The card rail is deliberately not used. /api/p2pcredit credits a card only
-   * through a receiver_rectoken from an earlier purchase on that card, and a
-   * raw card number is not a documented parameter at all, so nothing here may
-   * quietly start sending one again.
-   */
-  it('never reaches the card payout endpoint', async () => {
-    const sent = mockGateway({
-      response_status: 'success',
-      order_status: 'approved',
-    });
-
-    await new FlittPaymentProvider(CONFIG).createPayout({
-      orderId: 'dajda-payout-2',
-      amountMinor: 2500,
-      currency: 'GEL',
-      description: 'Analyst payout',
-      receiverIban: 'GE95TB0000000123456789',
-    });
-
-    expect(sent[0]?.url).not.toContain('p2pcredit');
-    expect(sent[0]?.request).not.toHaveProperty('receiver_card_number');
-    expect(sent[0]?.request).not.toHaveProperty('receiver_rectoken');
-  });
-
-  it('refuses to run without a configured credit key', async () => {
-    mockGateway({ response_status: 'success', order_status: 'approved' });
-
-    const provider = new FlittPaymentProvider({
-      ...CONFIG,
-      creditKey: undefined,
-    });
-
-    await expect(
-      provider.createPayout({
-        orderId: 'dajda-payout-3',
-        amountMinor: 50000,
-        currency: 'GEL',
-        description: 'Analyst payout',
-        receiverIban: 'GE95TB0000000123456789',
-      }),
-    ).rejects.toBeInstanceOf(AppError);
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  /*
-   * A refusal that names a code has to survive the throw, because the payout
-   * service records what it is given and nothing else can be recovered later.
-   */
-  it('carries the gateway error code into the internal detail', async () => {
-    mockGateway({
-      response_status: 'failure',
-      error_code: 1074,
-      error_message: 'P2P credit allowed only by rectoken',
-    });
-
-    const provider = new FlittPaymentProvider(CONFIG);
-    const failure = await provider
-      .createPayout({
-        orderId: 'dajda-payout-4',
-        amountMinor: 2500,
-        currency: 'GEL',
-        description: 'Analyst payout',
-        receiverIban: 'GE95TB0000000123456789',
-      })
-      .catch((error: unknown) => error);
-
-    expect(failure).toBeInstanceOf(AppError);
-    expect((failure as AppError).internalDetail).toContain('1074');
-    expect((failure as AppError).internalDetail).toContain(
-      'P2P credit allowed only by rectoken',
-    );
-  });
-
-  it('surfaces a declined payout as FAILED', async () => {
-    mockGateway({
-      response_status: 'success',
-      order_status: 'declined',
-      response_description: 'Insufficient merchant balance',
-    });
-
-    const provider = new FlittPaymentProvider(CONFIG);
-    const payout = await provider.createPayout({
-      orderId: 'dajda-payout-5',
-      amountMinor: 50000,
-      currency: 'GEL',
-      description: 'Analyst payout',
-      receiverIban: 'GE95TB0000000123456789',
-    });
-
-    expect(payout.status).toBe('FAILED');
-    expect(payout.message).toBe('Insufficient merchant balance');
   });
 });
 

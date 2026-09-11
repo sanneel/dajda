@@ -12,10 +12,11 @@ import {
 } from '@/lib/errors';
 import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
 import {
-  approvePayout,
+  markPayoutPaid,
   rejectPayout,
   requestWithdrawal,
 } from '@/lib/payouts/service';
+import { notifyAdminsPayoutRequested } from '@/lib/notifications/admin-alerts';
 import {
   payoutWindowSchema,
   withdrawalSchema,
@@ -27,8 +28,10 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 /**
  * Ask for earnings to be paid out.
  *
- * The IBAN reaches this action, is sealed with the request, and goes to the
- * provider on approval. Only its masked form outlives the decision.
+ * The IBAN reaches this action and is sealed with the request, for the
+ * administrator who makes the transfer. Only its masked form outlives the
+ * decision. The administrators hear about the request on Telegram, because
+ * nothing moves until one of them acts.
  */
 export async function requestWithdrawalAction(
   _previous: ActionResult<{ payoutId: string }> | null,
@@ -63,6 +66,9 @@ export async function requestWithdrawalAction(
       { userId: actor.userId, role: actor.role },
     );
 
+    // Never throws: the request is recorded whether or not Telegram answers.
+    await notifyAdminsPayoutRequested(result.payoutId);
+
     revalidatePath('/analyst/earnings');
     revalidatePath('/admin/payouts');
     return ok({ payoutId: result.payoutId });
@@ -82,7 +88,7 @@ export async function decidePayoutAction(
     const parsed = payoutDecisionSchema.safeParse({
       payoutId: formData.get('payoutId'),
       decision: formData.get('decision'),
-      iban: formData.get('iban') || undefined,
+      reference: formData.get('reference') || undefined,
       reason: formData.get('reason') || undefined,
     });
     if (!parsed.success) {
@@ -105,16 +111,15 @@ export async function decidePayoutAction(
       return ok({ status: 'REJECTED' });
     }
 
-    // The account normally comes sealed with the request; a typed one is the
-    // fallback for requests that carry none, and is checked against the mask.
-    const result = await approvePayout(
+    // The transfer was made in the bank; this records it and closes the request.
+    await markPayoutPaid(
       input.payoutId,
       { userId: admin.userId },
-      input.iban,
+      input.reference,
     );
 
     revalidatePath('/admin', 'layout');
-    return ok({ status: result.status });
+    return ok({ status: 'PAID' });
   } catch (error) {
     return toActionFailure(error);
   }

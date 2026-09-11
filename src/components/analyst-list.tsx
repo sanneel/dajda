@@ -202,12 +202,11 @@ export function AnalystRow({
             'გამოწერა გაძლევთ წვდომას ავტორის გამოწერის ბილეთებზე.'
           ) : (
             <>
-              განახლდება{' '}
               <span className="tabular">
                 {formatMoney(cheapestPlan.priceMinor, cheapestPlan.currency)}
-              </span>
-              -ად {BILLING_PERIOD_KA[cheapestPlan.billingPeriod]} · გაუქმება
-              ნებისმიერ დროს
+              </span>{' '}
+              {BILLING_PERIOD_KA[cheapestPlan.billingPeriod]} · ავტომატურად
+              არ განახლდება
             </>
           )}
         </p>

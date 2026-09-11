@@ -28,6 +28,7 @@ import { selectionsFromFormData } from '@/lib/predictions/slip';
 import { formatOdds } from '@/lib/format';
 import {
   analystApplicationSchema,
+  monthlyMinimumSchema,
   createPredictionSchema,
   markFinishedSchema,
 } from '@/lib/validation/schemas';
@@ -363,11 +364,8 @@ export async function applyAsAnalystAction(
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
       displayName: formData.get('displayName'),
-      referralSource: formData.get('referralSource'),
       primarySportId: formData.get('primarySportId'),
-      monthlyMinimum: formData.get('monthlyMinimum'),
       headline: formData.get('headline') || undefined,
-      bio: formData.get('bio'),
       acceptTerms: formData.get('acceptTerms') === 'on',
     });
     if (!parsed.success) {
@@ -427,11 +425,8 @@ export async function applyAsAnalystAction(
           slug: await uniqueSlug(tx, input.displayName),
           firstName: input.firstName,
           lastName: input.lastName,
-          referralSource: input.referralSource,
           primarySportId: sport.id,
-          monthlyMinimum: input.monthlyMinimum,
           headline: input.headline ?? null,
-          bio: input.bio,
           status: 'PENDING',
           termsAcceptedAt: new Date(),
           photoPath,
@@ -454,7 +449,6 @@ export async function applyAsAnalystAction(
           summary: `ანალიტიკოსის განაცხადი: ${input.displayName}`,
           actorId: actor.userId,
           actorRole: actor.role,
-          metadata: { referralSource: input.referralSource },
         },
         tx,
       );
@@ -512,9 +506,11 @@ const PLAN_PRICES_MINOR = [3000, 4000, 5000] as const;
  * three prices the signed terms allow.
  *
  * Repricing NEVER touches an existing subscriber: a UserSubscription owns
- * its own record of what was bought, and the gateway renews on the schedule
- * it was given at checkout. The new price applies to the next person who
- * subscribes.
+ * its own record of what was bought. The new price applies to the next
+ * person who pays.
+ *
+ * Opening the plan is also where the author declares their monthly minimum
+ * (terms 6.4), so a newly opened subscription always carries one.
  */
 export async function setPlanPriceAction(
   _previous: ActionResult<{ priceMinor: number }> | null,
@@ -533,8 +529,34 @@ export async function setPlanPriceAction(
 
     const profile = await prisma.analystProfile.findUniqueOrThrow({
       where: { id: actor.analystProfileId },
-      select: { id: true, displayName: true },
+      select: { id: true, displayName: true, monthlyMinimum: true },
     });
+
+    /*
+     * Terms 6.4 / agreement 3.5: the declared monthly number is set when the
+     * subscription is opened, and it is required then. Once set it is not
+     * changed from here: a change applies only from the following month and
+     * with notice to the platform (3.5.3), so it goes through the
+     * administration rather than a form that would apply it mid-month.
+     */
+    let declaredMinimum: number | null = null;
+    if (profile.monthlyMinimum === null) {
+      const parsedMinimum = monthlyMinimumSchema.safeParse(
+        formData.get('monthlyMinimum'),
+      );
+      if (!parsedMinimum.success) {
+        return fail(
+          ERROR_CODES.VALIDATION_ERROR,
+          parsedMinimum.error.issues[0]?.message ??
+            'თვეში მინიმუმ 8 პროგნოზია საჭირო.',
+        );
+      }
+      declaredMinimum = parsedMinimum.data;
+      await prisma.analystProfile.update({
+        where: { id: profile.id },
+        data: { monthlyMinimum: declaredMinimum },
+      });
+    }
 
     const existing = await prisma.subscriptionPlan.findFirst({
       where: { analystProfileId: profile.id, tier: 'PREMIUM' },
@@ -573,7 +595,7 @@ export async function setPlanPriceAction(
         : AUDIT_ACTIONS.PLAN_CREATED,
       entityType: 'SubscriptionPlan',
       entityId: plan.id,
-      summary: `${profile.displayName}: გამოწერა ${priceMinor / 100} ლარი/თვე${existing ? ` (იყო ${existing.priceMinor / 100})` : ''}`,
+      summary: `${profile.displayName}: გამოწერა ${priceMinor / 100} ლარი/თვე${existing ? ` (იყო ${existing.priceMinor / 100})` : ''}${declaredMinimum !== null ? `, თვეში მინიმუმ ${declaredMinimum} პროგნოზი` : ''}`,
       actorId: actor.userId,
       actorRole: actor.role,
     });
@@ -657,6 +679,29 @@ export async function togglePinBetAction(
     revalidatePath('/analyst');
     revalidatePath('/analysts', 'layout');
     return ok({ pinned: true });
+  } catch (error) {
+    return toActionFailure(error);
+  }
+}
+
+/**
+ * The author has read the notice about the three kinds of ticket.
+ *
+ * Kept on the profile rather than in the browser, so it stays gone on every
+ * device. Guarded on null, so a second press changes nothing.
+ */
+export async function acknowledgeOnboardingAction(
+  _previous: ActionResult<{ read: true }> | null,
+  _formData: FormData,
+): Promise<ActionResult<{ read: true }>> {
+  try {
+    const analyst = await requireApprovedAnalyst();
+    await prisma.analystProfile.updateMany({
+      where: { id: analyst.analystProfileId, onboardingReadAt: null },
+      data: { onboardingReadAt: new Date() },
+    });
+    revalidatePath('/analyst');
+    return ok({ read: true });
   } catch (error) {
     return toActionFailure(error);
   }

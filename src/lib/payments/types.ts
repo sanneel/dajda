@@ -145,35 +145,6 @@ export type SubscriptionActionResult = {
   message?: string;
 };
 
-/**
- * Credit funds to a bank account (e.g. paying an analyst out).
- *
- * An IBAN rather than a card, because a card payout is not a thing this rail
- * offers us: Flitt credits a card only through a token issued by an earlier
- * purchase on that same card, which for somebody who is owed money rather than
- * spending it means "pay us first and we will pay you back". See
- * ./flitt.ts#createPayout.
- */
-export type PayoutInput = {
-  /** Our identifier for the payout; becomes the provider's order_id. */
-  orderId: string;
-  amountMinor: number;
-  currency: string;
-  description: string;
-  /** The receiving account, normalised and check-digit verified by the caller. */
-  receiverIban: string;
-  /** The payee, when known. Optional at the gateway. */
-  receiverName?: string;
-};
-
-export type PayoutResult = {
-  orderId: string;
-  providerPaymentId: string | null;
-  status: 'SUCCEEDED' | 'PROCESSING' | 'FAILED';
-  rawStatus: string;
-  message?: string;
-};
-
 export interface PaymentProvider {
   readonly code: string;
   createCheckoutSession(input: CreateCheckoutInput): Promise<CheckoutSession>;
@@ -186,6 +157,4 @@ export interface PaymentProvider {
   setSubscriptionState(
     input: SubscriptionActionInput,
   ): Promise<SubscriptionActionResult>;
-  /** Credit funds out to a card. */
-  createPayout(input: PayoutInput): Promise<PayoutResult>;
 }

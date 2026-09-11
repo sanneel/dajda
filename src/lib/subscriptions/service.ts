@@ -7,6 +7,7 @@ import { AUDIT_ACTIONS, writeAuditLog } from "@/lib/audit";
 import { getPaymentProvider } from "@/lib/payments";
 import { abandonRefusedCheckout } from "@/lib/payments/abandon";
 import { addBillingPeriod } from "@/lib/payments/webhook";
+import { expireLapsedSubscriptions } from "./expiry";
 
 /**
  * Subscription lifecycle.
@@ -42,6 +43,11 @@ export async function startSubscriptionCheckout(
   if (!plan || !plan.isActive) {
     throw new AppError(ERROR_CODES.NOT_FOUND, "გეგმა ვერ მოიძებნა.");
   }
+
+  // A month that has run out still reads ACTIVE until the daily sweep closes
+  // it, and only one ACTIVE row per plan is allowed. Close this person's
+  // lapsed one first, so paying again on the day it ends works.
+  await expireLapsedSubscriptions({ userId: actor.userId, planId: plan.id });
 
   const existing = await prisma.userSubscription.findFirst({
     where: { userId: actor.userId, planId: plan.id, status: "ACTIVE" },
@@ -121,11 +127,11 @@ export async function startSubscriptionCheckout(
   });
 
   /*
-   * The gateway manages renewals: the checkout takes the first payment and
-   * schedules the next charge for the day this paid period lapses. Each
-   * renewal arrives as a webhook naming this order as its parent and extends
-   * the subscription without the customer returning. The card token is
-   * requested alongside as the fallback for merchant-initiated charges.
+   * One month, paid once. The contract with the payment provider covers
+   * taking payments and nothing that charges a card again on its own, so the
+   * checkout opens no renewal calendar and asks for no reusable card token.
+   * The month is set when the payment is confirmed, and continuing means
+   * paying again once it ends.
    */
   let session;
   try {
@@ -137,14 +143,6 @@ export async function startSubscriptionCheckout(
       returnUrl: buildReturnUrl(env.APP_URL, orderId, "/dashboard"),
       callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
       customerEmail: actor.email,
-      subscription: {
-        every: plan.billingPeriod === "QUARTERLY" ? 3 : 1,
-        period: "month",
-        startDate: addBillingPeriod(new Date(), plan.billingPeriod)
-          .toISOString()
-          .slice(0, 10),
-      },
-      requestCardToken: true,
     });
   } catch (error) {
     // A refused checkout must not leave a PENDING subscription that blocks
@@ -164,13 +162,15 @@ export async function startSubscriptionCheckout(
 }
 
 /**
- * Cancel at period end: the customer keeps the access they already paid for,
- * and nothing renews. This is the behaviour described on the pricing page.
+ * Stop a subscription from renewing. Access stays until the period ends.
  *
- * With a gateway-managed schedule "nothing renews" is a promise about the
- * gateway, not just our database - so its calendar is stopped first, and a
- * gateway that refuses fails the whole cancellation rather than leaving a
- * customer who believes they canceled being charged next month.
+ * Subscriptions bought now do not renew, so for them there is nothing to stop
+ * and the dashboard does not offer this. It remains for one bought while
+ * checkouts still opened a renewal calendar at the gateway, which is the one
+ * that carries a card token: that calendar is stopped first, and a gateway
+ * that refuses fails the whole cancellation rather than leaving a customer
+ * who believes they canceled being charged next month. Deleting an account
+ * also comes through here, for either kind.
  */
 export async function cancelSubscription(
   subscriptionId: string,
@@ -182,6 +182,7 @@ export async function cancelSubscription(
       id: true,
       userId: true,
       status: true,
+      cardToken: true,
       plan: { select: { nameKa: true } },
     },
   });
@@ -199,8 +200,13 @@ export async function cancelSubscription(
   const provider = getPaymentProvider();
 
   // The order that opened the subscription is the handle on the gateway's
-  // renewal calendar. Nothing to stop for free plans or a provider switch.
-  const openingPayment = await prisma.payment.findFirst({
+  // renewal calendar. Only a subscription holding a card token was opened
+  // with one; nothing to stop for the rest, for free plans, or after a
+  // provider switch.
+  const openingPayment =
+    subscription.cardToken === null
+      ? null
+      : await prisma.payment.findFirst({
     where: {
       subscriptionId: subscription.id,
       providerCode: provider.code,

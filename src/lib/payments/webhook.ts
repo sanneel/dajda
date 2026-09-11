@@ -19,8 +19,6 @@ import type { WebhookResult } from './types';
  *   - a gateway-scheduled renewal (a new order naming its parent_order_id)
  *     is recorded as a payment of its own and extends the paid period, with
  *     the same amount guard applied against the original payment
- *   - a BALANCE_TOPUP payment credits the balance exactly once on SUCCEEDED
- *     and takes the credit back exactly once on REFUNDED/DISPUTED
  *   - a SUBSCRIPTION payment credits the analyst's share of it exactly once,
  *     and takes it back if the subscriber's payment is later reversed
  *
@@ -183,30 +181,6 @@ export interface WebhookPort {
     paymentId: string;
     analystUserId: string;
     grossAmountMinor: number;
-    currency: string;
-    reason: string;
-  }): Promise<void>;
-
-  /**
-   * Credit a verified top-up onto the user's balance. Must be idempotent
-   * per payment - a redelivery under a fresh event id credits nothing.
-   */
-  creditBalanceTopUp(input: {
-    paymentId: string;
-    userId: string;
-    amountMinor: number;
-    currency: string;
-  }): Promise<void>;
-
-  /**
-   * Take a refunded or disputed top-up's credit back. Also idempotent per
-   * payment. The balance may go negative: money that was spent and then
-   * pulled back by the bank is a debt, and the ledger says so.
-   */
-  reverseBalanceTopUp(input: {
-    paymentId: string;
-    userId: string;
-    amountMinor: number;
     currency: string;
     reason: string;
   }): Promise<void>;
@@ -441,8 +415,8 @@ export async function processPaymentWebhook(
     }
   }
 
-  // The analyst earns from a subscriber's or a ticket buyer's payment, not
-  // from a top-up. Both directions are idempotent per payment inside the port.
+  // The analyst earns from a subscriber's or a ticket buyer's payment. Both
+  // directions are idempotent per payment inside the port.
   if (
     (payment.purpose === 'SUBSCRIPTION' || payment.purpose === 'TICKET') &&
     payment.analystUserId
@@ -463,29 +437,6 @@ export async function processPaymentWebhook(
         grossAmountMinor: payment.amountMinor,
         currency: payment.currency,
         reason: `subscriber payment ${result.status.toLowerCase()}`,
-      });
-    }
-  }
-
-  // A top-up moves the balance instead of a subscription. Both directions
-  // are idempotent per payment inside the port, so a redelivery under a
-  // fresh event id cannot double-credit or double-reverse.
-  if (payment.purpose === 'BALANCE_TOPUP') {
-    if (result.status === 'SUCCEEDED') {
-      await port.creditBalanceTopUp({
-        paymentId: payment.id,
-        userId: payment.userId,
-        amountMinor: payment.amountMinor,
-        currency: payment.currency,
-      });
-    }
-    if (result.status === 'REFUNDED' || result.status === 'DISPUTED') {
-      await port.reverseBalanceTopUp({
-        paymentId: payment.id,
-        userId: payment.userId,
-        amountMinor: payment.amountMinor,
-        currency: payment.currency,
-        reason: `payment ${result.status.toLowerCase()}`,
       });
     }
   }

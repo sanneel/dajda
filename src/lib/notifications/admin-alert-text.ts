@@ -1,4 +1,4 @@
-import { formatDateTimeKa, formatOdds } from '@/lib/format';
+import { formatDateTimeKa, formatMoney, formatOdds } from '@/lib/format';
 
 /**
  * The wording of administrator alerts, apart from the database and the bot
@@ -40,5 +40,48 @@ export function renderBetFinishedAlert(input: BetFinishedAlertInput): {
     subjectKa: `დასათვლელია: ${input.titleKa}`,
     bodyKa: lines.join('\n'),
     linkPath: SETTLEMENT_QUEUE_PATH,
+  };
+}
+
+export type PayoutRequestedAlertInput = {
+  authorName: string;
+  amountMinor: number;
+  currency: string;
+  maskedAccount: string;
+  activityCheckPassed: boolean;
+};
+
+/** Where the message points: the payout queue, where the full IBAN is. */
+export const PAYOUT_QUEUE_PATH = '/admin/payouts';
+
+/**
+ * An author asked to be paid. The money moves only when an administrator
+ * transfers it from the bank, so the message says how much, to whose account,
+ * and whether the month's delivery check passed.
+ *
+ * The account is masked on purpose. The full IBAN stays on the payouts page,
+ * behind the admin login, rather than sitting in a Telegram chat.
+ */
+export function renderPayoutRequestedAlert(input: PayoutRequestedAlertInput): {
+  subjectKa: string;
+  bodyKa: string;
+  linkPath: string;
+} {
+  const amount = formatMoney(input.amountMinor, input.currency);
+  const lines = [
+    `${input.authorName} ითხოვს გატანას: ${amount}.`,
+    '',
+    `ანგარიში: ${input.maskedAccount}`,
+    `აქტივობის შემოწმება: ${
+      input.activityCheckPassed ? 'გავლილია' : 'ვერ გაიარა, გადაამოწმეთ'
+    }`,
+    '',
+    'სრული IBAN ჩანს გატანების გვერდზე. გადარიცხვის შემდეგ მონიშნეთ გადახდილად.',
+  ];
+
+  return {
+    subjectKa: `გატანის მოთხოვნა: ${amount}`,
+    bodyKa: lines.join('\n'),
+    linkPath: PAYOUT_QUEUE_PATH,
   };
 }

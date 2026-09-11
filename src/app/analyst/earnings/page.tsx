@@ -8,7 +8,7 @@ import {
   isWithdrawalWindowOpen,
   nextWithdrawalWindow,
   payoutPeriod,
-  weeklyActivity,
+  monthlyActivity,
 } from '@/lib/payouts/rules';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +44,7 @@ export default async function AnalystEarningsPage() {
     }),
     prisma.analystProfile.findUniqueOrThrow({
       where: { id: analyst.analystProfileId },
-      select: { payoutWindow: true, payoutWindowNote: true },
+      select: { payoutWindow: true, payoutWindowNote: true, monthlyMinimum: true },
     }),
     prisma.balanceTransaction.findMany({
       where: { userId: analyst.userId, account: 'EARNINGS' },
@@ -108,12 +108,12 @@ export default async function AnalystEarningsPage() {
    * author: opened early, or held shut while something is settled.
    */
   const windowOpen = isWithdrawalWindowOpen(now, profile.payoutWindow);
-  const activity = weeklyActivity({
+  const activity = monthlyActivity({
     period,
     publishedAt: published
       .map((row) => row.publishedAt)
       .filter((value): value is Date => value !== null),
-    minimumPerWeek: env.ANALYST_MIN_PUBLICATIONS_PER_WEEK,
+    declaredMinimum: profile.monthlyMinimum,
   });
   const hasPending = payouts.some(
     (payout) => payout.status === 'REQUESTED' || payout.status === 'APPROVED',
@@ -126,9 +126,9 @@ export default async function AnalystEarningsPage() {
           ანაზღაურება
         </h1>
         <p className="mt-1.5 text-ink-muted">
-          კუთვნილი წილი ბილეთების გაყიდვიდან და გამოწერებიდან. აქ ნაჩვენები
-          თანხა შევსებულ ბალანსს არ ერევა: გატანა შესაძლებელია მხოლოდ
-          ნამუშევარი თანხისა.
+          კუთვნილი წილი ბილეთების გაყიდვიდან და გამოწერებიდან. თანხა
+          ჩაირიცხება თქვენს ქართულ საბანკო ანგარიშზე, ადმინისტრაციის
+          გადარიცხვით.
         </p>
       </header>
 
@@ -159,12 +159,12 @@ export default async function AnalystEarningsPage() {
               </p>
               <p className="mt-3 text-ink-muted">
                 ამ თვის პუბლიკაციები:{' '}
-                <span className="tabular text-ink">{activity.total}</span>
+                <span className="tabular text-ink">{activity.total}</span> /{' '}
+                <span className="tabular">{activity.declaredMinimum}</span>
               </p>
               <p className="mt-0.5 text-ink-muted">
-                კვირები ნორმის შესრულებით:{' '}
-                <span className="tabular text-ink">{activity.weeksMet}</span> /{' '}
-                <span className="tabular">{activity.weeks}</span>
+                ცარიელი სრული კვირა:{' '}
+                <span className="tabular text-ink">{activity.emptyWeeks}</span>
               </p>
               <p className="mt-0.5 text-ink-faint">
                 {profile.payoutWindow === 'OPEN'
@@ -184,7 +184,7 @@ export default async function AnalystEarningsPage() {
                 <li
                   key={index}
                   className={
-                    count >= env.ANALYST_MIN_PUBLICATIONS_PER_WEEK
+                    count > 0
                       ? 'rounded-md border border-line px-2.5 py-1 text-sm text-ink'
                       : 'rounded-md border border-loss/40 px-2.5 py-1 text-sm text-ink-muted'
                   }
@@ -199,8 +199,10 @@ export default async function AnalystEarningsPage() {
           {!activity.passed ? (
             <div className="mt-4">
               <Alert tone="warning" title="აქტივობის შემოწმება">
-                ყოველ კვირაში საჭიროა მინიმუმ{' '}
-                {env.ANALYST_MIN_PUBLICATIONS_PER_WEEK} პუბლიკაცია. მოთხოვნის
+                თქვენ დეკლარირებული გაქვთ თვეში{' '}
+                <span className="tabular">{activity.declaredMinimum}</span>{' '}
+                პუბლიკაცია, და ყოველ სრულ კვირაში, ორშაბათიდან კვირამდე,
+                სულ მცირე ერთი უნდა გამოქვეყნდეს. მოთხოვნის
                 შეტანა მაინც შეგიძლიათ, თუმცა მას ცალკე განიხილავს
                 ადმინისტრაცია, რადგან გამომწერს მიწოდებული უნდა ჰქონდეს ის,
                 რაშიც გადაიხადა.

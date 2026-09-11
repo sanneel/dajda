@@ -33,11 +33,9 @@ export default async function AdminAnalystsPage() {
       createdAt: true,
       firstName: true,
       lastName: true,
-      referralSource: true,
       monthlyMinimum: true,
       termsAcceptedAt: true,
       identityDocumentId: true,
-      bio: true,
       primarySport: { select: { nameKa: true } },
       user: { select: { email: true } },
       sports: { select: { sport: { select: { nameKa: true } } } },
@@ -121,12 +119,6 @@ export default async function AdminAnalystsPage() {
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-ink-muted">რეფერალი</dt>
-                      <dd className="text-ink">
-                        {profile.referralSource ?? 'მითითებული არაა'}
-                      </dd>
-                    </div>
-                    <div>
                       {/* The floor they committed to under clause 6.4 - what
                           suspension is later measured against. */}
                       <dt className="text-xs text-ink-muted">
@@ -135,7 +127,7 @@ export default async function AdminAnalystsPage() {
                       <dd className="tabular text-ink">
                         {profile.monthlyMinimum !== null
                           ? `${profile.monthlyMinimum} პროგნოზი`
-                          : 'მითითებული არაა'}
+                          : 'გამოწერის გააქტიურებისას'}
                       </dd>
                     </div>
                     <div>
@@ -163,12 +155,6 @@ export default async function AdminAnalystsPage() {
                         )}
                       </dd>
                     </div>
-                    {profile.bio ? (
-                      <div className="sm:col-span-2">
-                        <dt className="text-xs text-ink-muted">აღწერა</dt>
-                        <dd className="text-ink-muted">{profile.bio}</dd>
-                      </div>
-                    ) : null}
                   </dl>
 
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">

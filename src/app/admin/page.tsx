@@ -13,6 +13,7 @@ import { Alert, EmptyState } from '@/components/ui/feedback';
 import { ActionButton } from '@/components/admin/action-button';
 import { SettleForm } from './predictions/settle-form';
 import { DecidePayoutForm } from './payouts/decide-form';
+import { revealPayoutIban } from '@/lib/payouts/service';
 import { ReportDecisionForm } from './reports/decide-form';
 
 export const dynamic = 'force-dynamic';
@@ -100,11 +101,14 @@ export default async function AdminQueuePage() {
         maskedAccount: true,
         accountCipher: true,
         activityCheckPassed: true,
+        declaredMonthlyMinimum: true,
         weeksInPeriod: true,
         weeksMeetingMinimum: true,
         publicationsInPeriod: true,
         requestedAt: true,
-        analystProfile: { select: { displayName: true, slug: true } },
+        analystProfile: {
+          select: { displayName: true, slug: true, firstName: true, lastName: true },
+        },
       },
     }),
     prisma.analystPayout.count({ where: { status: 'REQUESTED' } }),
@@ -384,7 +388,9 @@ export default async function AdminQueuePage() {
                       >
                         {payout.activityCheckPassed
                           ? 'აქტივობის შემოწმება გავლილია'
-                          : `აქტივობა ვერ გაიარა: ნორმა ${payout.weeksMeetingMinimum} / ${payout.weeksInPeriod} კვირაში`}
+                          : payout.declaredMonthlyMinimum !== null
+                            ? `აქტივობა ვერ გაიარა: ${payout.publicationsInPeriod} / ${payout.declaredMonthlyMinimum}, ცარიელი კვირა ${payout.weeksInPeriod - payout.weeksMeetingMinimum}`
+                            : `აქტივობა ვერ გაიარა: ნორმა ${payout.weeksMeetingMinimum} / ${payout.weeksInPeriod} კვირაში`}
                         {' · '}
                         <span className="tabular">{payout.publicationsInPeriod}</span>
                         {' პუბლიკაცია'}
@@ -392,8 +398,13 @@ export default async function AdminQueuePage() {
                     </div>
                     <DecidePayoutForm
                       payoutId={payout.id}
+                      iban={revealPayoutIban(payout.accountCipher)}
+                      holderName={
+                        [payout.analystProfile.firstName, payout.analystProfile.lastName]
+                          .filter(Boolean)
+                          .join(' ') || payout.analystProfile.displayName
+                      }
                       maskedAccount={payout.maskedAccount}
-                      hasStoredAccount={payout.accountCipher !== null}
                       amountLabel={formatMoney(payout.amountMinor, payout.currency)}
                     />
                   </div>

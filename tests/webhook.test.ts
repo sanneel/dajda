@@ -31,8 +31,6 @@ type Recorded = {
   tokenSaves: { subscriptionId: string; cardToken: string }[];
   renewalPayments: { orderId: string; parentPaymentId: string; amountMinor: number }[];
   renewals: { subscriptionId: string; currentPeriodEnd: Date }[];
-  balanceCredits: { paymentId: string; amountMinor: number }[];
-  balanceReversals: { paymentId: string; amountMinor: number; reason: string }[];
   earningCredits: { paymentId: string; analystUserId: string; grossAmountMinor: number }[];
   earningReversals: { paymentId: string; analystUserId: string; reason: string }[];
   ticketGrants: { paymentId: string; userId: string; predictionId: string; amountMinor: number }[];
@@ -52,8 +50,6 @@ function makePort(payment: PaymentSnapshot | null) {
     tokenSaves: [],
     renewalPayments: [],
     renewals: [],
-    balanceCredits: [],
-    balanceReversals: [],
     earningCredits: [],
     earningReversals: [],
     ticketGrants: [],
@@ -170,21 +166,6 @@ function makePort(payment: PaymentSnapshot | null) {
         reason: input.reason,
       });
     },
-
-    async creditBalanceTopUp(input) {
-      recorded.balanceCredits.push({
-        paymentId: input.paymentId,
-        amountMinor: input.amountMinor,
-      });
-    },
-
-    async reverseBalanceTopUp(input) {
-      recorded.balanceReversals.push({
-        paymentId: input.paymentId,
-        amountMinor: input.amountMinor,
-        reason: input.reason,
-      });
-    },
   };
 
   return { port, recorded };
@@ -222,21 +203,6 @@ const TICKET_PAYMENT: PaymentSnapshot = {
 };
 
 /** A balance top-up: same pipeline, no plan and no subscription attached. */
-const TOPUP_PAYMENT: PaymentSnapshot = {
-  id: 'payment-topup-1',
-  userId: 'user-1',
-  planId: null,
-  subscriptionId: null,
-  purpose: 'BALANCE_TOPUP',
-  status: 'CREATED',
-  amountMinor: 5000,
-  currency: 'GEL',
-  billingPeriod: null,
-  predictionId: null,
-  analystProfileId: null,
-  analystUserId: null,
-};
-
 function result(overrides: Partial<WebhookResult> = {}): WebhookResult {
   return {
     eventId: 'evt-1',
@@ -717,90 +683,6 @@ describe('gateway-scheduled renewals', () => {
   });
 });
 
-describe('balance top-ups', () => {
-  const topUpResult = (overrides: Partial<WebhookResult> = {}) =>
-    result({ amountMinor: 5000, ...overrides });
-
-  it('credits the balance on a verified approval', async () => {
-    const { port, recorded } = makePort({ ...TOPUP_PAYMENT });
-    const outcome = await processPaymentWebhook('mock', topUpResult(), port);
-
-    expect(outcome.action).toBe('APPLIED');
-    expect(recorded.balanceCredits).toEqual([
-      { paymentId: 'payment-topup-1', amountMinor: 5000 },
-    ]);
-    // No subscription is attached, so nothing activates.
-    expect(recorded.activations).toHaveLength(0);
-  });
-
-  it('credits nothing on a declined top-up', async () => {
-    const { port, recorded } = makePort({ ...TOPUP_PAYMENT });
-    await processPaymentWebhook(
-      'mock',
-      topUpResult({ status: 'FAILED', rawStatus: 'declined' }),
-      port,
-    );
-
-    expect(recorded.balanceCredits).toHaveLength(0);
-  });
-
-  it('credits nothing on a forged signature', async () => {
-    const { port, recorded } = makePort({ ...TOPUP_PAYMENT });
-    await processPaymentWebhook(
-      'mock',
-      topUpResult({ signatureValid: false }),
-      port,
-    );
-
-    expect(recorded.balanceCredits).toHaveLength(0);
-  });
-
-  it('rejects a top-up callback with a mismatched amount', async () => {
-    const { port, recorded } = makePort({ ...TOPUP_PAYMENT });
-    const outcome = await processPaymentWebhook(
-      'mock',
-      topUpResult({ amountMinor: 1 }),
-      port,
-    );
-
-    expect(outcome.action).toBe('AMOUNT_MISMATCH');
-    expect(recorded.balanceCredits).toHaveLength(0);
-  });
-
-  it('takes the credit back when a top-up is refunded', async () => {
-    const { port, recorded } = makePort({
-      ...TOPUP_PAYMENT,
-      status: 'SUCCEEDED',
-    });
-    await processPaymentWebhook(
-      'mock',
-      topUpResult({
-        eventId: 'evt-refund',
-        status: 'REFUNDED',
-        rawStatus: 'reversed',
-      }),
-      port,
-    );
-
-    expect(recorded.balanceReversals).toEqual([
-      {
-        paymentId: 'payment-topup-1',
-        amountMinor: 5000,
-        reason: 'payment refunded',
-      },
-    ]);
-  });
-
-  it('absorbs a duplicate delivery without double-crediting', async () => {
-    const { port, recorded } = makePort({ ...TOPUP_PAYMENT });
-    await processPaymentWebhook('mock', topUpResult(), port);
-    const second = await processPaymentWebhook('mock', topUpResult(), port);
-
-    expect(second.action).toBe('DUPLICATE_IGNORED');
-    expect(recorded.balanceCredits).toHaveLength(1);
-  });
-});
-
 describe('analyst earnings', () => {
   it('credits the analyst on a verified subscription payment', async () => {
     const { port, recorded } = makePort({ ...PAYMENT });
@@ -884,15 +766,6 @@ describe('analyst earnings', () => {
     await processPaymentWebhook('mock', result(), port);
 
     expect(recorded.earningCredits).toHaveLength(0);
-  });
-
-  it('does not credit an analyst for a balance top-up', async () => {
-    // A top-up is the subscriber putting money in, not buying anything.
-    const { port, recorded } = makePort({ ...TOPUP_PAYMENT });
-    await processPaymentWebhook('mock', result({ amountMinor: 5000 }), port);
-
-    expect(recorded.earningCredits).toHaveLength(0);
-    expect(recorded.balanceCredits).toHaveLength(1);
   });
 
   it('credits once per delivery, not once per redelivery', async () => {

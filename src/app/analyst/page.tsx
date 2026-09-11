@@ -30,6 +30,7 @@ import { ActionButton } from '@/components/admin/action-button';
 import { PlanPriceForm } from './plan-price-form';
 import { FinishBetForm } from './finish-form';
 import { CreateActions } from './create-actions';
+import { OnboardingNotice } from './onboarding-notice';
 import { WorkspaceTabs } from './workspace-tabs';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,8 @@ export default async function AnalystPage() {
       prisma.analystProfile.findUniqueOrThrow({
         where: { id: analyst.analystProfileId },
         select: {
+          monthlyMinimum: true,
+          onboardingReadAt: true,
           displayName: true,
           photoPath: true,
           slug: true,
@@ -156,6 +159,9 @@ export default async function AnalystPage() {
 
   return (
     <div className="space-y-6">
+      {/* Once, after approval, until the author presses "read". */}
+      {profile.onboardingReadAt === null ? <OnboardingNotice /> : null}
+
       {/* ----------------------------------------------------------------- */}
       {/* Identity, standing, and the one action                             */}
       {/* ----------------------------------------------------------------- */}
@@ -251,7 +257,10 @@ export default async function AnalystPage() {
                         შეცვლა
                       </summary>
                       <div className="mt-3">
-                        <PlanPriceForm currentPriceMinor={plan.priceMinor} />
+                        <PlanPriceForm
+                          currentPriceMinor={plan.priceMinor}
+                          currentMonthlyMinimum={profile.monthlyMinimum}
+                        />
                       </div>
                     </details>
                   </>
@@ -264,6 +273,9 @@ export default async function AnalystPage() {
 
               <CreateActions
                 sports={sportOptions}
+                canPostSubscription={Boolean(
+                  plan && plan.isActive && plan.priceMinor > 0,
+                )}
                 // Their declared sport first; failing that, the first one
                 // they cover. An alphabetical default was "basketball" for a
                 // football author.
@@ -295,7 +307,10 @@ export default async function AnalystPage() {
               აირჩიეთ თვიური ფასი. სანამ ფასი არ არის არჩეული, თქვენს გვერდს
               გამოწერა არ აქვს და ფასიან პროგნოზებზე წვდომას ვერავინ იყიდის.
             </p>
-            <PlanPriceForm currentPriceMinor={null} />
+            <PlanPriceForm
+              currentPriceMinor={null}
+              currentMonthlyMinimum={profile.monthlyMinimum}
+            />
           </div>
         </Alert>
       ) : null}

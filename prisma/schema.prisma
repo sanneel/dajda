@@ -419,6 +419,11 @@ model AnalystProfile {
 
   rejectionReason String?
 
+  /// When the author pressed "read" on the notice about the three kinds of
+  /// ticket. Null shows the notice on their workspace, so an author sees it
+  /// once and never again, on any device.
+  onboardingReadAt DateTime?
+
   /// Whether this author may withdraw right now, overriding the calendar.
   ///
   /// SCHEDULE is the agreement's own rule: the last day of the month and no
@@ -993,19 +998,29 @@ model AnalystPayout {
   failureReason    String?
   failureDetail    String?
 
+  /// The bank's reference for the transfer an administrator made by hand.
+  /// Payouts are not a service of the payment contract, so the money leaves
+  /// from the merchant bank account, and this is what ties the row to it.
+  paymentReference String?
+
   /// The activity check taken at request time: what the platform looked at
   /// when deciding whether the content was actually delivered.
   ///
-  /// Judged per week, not on the monthly total. A subscriber pays for a month
-  /// of analysis and receives it as the month goes, so the figures kept here
-  /// are how many whole weeks the period held and how many of them reached
-  /// the minimum.
+  /// Agreement 3.5: the month's total against what the author declared, and
+  /// no full Monday-to-Sunday week left empty. weeksInPeriod is how many full
+  /// weeks the month held, weeksMeetingMinimum how many of them had at least
+  /// one publication.
   periodStart          DateTime
   periodEnd            DateTime
   publicationsInPeriod Int
   weeksInPeriod        Int      @default(0)
   weeksMeetingMinimum  Int      @default(0)
   activityCheckPassed  Boolean
+
+  /// What the author had declared for a month when they asked. Null on
+  /// requests made before the check read it, when weeksMeetingMinimum still
+  /// meant "weeks reaching a fixed weekly quota".
+  declaredMonthlyMinimum Int?
 
   requestedAt DateTime  @default(now())
   decidedAt   DateTime?

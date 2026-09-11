@@ -6,6 +6,10 @@ import {
   sweepResult,
 } from '@/lib/payments/sweep-rules';
 import type { PaymentVerification } from '@/lib/payments/types';
+import {
+  RENEWAL_GRACE_MS,
+  subscriptionHasLapsed,
+} from '@/lib/subscriptions/expiry-rules';
 
 function verification(overrides: Partial<PaymentVerification> = {}): PaymentVerification {
   return {
@@ -45,5 +49,58 @@ describe('stale checkout sweep', () => {
     expect(result.amountMinor).toBe(3000);
     expect(result.cardToken).toBeNull();
     expect(result.payload).toMatchObject({ source: 'sweep', gatewayStatus: 'approved' });
+  });
+});
+
+describe('subscription expiry', () => {
+  const now = new Date('2026-09-10T12:00:00Z');
+  const hour = 60 * 60 * 1000;
+
+  it('closes a month that ended, and not one still running', () => {
+    expect(
+      subscriptionHasLapsed(
+        { currentPeriodEnd: new Date(now.getTime() - hour), hasRenewalCalendar: false },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      subscriptionHasLapsed(
+        { currentPeriodEnd: new Date(now.getTime() + hour), hasRenewalCalendar: false },
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it('ends exactly at the period end', () => {
+    expect(
+      subscriptionHasLapsed({ currentPeriodEnd: now, hasRenewalCalendar: false }, now),
+    ).toBe(true);
+  });
+
+  it('never closes an open-ended grant', () => {
+    expect(
+      subscriptionHasLapsed({ currentPeriodEnd: null, hasRenewalCalendar: false }, now),
+    ).toBe(false);
+  });
+
+  /*
+   * A subscription bought while checkouts still opened a gateway calendar may
+   * be renewed by the gateway on the day it ends. Closing it at that moment
+   * would leave the renewal charging a card for a row that no longer opens.
+   */
+  it('gives an old renewing subscription its grace before closing it', () => {
+    const ended = new Date(now.getTime() - hour);
+    expect(
+      subscriptionHasLapsed({ currentPeriodEnd: ended, hasRenewalCalendar: true }, now),
+    ).toBe(false);
+    expect(
+      subscriptionHasLapsed(
+        {
+          currentPeriodEnd: new Date(now.getTime() - RENEWAL_GRACE_MS),
+          hasRenewalCalendar: true,
+        },
+        now,
+      ),
+    ).toBe(true);
   });
 });

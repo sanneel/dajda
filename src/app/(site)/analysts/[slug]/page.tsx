@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { SlidersHorizontal } from 'lucide-react';
 import { getAnalystBySlug } from '@/lib/queries/analysts';
 import { activePlanGrants, purchasedTicketIds } from '@/lib/queries/tickets';
+import { isTicketStillActive } from '@/lib/tickets/active';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { isTicketLocked } from '@/lib/auth/entitlements';
 import { prisma } from '@/lib/db';
@@ -147,6 +148,7 @@ export default async function AnalystProfilePage({
   const lowestPriceMinor = Math.min(
     ...profile.plans.filter((plan) => plan.priceMinor > 0).map((plan) => plan.priceMinor),
   );
+  const now = new Date();
   const lockedBetIds = new Set(
     predictions
       .filter((prediction) =>
@@ -224,6 +226,7 @@ export default async function AnalystProfilePage({
         {isOwner ? (
           <div className="flex flex-wrap items-center gap-2">
             <AddTicketButton
+              canPostSubscription={sellsSubscription}
               sports={sports.map((sport) => ({
                 value: sport.id,
                 label: sport.nameKa,
@@ -279,12 +282,6 @@ export default async function AnalystProfilePage({
         )}
       </header>
 
-      {profile.bio ? (
-        <p className="mt-5 max-w-3xl whitespace-pre-line leading-relaxed text-ink-muted">
-          {profile.bio}
-        </p>
-      ) : null}
-
       {/* ------------------------------------------------------------- */}
       {/* The record: one panel, switched between free, paid and plans.   */}
       {/* ------------------------------------------------------------- */}
@@ -339,8 +336,9 @@ export default async function AnalystProfilePage({
           აქტიური ბილეთები
         </h2>
         <p className="mt-1.5 text-sm text-ink-muted">
-          რაც ავტორს ახლა აქვს გაშვებული, ტიპის მიხედვით. დათვლილი ბილეთები
-          ზემოთ, ჩანაწერში ითვლება.
+          რაც ავტორს ახლა აქვს გაშვებული, ტიპის მიხედვით. ბილეთი აქტიურია
+          პირველი პოზიციის დაწყებამდე; ვინც მას ფლობს, მისთვის ბოლო პოზიციის
+          დაწყებამდე. დათვლილი ბილეთები ზემოთ, ჩანაწერში ითვლება.
         </p>
 
         <div className="mt-5">
@@ -350,7 +348,15 @@ export default async function AnalystProfilePage({
                 (prediction) =>
                   prediction.publishedAt !== null &&
                   prediction.supersededAt === null &&
-                  prediction.status === 'PENDING',
+                  prediction.status === 'PENDING' &&
+                  isTicketStillActive(
+                    prediction,
+                    // Only a sold ticket has a holder. A free one is open to
+                    // every signed-in reader, which is not holding it.
+                    prediction.visibility !== 'PUBLIC' &&
+                      !lockedBetIds.has(prediction.id),
+                    now,
+                  ),
               )
               .map((prediction) => ({
                 id: prediction.id,

@@ -13,6 +13,10 @@ import type {
 import { classifyEdit, FROZEN_FIELDS } from './immutability';
 import { computeProfitUnitsCenti, type TerminalOutcome } from './settlement';
 import { slipTitle } from './slip';
+import {
+  hasSubscriptionForSale,
+  SUBSCRIPTION_TICKET_NEEDS_PLAN_KA,
+} from './subscription-gate';
 
 /**
  * The only sanctioned write path for bets.
@@ -50,6 +54,19 @@ export async function createPrediction(
   });
   if (!sport || !sport.isActive) {
     throw new AppError(ERROR_CODES.NOT_FOUND, 'სპორტი ვერ მოიძებნა.');
+  }
+
+  // A subscription ticket needs a subscription somebody can buy, or nobody
+  // but its author could ever open it. The form hides the option too; this is
+  // the check a hand-built request cannot get around.
+  if (
+    input.visibility === 'VIP' &&
+    !(await hasSubscriptionForSale(analystProfileId))
+  ) {
+    throw new AppError(
+      ERROR_CODES.VALIDATION_ERROR,
+      SUBSCRIPTION_TICKET_NEEDS_PLAN_KA,
+    );
   }
 
   /*

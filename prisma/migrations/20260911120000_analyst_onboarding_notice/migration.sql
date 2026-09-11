@@ -1,0 +1,11 @@
+-- When an author read the notice about the three kinds of ticket.
+--
+-- A newly approved author lands on their workspace and is told, once, what a
+-- subscription ticket, a free ticket and a separately sold ticket each are,
+-- and that a subscription ticket and a sold one must never be the same pick.
+-- The notice stays until they press "read", and the moment is kept on the
+-- profile so it does not return on another device.
+--
+-- Nullable, and null for everyone who exists today: authors already approved
+-- have not seen it either, so they read it once too.
+ALTER TABLE "AnalystProfile" ADD COLUMN "onboardingReadAt" TIMESTAMP(3);

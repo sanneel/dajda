@@ -44,12 +44,15 @@ function useHydrated(): boolean {
 export function CreateActions({
   sports,
   defaultSportId,
+  canPostSubscription,
   audienceSize,
   broadcastsRemaining,
   broadcastsPerDay,
 }: {
   sports: { value: string; label: string }[];
   defaultSportId?: string;
+  /** Whether a subscription exists to post subscription tickets into. */
+  canPostSubscription: boolean;
   audienceSize: number;
   broadcastsRemaining: number;
   broadcastsPerDay: number;
@@ -125,6 +128,7 @@ export function CreateActions({
         <PostBetForm
           sports={sports}
           defaultSportId={defaultSportId}
+          canPostSubscription={canPostSubscription}
           onPosted={close}
         />
       </Drawer>

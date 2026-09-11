@@ -21,9 +21,12 @@ import { PostBetForm } from '@/app/analyst/post-form';
  */
 export function AddTicketButton({
   sports,
+  canPostSubscription,
   label = 'ბილეთის დამატება',
 }: {
   sports: { value: string; label: string }[];
+  /** Whether this author has a subscription to post subscription tickets into. */
+  canPostSubscription: boolean;
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -41,7 +44,11 @@ export function AddTicketButton({
         title="ახალი ბილეთი"
         description="დაიწყეთ ბილეთის ფოტოთი."
       >
-        <PostBetForm sports={sports} onPosted={() => setOpen(false)} />
+        <PostBetForm
+          sports={sports}
+          canPostSubscription={canPostSubscription}
+          onPosted={() => setOpen(false)}
+        />
       </Drawer>
     </>
   );

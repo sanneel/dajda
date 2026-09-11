@@ -67,32 +67,9 @@ const envSchema = z
      *  than it moves, so the balance rolls into the next period. */
     ANALYST_MIN_PAYOUT_MINOR: z.coerce.number().int().min(1).default(2000),
 
-    /**
-     * Publications an analyst must have in EVERY whole week of the period for
-     * the activity check to pass. Weekly rather than monthly because a
-     * subscriber pays for a month of analysis and receives it as the month
-     * goes: a monthly total cannot tell steady delivery apart from a burst at
-     * the end.
-     *
-     * A failing check does not block the request. It is surfaced to the
-     * administrator who releases the payout, which is what the agreement
-     * describes (clause 5.6).
-     */
-    ANALYST_MIN_PUBLICATIONS_PER_WEEK: z.coerce
-      .number()
-      .int()
-      .min(0)
-      .default(10),
-
     FLITT_MERCHANT_ID: z.string().optional(),
     FLITT_SECRET_KEY: z.string().optional(),
     FLITT_WEBHOOK_SECRET: z.string().optional(),
-    /**
-     * Separate private key Flitt issues for payout (P2P card credit)
-     * operations. Optional: without it every payout attempt is refused at
-     * the adapter, while checkout and subscriptions keep working.
-     */
-    FLITT_CREDIT_KEY: z.string().optional(),
     FLITT_API_URL: z.url().default('https://pay.flitt.com'),
 
     /**

@@ -419,28 +419,24 @@ export const analystApplicationSchema = z.object({
   lastName: z.string().trim().min(2, 'შეიყვანეთ გვარი.').max(40),
   /** The public byline, which may differ from the legal name. */
   displayName: z.string().trim().min(2, 'შეიყვანეთ საჯარო სახელი.').max(60),
-  referralSource: z
-    .string()
-    .trim()
-    .min(2, 'მიუთითეთ, ვისი რეკომენდაციით ან საიდან მოხვდით პლატფორმაზე.')
-    .max(200),
   primarySportId: z.uuid('აირჩიეთ ძირითადი მიმართულება.'),
-  /**
-   * Clause 6.4: the author declares their own monthly floor here, and the
-   * platform's floor under it is 8. It is published on their page, so it is
-   * a promise to buyers rather than a preference.
-   */
-  monthlyMinimum: z.coerce
-    .number('მიუთითეთ პროგნოზების რაოდენობა.')
-    .int('რაოდენობა მთელი რიცხვი უნდა იყოს.')
-    .min(8, 'თვეში მინიმუმ 8 პროგნოზია საჭირო.')
-    .max(200, 'რაოდენობა ძალიან დიდია.'),
   headline: z.string().trim().max(120).optional(),
-  bio: z.string().trim().min(40, 'აღწერა ძალიან მოკლეა.').max(2000),
   acceptTerms: z.literal(true, {
     message: 'წესებზე თანხმობის გარეშე განაცხადი არ მიიღება.',
   }),
 });
+
+/**
+ * Terms 6.4 / agreement 3.5: when an author opens their subscription they
+ * declare how many predictions a month they will publish, never fewer than 8.
+ * It is printed on their page before anyone pays, so it is a promise to buyers
+ * rather than a preference, and every payout is judged against it.
+ */
+export const monthlyMinimumSchema = z.coerce
+  .number('მიუთითეთ პროგნოზების რაოდენობა.')
+  .int('რაოდენობა მთელი რიცხვი უნდა იყოს.')
+  .min(8, 'თვეში მინიმუმ 8 პროგნოზია საჭირო.')
+  .max(200, 'რაოდენობა ძალიან დიდია.');
 
 export const analystDecisionSchema = z.object({
   analystProfileId: z.uuid(),
@@ -477,8 +473,9 @@ export const withdrawalSchema = z.object({
 
 export const payoutDecisionSchema = z.object({
   payoutId: z.uuid(),
-  decision: z.enum(['APPROVE', 'REJECT']),
-  /** Only for a request whose sealed IBAN can no longer be opened. */
-  iban: z.string().trim().min(22).max(34).optional(),
+  /** PAID records a transfer an administrator already made in the bank. */
+  decision: z.enum(['PAID', 'REJECT']),
+  /** The bank's reference for that transfer, when there is one. */
+  reference: z.string().trim().max(100).optional(),
   reason: z.string().trim().max(300).optional(),
 });

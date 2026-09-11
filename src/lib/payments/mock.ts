@@ -5,8 +5,6 @@ import type {
   CreateCheckoutInput,
   PaymentProvider,
   PaymentVerification,
-  PayoutInput,
-  PayoutResult,
   RecurringChargeInput,
   RefundInput,
   RefundResult,
@@ -232,15 +230,6 @@ export class MockPaymentProvider implements PaymentProvider {
       action: input.action,
       status: 'ACCEPTED',
       rawStatus: 'success',
-    };
-  }
-
-  async createPayout(input: PayoutInput): Promise<PayoutResult> {
-    return {
-      orderId: input.orderId,
-      providerPaymentId: `mock-payout-${input.orderId}`,
-      status: 'SUCCEEDED',
-      rawStatus: 'approved',
     };
   }
 }

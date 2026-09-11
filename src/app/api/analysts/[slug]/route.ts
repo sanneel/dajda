@@ -36,7 +36,6 @@ export async function GET(
       slug: data.profile.slug,
       displayName: data.profile.displayName,
       headline: data.profile.headline,
-      bio: data.profile.bio,
       isDemo: data.profile.isDemo,
       sports: data.profile.sports.map((entry) => entry.sport.code),
       allTime: data.allTime,

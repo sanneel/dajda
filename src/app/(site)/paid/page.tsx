@@ -13,6 +13,7 @@ import { isTicketLocked } from '@/lib/auth/entitlements';
 import { TicketList } from '@/components/ticket-list';
 import { SortTicks } from '@/components/sort-ticks';
 import { AddTicketButton } from '@/components/add-ticket-button';
+import { hasSubscriptionForSale } from '@/lib/predictions/subscription-gate';
 import { EmptyState } from '@/components/ui/feedback';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 
@@ -25,7 +26,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * The paid feed: every PREMIUM/VIP bet in the same table the free feed uses,
+ * The paid feed: every singly sold (PREMIUM) bet, in the same table the free
+ * feed uses; a subscription ticket is not sold one by one, so it is not here,
  * plus one column - what unlocking it costs. No aggregate band on top: the
  * judgement figures live per row (the author's win rate) and in full on the
  * author's profile, so a headline number here would just say "average of
@@ -41,6 +43,11 @@ export default async function PaidTicketsPage({
   const filter = parsed.success ? parsed.data : { page: 1 };
 
   const actor = await getCurrentUser();
+  // The post form offers subscription tickets only once there is a
+  // subscription to post them into.
+  const canPostSubscription = actor?.analystProfileId
+    ? await hasSubscriptionForSale(actor.analystProfileId)
+    : false;
 
   const [{ items, total, page, pageCount }, grants, purchased, sports] =
     await Promise.all([
@@ -101,6 +108,7 @@ export default async function PaidTicketsPage({
       {actor?.analystProfileId ? (
         <div className="mb-6">
           <AddTicketButton
+            canPostSubscription={canPostSubscription}
             sports={sports.map((sport) => ({
               value: sport.id,
               label: sport.nameKa,

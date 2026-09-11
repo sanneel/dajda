@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, EmptyState } from '@/components/ui/feedback';
 import { Avatar } from '@/components/ui/avatar';
 import { isWithdrawalWindowOpen, nextWithdrawalWindow } from '@/lib/payouts/rules';
+import { revealPayoutIban } from '@/lib/payouts/service';
 import { DecidePayoutForm } from './decide-form';
 import { PayoutWindowForm } from './window-form';
 
@@ -60,8 +61,8 @@ export default async function AdminPayoutsPage() {
       currency: true,
       status: true,
       maskedAccount: true,
-      // Only its presence is read here; the sealed value never leaves the
-      // server, and the form is told just whether it needs a typed number.
+      // Opened on the server for open requests only, so the administrator can
+      // make the transfer; it never reaches the page for a decided one.
       accountCipher: true,
       periodStart: true,
       periodEnd: true,
@@ -69,10 +70,12 @@ export default async function AdminPayoutsPage() {
       weeksInPeriod: true,
       weeksMeetingMinimum: true,
       activityCheckPassed: true,
+      declaredMonthlyMinimum: true,
       failureReason: true,
       // The provider's own words. Admin-only: this is the page where somebody
       // decides whether releasing the request again could possibly work.
       failureDetail: true,
+      paymentReference: true,
       rawStatus: true,
       requestedAt: true,
       decidedAt: true,
@@ -101,7 +104,7 @@ export default async function AdminPayoutsPage() {
       <Card>
         <CardHeader
           title={`განსახილველი (${open.length})`}
-          description="IBAN მოთხოვნას დაშიფრული ახლავს: დადასტურება ერთი დაჭერაა."
+          description="თანხა გადარიცხეთ ბანკიდან, შემდეგ მონიშნეთ მოთხოვნა გადახდილად."
         />
         <CardBody>
           {open.length === 0 ? (
@@ -157,16 +160,22 @@ export default async function AdminPayoutsPage() {
                     {formatDateKa(payout.periodEnd)} მდე:{' '}
                     <span className="tabular text-ink">
                       {payout.publicationsInPeriod}
-                    </span>{' '}
-                    პუბლიკაცია, ნორმა შესრულებულია{' '}
-                    <span className="tabular text-ink">
-                      {payout.weeksMeetingMinimum}
-                    </span>{' '}
-                    კვირაში{' '}
-                    <span className="tabular text-ink">
-                      {payout.weeksInPeriod}
                     </span>
-                    დან.{' '}
+                    {payout.declaredMonthlyMinimum !== null ? (
+                      <>
+                        {' '}პუბლიკაცია, დეკლარირებული{' '}
+                        <span className="tabular text-ink">
+                          {payout.declaredMonthlyMinimum}
+                        </span>
+                        . ცარიელი სრული კვირა:{' '}
+                        <span className="tabular text-ink">
+                          {payout.weeksInPeriod - payout.weeksMeetingMinimum}
+                        </span>
+                        .{' '}
+                      </>
+                    ) : (
+                      ' პუბლიკაცია. '
+                    )}
                     {payout.activityCheckPassed
                       ? 'შემოწმება გავლილია.'
                       : 'შემოწმება ვერ გაიარა: გადაამოწმეთ, იღებდნენ თუ არა გამომწერები კონტენტს მთელი თვის განმავლობაში.'}
@@ -174,8 +183,9 @@ export default async function AdminPayoutsPage() {
 
                   <DecidePayoutForm
                     payoutId={payout.id}
+                    iban={revealPayoutIban(payout.accountCipher)}
+                    holderName={holderName(payout.analystProfile)}
                     maskedAccount={payout.maskedAccount}
-                    hasStoredAccount={payout.accountCipher !== null}
                     amountLabel={formatMoney(payout.amountMinor, payout.currency)}
                   />
                 </li>
@@ -216,6 +226,12 @@ export default async function AdminPayoutsPage() {
                       {payout.failureDetail ? (
                         <p className="mt-0.5 text-xs break-words text-ink-faint">
                           {payout.failureDetail}
+                        </p>
+                      ) : null}
+                      {payout.paymentReference ? (
+                        <p className="mt-0.5 text-xs text-ink-faint">
+                          ბანკის რეფერენსი:{' '}
+                          <span className="tabular">{payout.paymentReference}</span>
                         </p>
                       ) : null}
                     </div>
@@ -328,11 +344,21 @@ export default async function AdminPayoutsPage() {
       <div className="mt-6">
         <Alert tone="info" title="IBAN როგორ ინახება">
           ავტორის შეყვანილი ანგარიში მოთხოვნას დაშიფრული (AES-256-GCM) ახლავს
-          მხოლოდ განხილვის დასრულებამდე. დადასტურებისას ერთხელ ეგზავნება
-          პროვაიდერს და იმავე წამს იშლება; უარყოფისასაც იშლება. სამუდამოდ
-          რჩება მხოლოდ დაფარული სახე.
+          მხოლოდ განხილვის დასრულებამდე, და სრულად ჩანს მხოლოდ ამ გვერდზე,
+          გადარიცხვისთვის. გადახდილად მონიშნვისას ან უარყოფისას იშლება;
+          სამუდამოდ რჩება მხოლოდ დაფარული სახე.
         </Alert>
       </div>
     </div>
   );
+}
+
+/** Who the bank transfer is addressed to: the legal name when the author gave one. */
+function holderName(profile: {
+  displayName: string;
+  firstName: string | null;
+  lastName: string | null;
+}): string {
+  const legal = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
+  return legal || profile.displayName;
 }

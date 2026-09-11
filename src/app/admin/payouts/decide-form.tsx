@@ -6,30 +6,34 @@ import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 
 /**
- * Releasing or refusing a payout.
+ * Marking a payout paid, or refusing it.
  *
- * Two buttons with different weights, because the two outcomes are not
- * symmetrical. Release moves money and cannot be taken back, so it is the
- * committed button and asks once, naming the amount and the card, before it
- * posts. Refusal returns the money to the author's balance, so it is cheap to
- * do and easy to explain, and it insists on a reason: "მიზეზი მითითებული
- * არაა" was the note on every refused request before this, which told the
- * author nothing.
+ * The money moves in the bank, not here: the payment contract covers taking
+ * payments, not sending them. So the form puts in front of the administrator
+ * exactly what a bank's transfer screen asks for, the recipient, the IBAN and
+ * the amount, and then records that the transfer was made.
  *
- * The card number travels sealed with the request, so approval is one press.
- * A request that carries no sealed account (made before sealing existed, or
- * sealed under a key since rotated) shows a field to type it, and the service
- * checks what is typed against the mask taken at request time.
+ * Two buttons with different weights, because the outcomes are not symmetric.
+ * "Paid" closes the request and wipes the IBAN, so it asks once before it posts
+ * and belongs after the bank has accepted the transfer. Refusal returns the
+ * money to the author's balance and insists on a reason the author will read.
+ *
+ * A request whose IBAN can no longer be opened (sealed under a key since
+ * rotated) has nowhere to send money to, so it can only be refused.
  */
 export function DecidePayoutForm({
   payoutId,
+  iban,
+  holderName,
   maskedAccount,
-  hasStoredAccount,
   amountLabel,
 }: {
   payoutId: string;
+  /** The full IBAN, opened on the server for this page only. */
+  iban: string | null;
+  /** Who the transfer is addressed to. */
+  holderName: string;
   maskedAccount: string;
-  hasStoredAccount: boolean;
   /** Already formatted, e.g. "120.00 ₾": what the confirm names. */
   amountLabel: string;
 }) {
@@ -38,6 +42,9 @@ export function DecidePayoutForm({
   const reasonRef = useRef<HTMLInputElement>(null);
 
   const fieldErrors = state && !state.ok ? state.error.fieldErrors : undefined;
+  const fieldError = fieldErrors
+    ? Object.values(fieldErrors).flat()[0]
+    : undefined;
   const generalError =
     state && !state.ok && !fieldErrors ? state.error.message : null;
 
@@ -46,7 +53,7 @@ export function DecidePayoutForm({
       <Alert tone="success">
         {state.data.status === 'REJECTED'
           ? 'მოთხოვნა უარყოფილია, თანხა ავტორს დაუბრუნდა.'
-          : 'გატანა დადასტურდა.'}
+          : 'მონიშნულია გადახდილად.'}
       </Alert>
     );
   }
@@ -69,8 +76,10 @@ export function DecidePayoutForm({
         }
 
         if (
-          decision === 'APPROVE' &&
-          !window.confirm(`გავიტანოთ ${amountLabel} ანგარიშზე ${maskedAccount}?`)
+          decision === 'PAID' &&
+          !window.confirm(
+            `${amountLabel} გადაირიცხა ანგარიშზე ${maskedAccount}? მოთხოვნა დაიხურავს.`,
+          )
         ) {
           event.preventDefault();
         }
@@ -80,49 +89,54 @@ export function DecidePayoutForm({
       <input type="hidden" name="payoutId" value={payoutId} />
 
       {generalError ? <Alert tone="error">{generalError}</Alert> : null}
-      {fieldErrors?.iban?.[0] ? (
-        <Alert tone="error">{fieldErrors.iban[0]}</Alert>
-      ) : null}
+      {fieldError ? <Alert tone="error">{fieldError}</Alert> : null}
 
-      {!hasStoredAccount ? (
-        <div>
-          <label
-            htmlFor={`iban-${payoutId}`}
-            className="mb-1 block text-xs font-medium text-ink-muted"
-          >
-            IBAN
-          </label>
-          <input
-            id={`iban-${payoutId}`}
-            name="iban"
-            autoCapitalize="characters"
-            autoComplete="off"
-            placeholder={maskedAccount}
-            aria-describedby={`iban-${payoutId}-hint`}
-            className="tabular min-h-11 w-full rounded-md border border-line bg-surface px-3 text-sm text-ink sm:w-64"
-          />
-          <p id={`iban-${payoutId}-hint`} className="mt-1 text-xs text-ink-faint">
-            ამ მოთხოვნას ანგარიში არ ახლავს: შეიყვანეთ ხელით, ნიღბის მიხედვით.
-          </p>
-        </div>
-      ) : null}
+      {iban ? (
+        <>
+          <dl className="grid gap-x-4 gap-y-1 rounded-md border border-line px-3 py-2 text-sm sm:grid-cols-[auto_1fr]">
+            <dt className="text-ink-muted">მიმღები</dt>
+            <dd className="text-ink">{holderName}</dd>
+            <dt className="text-ink-muted">IBAN</dt>
+            <dd className="tabular break-all text-ink select-all">
+              {groupIban(iban)}
+            </dd>
+            <dt className="text-ink-muted">თანხა</dt>
+            <dd className="tabular text-ink">{amountLabel}</dd>
+          </dl>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <Button
-          type="submit"
-          name="decision"
-          value="APPROVE"
-          size="sm"
-          disabled={pending}
-        >
-          {pending ? 'მუშავდება…' : `გატანა · ${amountLabel}`}
-        </Button>
-        {hasStoredAccount ? (
-          <span className="tabular text-sm text-ink-muted">
-            ანგარიშზე {maskedAccount}
-          </span>
-        ) : null}
-      </div>
+          <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+            <div className="min-w-0 flex-1 sm:flex-none">
+              <label
+                htmlFor={`reference-${payoutId}`}
+                className="mb-1 block text-xs font-medium text-ink-muted"
+              >
+                ბანკის რეფერენსი (არჩევითი)
+              </label>
+              <input
+                id={`reference-${payoutId}`}
+                name="reference"
+                maxLength={100}
+                autoComplete="off"
+                className="tabular min-h-11 w-full rounded-md border border-line bg-surface px-3 text-sm text-ink sm:w-64"
+              />
+            </div>
+            <Button
+              type="submit"
+              name="decision"
+              value="PAID"
+              size="sm"
+              disabled={pending}
+            >
+              {pending ? 'მუშავდება…' : 'გადარიცხულია'}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <Alert tone="warning">
+          ამ მოთხოვნის IBAN აღარ იხსნება. უარყავით და სთხოვეთ ავტორს
+          მოთხოვნის ხელახლა შეტანა.
+        </Alert>
+      )}
 
       <div className="flex flex-wrap items-start gap-2 border-t border-line pt-3">
         <div className="min-w-0 flex-1 sm:flex-none">
@@ -165,4 +179,9 @@ export function DecidePayoutForm({
       </div>
     </form>
   );
+}
+
+/** Groups of four, the way a bank prints it and a person reads it back. */
+function groupIban(iban: string): string {
+  return iban.replace(/(.{4})(?=.)/g, '$1 ');
 }

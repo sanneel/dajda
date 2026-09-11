@@ -116,7 +116,9 @@ async function listTicketFeed(kind: 'FREE' | 'PAID', filter: TicketFilter) {
     supersededAt: null,
     status: 'PENDING',
     finishedAt: null,
-    visibility: kind === 'FREE' ? 'PUBLIC' : { in: ['PREMIUM', 'VIP'] },
+    // The paid feed sells single tickets. A subscription ticket is not for
+    // sale on its own, so it is reached through the author's subscription.
+    visibility: kind === 'FREE' ? 'PUBLIC' : 'PREMIUM',
     AND: [
       // Still to come, or with no kickoff recorded at all.
       { OR: [{ eventAt: null }, { eventAt: { gt: new Date() } }] },

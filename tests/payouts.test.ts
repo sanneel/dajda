@@ -10,8 +10,9 @@ import {
   nextWithdrawalWindow,
   normaliseIban,
   payoutPeriod,
+  monthlyActivity,
+  PLATFORM_MONTHLY_MINIMUM,
   tbilisiParts,
-  weeklyActivity,
 } from '@/lib/payouts/rules';
 
 /**
@@ -287,8 +288,10 @@ describe('withdrawal checks', () => {
   });
 });
 
-describe('weekly activity', () => {
-  // August 2026 in Tbilisi: 31 days, so four whole weeks and three days over.
+describe('monthly activity', () => {
+  // August 2026 in Tbilisi starts on a Saturday: the full Monday-to-Sunday
+  // weeks are 3-9, 10-16, 17-23 and 24-30, and the 1st, 2nd and 31st fall
+  // outside them.
   const period = payoutPeriod(new Date('2026-08-15T09:00:00Z'));
 
   /** `day` is the day of the month in Tbilisi; noon keeps it away from edges. */
@@ -302,115 +305,103 @@ describe('weekly activity', () => {
     );
   }
 
-  it('cuts the month into whole seven-day blocks', () => {
-    const activity = weeklyActivity({
-      period,
-      publishedAt: [],
-      minimumPerWeek: 10,
-    });
+  it('finds the full calendar weeks of the month', () => {
+    const activity = monthlyActivity({ period, publishedAt: [], declaredMinimum: 8 });
     expect(activity.weeks).toBe(4);
     expect(activity.perWeek).toEqual([0, 0, 0, 0]);
   });
 
-  it('passes when every week reaches the minimum', () => {
-    const activity = weeklyActivity({
+  it('passes when the declared total is reached and no full week is empty', () => {
+    const activity = monthlyActivity({
       period,
-      publishedAt: posts({ 3: 10, 10: 10, 17: 10, 24: 10 }),
-      minimumPerWeek: 10,
+      publishedAt: posts({ 3: 2, 10: 2, 17: 2, 24: 2 }),
+      declaredMinimum: 8,
     });
-
-    expect(activity.perWeek).toEqual([10, 10, 10, 10]);
-    expect(activity.weeksMet).toBe(4);
+    expect(activity.total).toBe(8);
+    expect(activity.emptyWeeks).toBe(0);
     expect(activity.passed).toBe(true);
   });
 
-  it('fails a month that was silent for a week, however high the total', () => {
-    // Forty posts, which clears any monthly total, but one week is empty.
-    const activity = weeklyActivity({
+  it('judges against the number the author declared, not a fixed quota', () => {
+    const published = posts({ 3: 3, 10: 3, 17: 3, 24: 3 });
+    expect(
+      monthlyActivity({ period, publishedAt: published, declaredMinimum: 12 }).passed,
+    ).toBe(true);
+    expect(
+      monthlyActivity({ period, publishedAt: published, declaredMinimum: 20 }).passed,
+    ).toBe(false);
+  });
+
+  it('fails a month with a silent full week, however high the total', () => {
+    const activity = monthlyActivity({
       period,
       publishedAt: posts({ 3: 10, 10: 10, 24: 20 }),
-      minimumPerWeek: 10,
+      declaredMinimum: 8,
     });
-
     expect(activity.total).toBe(40);
     expect(activity.perWeek).toEqual([10, 10, 0, 20]);
-    expect(activity.weeksMet).toBe(3);
+    expect(activity.emptyWeeks).toBe(1);
     expect(activity.passed).toBe(false);
   });
 
   it('does not let a burst at the end stand in for the month', () => {
-    const activity = weeklyActivity({
+    const activity = monthlyActivity({
       period,
       publishedAt: posts({ 26: 40 }),
-      minimumPerWeek: 10,
+      declaredMinimum: 8,
     });
-
     expect(activity.passed).toBe(false);
   });
 
-  it('counts the leftover days in the total but does not judge them', () => {
-    // Days 29 to 31 fall outside the four whole weeks.
-    const activity = weeklyActivity({
+  it('counts days outside the full weeks in the total without judging them', () => {
+    const activity = monthlyActivity({
       period,
-      publishedAt: posts({ 3: 10, 10: 10, 17: 10, 24: 10, 30: 5 }),
-      minimumPerWeek: 10,
+      publishedAt: posts({ 1: 5, 3: 1, 10: 1, 17: 1, 24: 1, 31: 5 }),
+      declaredMinimum: 14,
     });
-
-    expect(activity.remainder).toBe(5);
-    expect(activity.total).toBe(45);
-    // The stub week is short by five and must not fail anybody.
+    expect(activity.total).toBe(14);
+    expect(activity.perWeek).toEqual([1, 1, 1, 1]);
     expect(activity.passed).toBe(true);
   });
 
+  it('holds a profile that never declared a number to the platform floor', () => {
+    const activity = monthlyActivity({
+      period,
+      publishedAt: posts({ 3: 1, 10: 1, 17: 1, 24: 1 }),
+      declaredMinimum: null,
+    });
+    expect(activity.declaredMinimum).toBe(PLATFORM_MONTHLY_MINIMUM);
+    expect(activity.passed).toBe(false);
+  });
+
+  it('never accepts a declared number below the platform floor', () => {
+    expect(
+      monthlyActivity({ period, publishedAt: [], declaredMinimum: 2 }).declaredMinimum,
+    ).toBe(PLATFORM_MONTHLY_MINIMUM);
+  });
+
   it('ignores anything published outside the period', () => {
-    const activity = weeklyActivity({
+    const activity = monthlyActivity({
       period,
       publishedAt: [
         new Date('2026-07-20T09:00:00Z'),
         new Date('2026-09-05T09:00:00Z'),
-        ...posts({ 3: 10, 10: 10, 17: 10, 24: 10 }),
+        ...posts({ 3: 2, 10: 2, 17: 2, 24: 2 }),
       ],
-      minimumPerWeek: 10,
+      declaredMinimum: 8,
     });
-
-    expect(activity.total).toBe(40);
+    expect(activity.total).toBe(8);
     expect(activity.passed).toBe(true);
   });
 
-  it('is satisfied by a minimum of zero', () => {
-    const activity = weeklyActivity({
+  it('puts a week boundary where Tbilisi puts it, not UTC', () => {
+    // 20:30 UTC on Sunday 9 August is already 00:30 on Monday 10 August.
+    const activity = monthlyActivity({
       period,
-      publishedAt: [],
-      minimumPerWeek: 0,
+      publishedAt: [new Date('2026-08-09T20:30:00Z')],
+      declaredMinimum: 8,
     });
-    expect(activity.passed).toBe(true);
-  });
-
-  it('does not fail a period too short to hold a whole week', () => {
-    const activity = weeklyActivity({
-      period: {
-        start: new Date('2026-08-01T00:00:00Z'),
-        end: new Date('2026-08-04T00:00:00Z'),
-      },
-      publishedAt: [],
-      minimumPerWeek: 10,
-    });
-
-    expect(activity.weeks).toBe(0);
-    expect(activity.passed).toBe(true);
-  });
-
-  it('respects the Tbilisi month boundary', () => {
-    // 21:00 UTC on 31 July is already 1 August in Tbilisi, so it is the
-    // first week's first day rather than the previous month's.
-    const activity = weeklyActivity({
-      period,
-      publishedAt: [new Date('2026-07-31T21:00:00Z')],
-      minimumPerWeek: 10,
-    });
-
-    expect(activity.total).toBe(1);
-    expect(activity.perWeek[0]).toBe(1);
+    expect(activity.perWeek).toEqual([0, 1, 0, 0]);
   });
 });
 

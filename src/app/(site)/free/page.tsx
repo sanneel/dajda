@@ -13,6 +13,7 @@ import { SortTicks } from '@/components/sort-ticks';
 import { EmptyState } from '@/components/ui/feedback';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 import { AddTicketButton } from '@/components/add-ticket-button';
+import { hasSubscriptionForSale } from '@/lib/predictions/subscription-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +44,11 @@ export default async function FreeTicketsPage({
   const filter = parsed.success ? parsed.data : { page: 1 };
 
   const actor = await getCurrentUser();
+  // The post form offers subscription tickets only once there is a
+  // subscription to post them into.
+  const canPostSubscription = actor?.analystProfileId
+    ? await hasSubscriptionForSale(actor.analystProfileId)
+    : false;
   const viewer = actor
     ? { role: actor.role, analystProfileId: actor.analystProfileId }
     : null;
@@ -80,6 +86,7 @@ export default async function FreeTicketsPage({
       {actor?.analystProfileId ? (
         <div className="mb-6">
           <AddTicketButton
+            canPostSubscription={canPostSubscription}
             sports={sports.map((sport) => ({
               value: sport.id,
               label: sport.nameKa,

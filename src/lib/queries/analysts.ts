@@ -1,3 +1,4 @@
+import { isTicketStillActive } from '@/lib/tickets/active';
 import { prisma } from '@/lib/db';
 import {
   PERIOD_DAYS,
@@ -126,6 +127,7 @@ export async function listAnalysts(options?: {
       oddsMilli: true,
       stakeUnitsCenti: true,
       publishedAt: true,
+      eventAt: true,
       finishedAt: true,
       result: { select: { profitUnitsCenti: true } },
     },
@@ -176,12 +178,20 @@ export async function listAnalysts(options?: {
       /* Clause 6.4: the floor this author committed to, shown before purchase. */
       monthlyMinimum: profile.monthlyMinimum,
       /*
-       * "Active tips": published, not yet finished by the author and not yet
-       * settled. It is what a buyer is actually getting access to right now,
+       * "Active tips": published, not yet finished by the author, not yet
+       * settled, and with the first position still to start. A list has no
+       * viewer, so it uses the public rule of isTicketStillActive. It is what a buyer is actually getting access to right now,
        * which is why the reference layout puts it next to the name.
        */
       activeBets: (byAuthor.get(profile.id) ?? []).filter(
-        (bet) => bet.status === 'PENDING' && bet.finishedAt === null,
+        (bet) =>
+          bet.status === 'PENDING' &&
+          bet.finishedAt === null &&
+          isTicketStillActive(
+            { eventAt: bet.eventAt, eventEndAt: null },
+            false,
+            new Date(now),
+          ),
       ).length,
       cheapestPlan: profile.plans[0] ?? null,
     };
@@ -204,7 +214,6 @@ export async function getAnalystBySlug(slug: string) {
       displayName: true,
       photoPath: true,
       headline: true,
-      bio: true,
       status: true,
       isDemo: true,
       monthlyMinimum: true,

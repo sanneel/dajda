@@ -3,7 +3,7 @@
 import { useActionState } from 'react';
 import Link from 'next/link';
 import { applyAsAnalystAction } from '@/actions/analyst';
-import { Checkbox, Field, Input, Select, Textarea } from '@/components/ui/field';
+import { Checkbox, Field, Input, Select } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 
@@ -75,21 +75,6 @@ export function AnalystApplyForm({ sports }: { sports: SportOption[] }) {
       </Field>
 
       <Field
-        label="ვისი რეკომენდაციით ან საიდან მოხვდით პლატფორმაზე"
-        htmlFor="referralSource"
-        required
-        hint="მაგალითად: მეგობრის რეკომენდაცია, სოციალური ქსელი, სხვა ავტორი."
-        error={errorFor('referralSource')}
-      >
-        <Input
-          id="referralSource"
-          name="referralSource"
-          required
-          error={Boolean(errorFor('referralSource'))}
-        />
-      </Field>
-
-      <Field
         label="ძირითადი მიმართულება"
         htmlFor="primarySportId"
         required
@@ -114,49 +99,12 @@ export function AnalystApplyForm({ sports }: { sports: SportOption[] }) {
       </Field>
 
       <Field
-        label="თვეში მინიმუმ რამდენ პროგნოზს გამოაქვეყნებთ"
-        htmlFor="monthlyMinimum"
-        required
-        hint="მინიმუმ 8. ეს რიცხვი საჯაროდ ჩანს თქვენს გვერდზე და გამომწერის წინაშე ვალდებულებაა (წესები, 6.4)."
-        error={errorFor('monthlyMinimum')}
-      >
-        <Input
-          id="monthlyMinimum"
-          name="monthlyMinimum"
-          type="number"
-          min="8"
-          max="200"
-          step="1"
-          inputMode="numeric"
-          defaultValue="8"
-          required
-          error={Boolean(errorFor('monthlyMinimum'))}
-        />
-      </Field>
-
-      <Field
         label="მოკლე წარწერა"
         htmlFor="headline"
         hint="ერთი ხაზი პროფილის თავში. არასავალდებულო."
         error={errorFor('headline')}
       >
         <Input id="headline" name="headline" error={Boolean(errorFor('headline'))} />
-      </Field>
-
-      <Field
-        label="აღწერა"
-        htmlFor="bio"
-        required
-        hint="მოგვიყევით თქვენი გამოცდილების შესახებ. მინიმუმ 40 სიმბოლო."
-        error={errorFor('bio')}
-      >
-        <Textarea
-          id="bio"
-          name="bio"
-          rows={5}
-          required
-          error={Boolean(errorFor('bio'))}
-        />
       </Field>
 
       <Field

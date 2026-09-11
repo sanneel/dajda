@@ -206,71 +206,83 @@ export const WITHDRAWAL_REFUSAL_KA: Record<WithdrawalRefusal, string> = {
 };
 
 /**
- * The month's delivery, week by week.
- *
- * Counted per week rather than as a monthly total on purpose. A subscriber
- * pays for a month of analysis and receives it as the month goes; forty posts
- * in the last three days after three silent weeks is not the same product,
- * and a monthly total cannot tell the two apart.
- *
- * The period is cut into seven-day blocks from its first day. Only WHOLE
- * blocks are judged: a month leaves one to three days over, and requiring a
- * full week's output from a two-day stub would fail everybody every time.
- * Posts in those leftover days still count in the total.
- *
- * Georgia has no daylight saving, so seven days is always exactly 7 x 24h
- * here and the blocks need no calendar arithmetic.
+ * The platform's floor under a declared monthly minimum. Agreement 3.5: the
+ * author names their own number when they apply, and it may not be below 8.
  */
-export type WeeklyActivity = {
-  /** Whole seven-day blocks the period contains. */
-  weeks: number;
-  /** How many of them reached the minimum. */
-  weeksMet: number;
-  /** Per-block counts, oldest first. */
-  perWeek: number[];
-  /** Posts in the leftover days at the end, which gate nothing. */
-  remainder: number;
+export const PLATFORM_MONTHLY_MINIMUM = 8;
+
+/**
+ * The month's delivery, judged the way the agreement words it.
+ *
+ * Two conditions, both from clause 3.5. The total must reach what the author
+ * declared (3.5.1), because that number is printed on their page and a
+ * subscriber paid on the strength of it. And no full calendar week may pass
+ * with nothing published (3.5.2), because forty posts in the last three days
+ * after three silent weeks is not the product that was sold.
+ *
+ * A full week is Monday to Sunday in Tbilisi, wholly inside the month. The
+ * days before the first Monday and after the last full Sunday still count in
+ * the total; they just cannot leave a week empty on their own.
+ *
+ * Georgia has no daylight saving, so a week is always exactly 7 x 24h.
+ */
+export type MonthlyActivity = {
+  /** What the author declared, or the platform floor when they never did. */
+  declaredMinimum: number;
   total: number;
+  /** Full Monday-to-Sunday weeks inside the period. */
+  weeks: number;
+  /** Publications per full week, oldest first. */
+  perWeek: number[];
+  /** Full weeks with nothing published. Any one of them breaches 3.5.2. */
+  emptyWeeks: number;
   passed: boolean;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
 
-export function weeklyActivity(input: {
+export function monthlyActivity(input: {
   period: { start: Date; end: Date };
   publishedAt: Date[];
-  minimumPerWeek: number;
-}): WeeklyActivity {
+  /** The author's declared number; null on profiles approved before it existed. */
+  declaredMinimum: number | null;
+}): MonthlyActivity {
+  const declaredMinimum = Math.max(
+    PLATFORM_MONTHLY_MINIMUM,
+    input.declaredMinimum ?? PLATFORM_MONTHLY_MINIMUM,
+  );
   const startMs = input.period.start.getTime();
   const endMs = input.period.end.getTime();
-  const weeks = Math.floor((endMs - startMs) / (7 * DAY_MS));
 
-  const perWeek = new Array<number>(Math.max(0, weeks)).fill(0);
-  let remainder = 0;
+  // The first Tbilisi Monday at or after the start. Shifting the instant by
+  // the offset makes its UTC weekday the Tbilisi one (0 is Sunday).
+  const startWeekday = new Date(
+    startMs + TBILISI_UTC_OFFSET_MINUTES * 60_000,
+  ).getUTCDay();
+  const firstMondayMs = startMs + ((8 - startWeekday) % 7) * DAY_MS;
+
+  const weeks = Math.max(0, Math.floor((endMs - firstMondayMs) / WEEK_MS));
+  const perWeek = new Array<number>(weeks).fill(0);
   let total = 0;
 
   for (const published of input.publishedAt) {
     const at = published.getTime();
     if (at < startMs || at >= endMs) continue;
     total += 1;
-
-    const block = Math.floor((at - startMs) / (7 * DAY_MS));
-    if (block < weeks) perWeek[block] = (perWeek[block] ?? 0) + 1;
-    else remainder += 1;
+    if (at < firstMondayMs) continue;
+    const week = Math.floor((at - firstMondayMs) / WEEK_MS);
+    if (week < weeks) perWeek[week] = (perWeek[week] ?? 0) + 1;
   }
 
-  const weeksMet = perWeek.filter(
-    (count) => count >= input.minimumPerWeek,
-  ).length;
+  const emptyWeeks = perWeek.filter((count) => count === 0).length;
 
   return {
-    weeks,
-    weeksMet,
-    perWeek,
-    remainder,
+    declaredMinimum,
     total,
-    // A period with no whole week in it cannot be judged this way, so it is
-    // not treated as a failure.
-    passed: weeks === 0 || weeksMet === weeks,
+    weeks,
+    perWeek,
+    emptyWeeks,
+    passed: total >= declaredMinimum && emptyWeeks === 0,
   };
 }

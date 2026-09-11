@@ -4,6 +4,7 @@ import { useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { setPlanPriceAction } from '@/actions/analyst';
 import { Button } from '@/components/ui/button';
+import { Field, Input } from '@/components/ui/field';
 
 const PRICES = [
   { minor: 3000, label: '30 ₾' },
@@ -12,16 +13,25 @@ const PRICES = [
 ] as const;
 
 /**
- * Where the analyst picks what their subscription costs.
+ * Where the analyst opens their subscription and picks what it costs.
  *
  * Three fixed prices, not a free field, because clause 9.1 of the terms
  * names exactly these. Radio buttons drawn as buttons: the choice is the
  * whole form, so it should look like one.
+ *
+ * Opening the subscription is also where the author declares how many
+ * predictions a month they will publish (terms 6.4). That number is a promise
+ * about the subscription, printed on their page before anyone pays, and every
+ * payout is judged against it. Once declared it is shown rather than edited:
+ * a change applies only from the following month, with notice to the
+ * platform, so it goes through the administration.
  */
 export function PlanPriceForm({
   currentPriceMinor,
+  currentMonthlyMinimum,
 }: {
   currentPriceMinor: number | null;
+  currentMonthlyMinimum: number | null;
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(setPlanPriceAction, null);
@@ -62,6 +72,35 @@ export function PlanPriceForm({
         ))}
       </div>
 
+      {currentMonthlyMinimum === null ? (
+        <Field
+          label="თვეში მინიმუმ რამდენ პროგნოზს გამოაქვეყნებთ"
+          htmlFor="monthlyMinimum"
+          required
+          hint="მინიმუმ 8. რიცხვი საჯაროდ ჩანს თქვენს გვერდზე და გამომწერის წინაშე ვალდებულებაა. შეცვლა შემდეგ შესაძლებელია მხოლოდ მომდევნო თვიდან, ადმინისტრაციისთვის შეტყობინებით."
+        >
+          <Input
+            id="monthlyMinimum"
+            name="monthlyMinimum"
+            type="number"
+            min="8"
+            max="200"
+            step="1"
+            inputMode="numeric"
+            defaultValue="8"
+            required
+            className="w-28"
+          />
+        </Field>
+      ) : (
+        <p className="text-sm text-ink-muted">
+          დეკლარირებული:{' '}
+          <span className="tabular text-ink">{currentMonthlyMinimum}</span>{' '}
+          პროგნოზი / თვე. შესაცვლად მოგვწერეთ: ცვლილება მოქმედებს მომდევნო
+          თვიდან.
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="sm" disabled={pending}>
           {pending
@@ -77,8 +116,8 @@ export function PlanPriceForm({
       </div>
 
       <p className="text-xs leading-relaxed text-ink-faint">
-        ფასის შეცვლა არსებულ გამომწერებს არ ეხება: ისინი აგრძელებენ იმ ფასად,
-        რომლითაც გამოიწერეს. ახალი ფასი მოქმედებს შემდეგი გამომწერისთვის.
+        ფასის შეცვლა უკვე გადახდილ გამოწერებს არ ეხება. ახალი ფასი მოქმედებს
+        შემდეგი გადახდისთვის.
       </p>
     </form>
   );

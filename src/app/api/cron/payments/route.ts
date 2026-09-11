@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { getEnv } from '@/lib/env';
 import { sweepStaleCheckouts } from '@/lib/payments/sweep';
+import { expireLapsedSubscriptions } from '@/lib/subscriptions/expiry';
 
 /**
  * The stale checkout sweep: see lib/payments/sweep.ts.
@@ -44,8 +45,14 @@ async function handle(request: Request) {
     );
   }
 
+  // Stale checkouts first: a late approval found there may activate a
+  // subscription, and the expiry pass then sees the final state.
   const report = await sweepStaleCheckouts();
-  return Response.json({ ok: true, data: report });
+  const subscriptions = await expireLapsedSubscriptions();
+  return Response.json({
+    ok: true,
+    data: { ...report, expiredSubscriptions: subscriptions.expired },
+  });
 }
 
 function secretMatches(presented: string, expected: string): boolean {

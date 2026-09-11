@@ -33,11 +33,17 @@ import {
 export function PostBetForm({
   sports,
   defaultSportId,
+  canPostSubscription,
   onPosted,
 }: {
   sports: { value: string; label: string }[];
   /** The author's primary sport, so the select opens on what they cover. */
   defaultSportId?: string;
+  /**
+   * Whether the author has a subscription to post subscription tickets into.
+   * Without one the option is shown but disabled, so the reason is visible.
+   */
+  canPostSubscription: boolean;
   /** Lets the drawer close itself once the bet is up. */
   onPosted?: () => void;
 }) {
@@ -57,8 +63,11 @@ export function PostBetForm({
    * scrolled into view instead.
    */
   const [missingSlip, setMissingSlip] = useState(false);
-  // Subscription is the default: it is what an author's page is FOR.
-  const [visibility, setVisibility] = useState('VIP');
+  // Subscription is the default: it is what an author's page is FOR. Until
+  // there is a subscription to sell it cannot be posted, so free leads then.
+  const [visibility, setVisibility] = useState(
+    canPostSubscription ? 'VIP' : 'PUBLIC',
+  );
   const [price, setPrice] = useState('');
   /*
    * Kickoff times, owned here so the submit check can see them: the hidden
@@ -356,10 +365,12 @@ export function PostBetForm({
             ].map((option) => (
               <label
                 key={option.value}
-                className={`flex min-h-11 cursor-pointer items-center justify-center rounded-control border px-2 text-sm font-medium transition-colors ${
-                  visibility === option.value
-                    ? 'border-accent bg-accent/10 text-accent'
-                    : 'border-line text-ink-muted hover:border-ink-faint hover:text-ink'
+                className={`flex min-h-11 items-center justify-center rounded-control border px-2 text-sm font-medium transition-colors ${
+                  option.value === 'VIP' && !canPostSubscription
+                    ? 'cursor-not-allowed border-line text-ink-faint opacity-60'
+                    : visibility === option.value
+                      ? 'cursor-pointer border-accent bg-accent/10 text-accent'
+                      : 'cursor-pointer border-line text-ink-muted hover:border-ink-faint hover:text-ink'
                 }`}
               >
                 <input
@@ -367,6 +378,7 @@ export function PostBetForm({
                   name="visibility"
                   value={option.value}
                   checked={visibility === option.value}
+                  disabled={option.value === 'VIP' && !canPostSubscription}
                   onChange={(event) => setVisibility(event.target.value)}
                   className="sr-only"
                 />
@@ -379,9 +391,15 @@ export function PostBetForm({
             {visibility === 'PUBLIC'
               ? 'ხედავს ყველა, ვინც შესულია.'
               : visibility === 'PREMIUM'
-                ? 'იყიდება ცალკე, თქვენს ფასად. ხედავს მხოლოდ ის, ვინც იყიდის — გამომწერიც კი ვერა.'
+                ? 'იყიდება ცალკე, თქვენს ფასად. ხედავს მხოლოდ ის, ვინც იყიდის; გამომწერიც კი ვერა.'
                 : 'ხედავს მხოლოდ თქვენი გამომწერი. ცალკე არ იყიდება, ამიტომ ფასი არ სჭირდება.'}
           </p>
+          {!canPostSubscription ? (
+            <p className="mt-1 text-xs text-ink-faint">
+              გამოწერით ხელმისაწვდომი ბილეთის დადება შესაძლებელია გამოწერის
+              გააქტიურების შემდეგ.
+            </p>
+          ) : null}
         </fieldset>
 
         {visibility === 'PREMIUM' ? (

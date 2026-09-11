@@ -6,8 +6,6 @@ import type {
   CreateCheckoutInput,
   PaymentProvider,
   PaymentVerification,
-  PayoutInput,
-  PayoutResult,
   RecurringChargeInput,
   RefundInput,
   RefundResult,
@@ -23,8 +21,7 @@ import type {
  *
  * Covers hosted checkout (optionally with a gateway-managed subscription
  * calendar and/or a reusable card token), status checks, refunds, recurring
- * charges against a stored token, subscription start/stop, and payouts
- * (IBAN credit, signed with the separate credit key).
+ * charges against a stored token, and subscription start/stop.
  *
  * Signature algorithm, per docs.flitt.com/api/building-signature:
  *   1. take every parameter except `signature` and `response_signature_string`
@@ -180,12 +177,6 @@ export type FlittConfig = {
   /** Callback-verification key. Flitt uses the payment key unless a separate
    *  one is configured for the merchant. */
   webhookSecret: string;
-  /**
-   * Separate "credit" private key issued for payout (IBAN credit) operations.
-   * Payouts are refused when it is not configured; the payment key is never a
-   * substitute.
-   */
-  creditKey?: string;
   apiUrl: string;
 };
 
@@ -530,72 +521,6 @@ export class FlittPaymentProvider implements PaymentProvider {
         response.error_message === undefined
           ? undefined
           : String(response.error_message),
-    };
-  }
-
-  /**
-   * Credit funds to a bank account (docs.flitt.com: /api/ibancredit). Signed
-   * with the dedicated credit key, which the merchant receives separately from
-   * the payment key precisely so that a leaked payment key cannot move money
-   * out.
-   *
-   * IBAN and not a card. Flitt's card payout, /api/p2pcredit, takes
-   * `receiver_rectoken` and nothing else: "Withdrawal can be performed only
-   * after initial purchase with the rectoken". There is no documented parameter
-   * for a raw card number, and sending one earns 1074 "P2P credit allowed only
-   * by rectoken". That rail credits a card that has already paid this merchant,
-   * which is the wrong shape for paying an author their earnings - they are owed
-   * money, not refunded it. /api/ibancredit needs no prior purchase and settles
-   * in GEL, which is the only currency it carries and the only one we owe in.
-   */
-  async createPayout(input: PayoutInput): Promise<PayoutResult> {
-    if (!this.config.creditKey) {
-      throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
-        internalDetail:
-          'Flitt payout refused: FLITT_CREDIT_KEY is not configured',
-      });
-    }
-
-    const response = await this.post<Record<string, string | number>>(
-      '/api/ibancredit',
-      {
-        merchant_id: this.config.merchantId,
-        order_id: input.orderId,
-        order_desc: input.description,
-        amount: input.amountMinor,
-        currency: input.currency,
-        receiver_iban: input.receiverIban,
-        receiver_name: input.receiverName,
-      },
-      this.config.creditKey,
-    );
-
-    if (String(response.response_status ?? '') === 'failure') {
-      throw new AppError(ERROR_CODES.PAYMENT_ERROR, undefined, {
-        internalDetail: `Flitt payout failed: ${response.error_code ?? '?'} ${
-          response.error_message ?? 'unknown'
-        } :: ${JSON.stringify(response).slice(0, 400)}`,
-      });
-    }
-
-    const rawStatus = String(response.order_status ?? '');
-    const status: PayoutResult['status'] =
-      rawStatus.toLowerCase() === 'approved'
-        ? 'SUCCEEDED'
-        : rawStatus.toLowerCase() === 'declined'
-          ? 'FAILED'
-          : 'PROCESSING';
-
-    return {
-      orderId: input.orderId,
-      providerPaymentId:
-        response.payment_id === undefined ? null : String(response.payment_id),
-      status,
-      rawStatus,
-      message:
-        response.response_description === undefined
-          ? undefined
-          : String(response.response_description),
     };
   }
 }

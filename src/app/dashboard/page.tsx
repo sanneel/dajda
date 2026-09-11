@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth/authorization";
 import { formatDateKa, formatDateTimeKa, formatMoney } from "@/lib/format";
 import {
-  BALANCE_KIND_KA,
   BILLING_PERIOD_KA,
   PAYMENT_STATUS_KA,
   SUBSCRIPTION_STATUS_KA,
@@ -17,7 +16,7 @@ import { CancelSubscriptionButton } from "./cancel-button";
 import { ResendVerificationButton } from "./resend-verification-button";
 import { VerifyCodeForm } from "./verify-code-form";
 import { Avatar } from "@/components/ui/avatar";
-import { Crown, Receipt, Ticket, Wallet } from "lucide-react";
+import { Crown, Receipt, Ticket } from "lucide-react";
 import { PaymentReturnBanner } from "@/components/payment-return";
 import { paymentReturnStatus } from "@/lib/payments/return-status";
 
@@ -58,8 +57,7 @@ export default async function DashboardPage({
     purchases,
     payments,
     pendingPayments,
-    balance,
-    balanceEntries,
+    account,
   ] = await Promise.all([
     prisma.userSubscription.findMany({
       where: { userId: actor.userId },
@@ -70,6 +68,10 @@ export default async function DashboardPage({
         startedAt: true,
         currentPeriodEnd: true,
         cancelAtPeriodEnd: true,
+        // Only read for whether it exists: a subscription holding one was
+        // bought with a gateway renewal calendar, and is the only kind that
+        // still renews or can be canceled.
+        cardToken: true,
         plan: {
           select: {
             nameKa: true,
@@ -126,20 +128,7 @@ export default async function DashboardPage({
     }),
     prisma.user.findUniqueOrThrow({
       where: { id: actor.userId },
-      select: { balanceMinor: true, telegramChatId: true },
-    }),
-    prisma.balanceTransaction.findMany({
-      where: { userId: actor.userId },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        kind: true,
-        amountMinor: true,
-        currency: true,
-        note: true,
-        createdAt: true,
-      },
+      select: { telegramChatId: true },
     }),
   ]);
 
@@ -198,7 +187,7 @@ export default async function DashboardPage({
         </Alert>
       ) : null}
 
-      {balance.telegramChatId === null ? (
+      {account.telegramChatId === null ? (
         <Alert tone="info" title="დააკავშირეთ Telegram">
           შეტყობინებები ბოტიდან ელფოსტაზე სწრაფად მოდის.{" "}
           <Link href="/dashboard/settings" className="font-medium underline">
@@ -303,9 +292,10 @@ export default async function DashboardPage({
                     */}
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span className="text-ink-muted">
-                      {subscription.cancelAtPeriodEnd
-                        ? "წვდომა მთავრდება: "
-                        : "განახლდება: "}
+                      {subscription.cardToken !== null &&
+                      !subscription.cancelAtPeriodEnd
+                        ? "განახლდება: "
+                        : "წვდომა მთავრდება: "}
                       <span className="tabular text-ink">
                         {subscription.currentPeriodEnd
                           ? formatDateKa(subscription.currentPeriodEnd)
@@ -313,6 +303,7 @@ export default async function DashboardPage({
                       </span>
                     </span>
                     {subscription.status === "ACTIVE" &&
+                    subscription.cardToken !== null &&
                     !subscription.cancelAtPeriodEnd ? (
                       <CancelSubscriptionButton
                         subscriptionId={subscription.id}
@@ -324,21 +315,22 @@ export default async function DashboardPage({
             </ul>
           )}
           {subscriptions.some(
-            (subscription) =>
-              subscription.status === "ACTIVE" &&
-              !subscription.cancelAtPeriodEnd,
+            (subscription) => subscription.status === "ACTIVE",
           ) ? (
             <p className="mt-3 border-t border-line pt-3 text-xs text-ink-faint">
-              გაუქმების შემდეგ წვდომა რჩება გადახდილი პერიოდის ბოლომდე და
-              თანხა ავტომატურად აღარ ჩამოიჭრება.
+              {subscriptions.some(
+                (subscription) =>
+                  subscription.status === "ACTIVE" &&
+                  subscription.cardToken !== null &&
+                  !subscription.cancelAtPeriodEnd,
+              )
+                ? "გაუქმების შემდეგ წვდომა რჩება გადახდილი პერიოდის ბოლომდე და თანხა ავტომატურად აღარ ჩამოიჭრება."
+                : "გამოწერა ავტომატურად არ განახლდება: ვადის ბოლოს წვდომა მთავრდება, და გასაგრძელებლად ავტორის გვერდზე გადაიხდით ხელახლა."}
             </p>
           ) : null}
         </div>
       </details>
 
-      {/* ---------------------------------------------------------------- */}
-      {/* Balance                                                           */}
-      {/* ---------------------------------------------------------------- */}
       {/* ---------------------------------------------------------------- */}
       {/* First steps: only while there is nothing else to show             */}
       {/* ---------------------------------------------------------------- */}
@@ -451,68 +443,6 @@ export default async function DashboardPage({
             </ul>
           </div>
         </details>
-      ) : null}
-
-      {/*
-       * The author's earnings ledger. There is no customer top-up, so an
-       * ordinary account never has a balance and never sees this card; it
-       * appears for an analyst, or for an account with money or movement on
-       * it from before top-ups were removed.
-       */}
-      {actor.analystProfileId ||
-      balance.balanceMinor !== 0 ||
-      balanceEntries.length > 0 ? (
-      <Card as="section">
-        <CardBody>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="flex items-center gap-2 text-sm text-ink-muted">
-                <Wallet className="size-4 text-ink-faint" aria-hidden="true" />
-                ბალანსი
-              </h2>
-              <p className="font-display text-3xl text-ink tabular">
-                {formatMoney(balance.balanceMinor, "GEL")}
-              </p>
-            </div>
-          </div>
-
-          {balanceEntries.length > 0 ? (
-            <details className="mt-4 border-t border-line pt-3">
-              <summary className="cursor-pointer list-none text-sm text-ink-muted marker:content-none hover:text-ink">
-                ბოლო მოძრაობები ({balanceEntries.length})
-              </summary>
-              <ul className="mt-2 divide-y divide-line text-sm">
-              {balanceEntries.map((entry) => (
-                <li
-                  key={entry.id}
-                  className="flex items-center justify-between gap-3 py-2"
-                >
-                  <span className="min-w-0 text-ink-muted">
-                    {BALANCE_KIND_KA[entry.kind]}
-                    {entry.note ? ` · ${entry.note}` : ""}
-                  </span>
-                  <span className="flex shrink-0 items-center gap-3">
-                    <span className="tabular text-ink-faint">
-                      {formatDateKa(entry.createdAt)}
-                    </span>
-                    <span
-                      className={
-                        entry.amountMinor > 0
-                          ? "tabular text-ink"
-                          : "tabular text-ink-muted"
-                      }
-                    >
-                      {entry.amountMinor > 0 ? "+" : "−"}
-                      {formatMoney(Math.abs(entry.amountMinor), entry.currency)}
-                    </span>
-                  </span>
-                </li>
-              ))}
-              </ul>
-            </details>
-          ) : null}
-        </CardBody>
-      </Card>
       ) : null}
 
       {/* ---------------------------------------------------------------- */}
