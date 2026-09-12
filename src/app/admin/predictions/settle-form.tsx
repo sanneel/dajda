@@ -20,9 +20,10 @@ const OUTCOMES = [
  *   1. The outcome is a row of four chips with NOTHING preselected. A select
  *      that opened on "დაჯდა" let an admin type a source, press the button and
  *      record a win they never chose. Now the verdict is a click of its own.
- *   2. The source is mandatory and the only other required field. A result is
- *      only meaningful if it can be traced to where it came from; the actual
- *      value is for totals and lines, and says so.
+ *   2. The outcome is the only required field. A typed source used to sit
+ *      beside it, but every settlement is one admin reading the slip and the
+ *      result screenshot stored with the bet, so the box collected the same
+ *      few words forever while the evidence was already on the page.
  *
  * On the queue page the form is open from the start, because settling IS the
  * task there; in the bet browser it stays behind a button so a list of
@@ -95,30 +96,7 @@ export function SettleForm({
         ) : null}
       </fieldset>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_minmax(0,12rem)]">
-        <div>
-          <label
-            htmlFor={`source-${predictionId}`}
-            className="mb-1 block text-xs font-medium text-ink-muted"
-          >
-            წყარო
-          </label>
-          <input
-            id={`source-${predictionId}`}
-            name="settlementSource"
-            required
-            minLength={3}
-            placeholder="მაგ: ლიგის ოფიციალური ოქმი, sofascore"
-            aria-invalid={fieldErrors?.settlementSource ? true : undefined}
-            className="min-h-11 w-full rounded-md border border-line bg-surface px-3 text-sm text-ink"
-          />
-          {fieldErrors?.settlementSource?.[0] ? (
-            <p className="mt-1 text-xs text-loss" role="alert">
-              {fieldErrors.settlementSource[0]}
-            </p>
-          ) : null}
-        </div>
-
+      <div className="sm:max-w-48">
         <div>
           <label
             htmlFor={`actual-${predictionId}`}

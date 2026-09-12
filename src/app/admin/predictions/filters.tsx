@@ -21,6 +21,7 @@ export function PredictionFilters({
     analyst?: string;
     status?: string;
     sport?: string;
+    visibility?: string;
     review?: string;
     q?: string;
   };
@@ -35,7 +36,7 @@ export function PredictionFilters({
       className="rounded-card border border-line bg-elevated p-4"
       aria-label="ფსონების ფილტრი"
     >
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="ძებნა" htmlFor="f-q">
           <input
             id="f-q"
@@ -82,13 +83,31 @@ export function PredictionFilters({
           />
         </Field>
 
+        <Field label="ბილეთის სახეობა" htmlFor="f-visibility">
+          <Select
+            id="f-visibility"
+            name="visibility"
+            value={current.visibility}
+            all="ყველა სახეობა"
+            options={[
+              { value: 'PUBLIC', label: 'უფასო' },
+              { value: 'PREMIUM', label: 'ფასიანი' },
+              { value: 'VIP', label: 'გამოწერა' },
+            ]}
+          />
+        </Field>
+
         <Field label="განხილვა" htmlFor="f-review">
           <Select
             id="f-review"
             name="review"
             value={current.review}
             all="ყველა"
-            options={[{ value: 'awaiting', label: 'ელოდება განხილვას' }]}
+            options={[
+              { value: 'awaiting', label: 'ელოდება განხილვას' },
+              { value: 'active', label: 'აქტიური' },
+              { value: 'settled', label: 'დასრულებული' },
+            ]}
           />
         </Field>
       </div>

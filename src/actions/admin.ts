@@ -255,7 +255,6 @@ export async function settlePredictionAction(
       predictionId: formData.get('predictionId'),
       outcome: formData.get('outcome'),
       actualValue: formData.get('actualValue') || undefined,
-      settlementSource: formData.get('settlementSource'),
       note: formData.get('note') || undefined,
     });
 

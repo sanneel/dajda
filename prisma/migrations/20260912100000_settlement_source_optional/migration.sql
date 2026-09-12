@@ -1,0 +1,11 @@
+-- The settling admin no longer types a source.
+--
+-- A result is settled by one administrator reading the slip and the result
+-- screenshot the author attached. There is no second register to cite: the
+-- field collected the same handful of words on every row, while the evidence
+-- that actually backs the decision is the pair of images already stored with
+-- the bet, and who settled it is already on settledById.
+--
+-- The column stays, nullable, because the rows written while it was required
+-- carry a real answer and dropping it would erase them.
+ALTER TABLE "PredictionResult" ALTER COLUMN "settlementSource" DROP NOT NULL;

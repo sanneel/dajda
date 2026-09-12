@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import type { Prisma } from '@/generated/prisma/client';
 import { requireAdmin } from '@/lib/auth/authorization';
 import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
+import { PREDICTION_VISIBILITY_KA } from '@/lib/labels';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Alert, EmptyState } from '@/components/ui/feedback';
@@ -21,6 +22,15 @@ export const metadata: Metadata = {
 const PAGE_SIZE = 20;
 
 const STATUSES = ['PENDING', 'WON', 'LOST', 'VOID', 'PUSH'] as const;
+
+const VISIBILITIES = ['PUBLIC', 'PREMIUM', 'VIP'] as const;
+
+/**
+ * The three cuts of the review column, none of which is a stored field:
+ * `awaiting` is author-finished and admin-unsettled, `active` is a live bet
+ * whose result nobody can know yet, `settled` is everything already decided.
+ */
+const REVIEWS = ['awaiting', 'active', 'settled'] as const;
 
 /**
  * Bet administration.
@@ -50,12 +60,13 @@ export default async function AdminPredictionsPage({
   const q = str('q');
   const statusParam = str('status');
   const reviewParam = str('review');
+  const visibilityParam = str('visibility');
 
   // Only accept values the enum actually contains, so a hand-edited query
   // string cannot reach Prisma as an invalid filter.
   const status = STATUSES.find((s) => s === statusParam);
-  // "review" is not a column: it is the author-finished, admin-unsettled state.
-  const onlyAwaitingReview = reviewParam === 'awaiting';
+  const visibility = VISIBILITIES.find((v) => v === visibilityParam);
+  const review = REVIEWS.find((r) => r === reviewParam);
 
   const page = Math.max(1, Number(str('page') ?? '1') || 1);
 
@@ -63,9 +74,21 @@ export default async function AdminPredictionsPage({
     ...(analystId ? { authorId: analystId } : {}),
     ...(sportId ? { sportId } : {}),
     ...(status ? { status } : {}),
-    ...(onlyAwaitingReview
+    ...(visibility ? { visibility } : {}),
+    ...(review === 'awaiting'
       ? { finishedAt: { not: null }, status: 'PENDING' as const }
       : {}),
+    // Live: published, nobody has called it over, and it is the current
+    // version. A draft is not active, and neither is a superseded row.
+    ...(review === 'active'
+      ? {
+          publishedAt: { not: null },
+          status: 'PENDING' as const,
+          finishedAt: null,
+          supersededAt: null,
+        }
+      : {}),
+    ...(review === 'settled' ? { status: { not: 'PENDING' as const } } : {}),
     ...(q ? { titleKa: { contains: q, mode: 'insensitive' as const } } : {}),
   };
 
@@ -98,6 +121,7 @@ export default async function AdminPredictionsPage({
           version: true,
           publishedAt: true,
           eventAt: true,
+          eventEndAt: true,
           finishedAt: true,
           supersededAt: true,
           sport: { select: { nameKa: true } },
@@ -106,7 +130,6 @@ export default async function AdminPredictionsPage({
             select: {
               profitUnitsCenti: true,
               settledAt: true,
-              settlementSource: true,
               settledBy: { select: { email: true } },
             },
           },
@@ -126,7 +149,8 @@ export default async function AdminPredictionsPage({
       analyst: analystId,
       sport: sportId,
       status,
-      review: onlyAwaitingReview ? 'awaiting' : undefined,
+      visibility,
+      review,
       page: String(page),
       ...patch,
     };
@@ -146,7 +170,7 @@ export default async function AdminPredictionsPage({
         </p>
       </header>
 
-      {awaitingCount > 0 && !onlyAwaitingReview ? (
+      {awaitingCount > 0 && review !== 'awaiting' ? (
         <div className="mb-5">
           <Alert tone="warning" title="ელოდება განხილვას">
             <span className="tabular">{awaitingCount}</span> ფსონი ავტორმა
@@ -169,7 +193,8 @@ export default async function AdminPredictionsPage({
             analyst: analystId,
             status,
             sport: sportId,
-            review: onlyAwaitingReview ? 'awaiting' : undefined,
+            visibility,
+            review,
             q,
           }}
           total={total}
@@ -236,11 +261,36 @@ export default async function AdminPredictionsPage({
                           <span className="tabular">
                             {formatOdds(prediction.oddsMilli)}
                           </span>
+                        </p>
+
+                        {/*
+                         * The three times an admin asks about, on one line and
+                         * always in the same order: when it went up, when the
+                         * first leg starts, when the last one does. The last
+                         * is what says whether a bet can be settled yet, and
+                         * it is null on a single-match slip, where the first
+                         * leg already answered it.
+                         */}
+                        <p className="mt-0.5 text-xs text-ink-faint">
+                          {'დაპოსტვა: '}
+                          <span className="tabular">
+                            {prediction.publishedAt
+                              ? formatDateTimeKa(prediction.publishedAt)
+                              : '—'}
+                          </span>
                           {prediction.eventAt ? (
                             <>
-                              {' · '}
+                              {' · მატჩი: '}
                               <span className="tabular">
                                 {formatDateTimeKa(prediction.eventAt)}
+                              </span>
+                            </>
+                          ) : null}
+                          {prediction.eventEndAt ? (
+                            <>
+                              {' · ბოლო მატჩი: '}
+                              <span className="tabular">
+                                {formatDateTimeKa(prediction.eventEndAt)}
                               </span>
                             </>
                           ) : null}
@@ -248,9 +298,15 @@ export default async function AdminPredictionsPage({
                       </div>
 
                       <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                        {prediction.visibility === 'PUBLIC' ? (
-                          <Badge tone="accent">უფასო</Badge>
-                        ) : null}
+                        <Badge
+                          tone={
+                            prediction.visibility === 'PUBLIC'
+                              ? 'accent'
+                              : 'neutral'
+                          }
+                        >
+                          {PREDICTION_VISIBILITY_KA[prediction.visibility]}
+                        </Badge>
                         {prediction.publishedAt === null ? (
                           <Badge>მონახაზი</Badge>
                         ) : null}
@@ -369,10 +425,6 @@ export default async function AdminPredictionsPage({
                           }`}
                         >
                           {formatUnitsSigned(prediction.result.profitUnitsCenti)}
-                        </span>
-                        {' · წყარო: '}
-                        <span className="text-ink">
-                          {prediction.result.settlementSource}
                         </span>
                         {prediction.result.settledBy
                           ? ` · ${prediction.result.settledBy.email}`

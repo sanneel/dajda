@@ -527,7 +527,6 @@ async function main() {
               oddsMilli,
               stakeUnitsCenti,
             ),
-            settlementSource: 'დემო მონაცემი, ავტორის სკრინშოტი',
             settledById: admin.id,
             settledAt: new Date(finishedAt.getTime() + 30 * 60 * 1000),
           },

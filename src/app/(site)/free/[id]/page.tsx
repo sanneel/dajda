@@ -325,8 +325,6 @@ export default async function TicketPage({
               <span>
                 შემოწმებულია ადმინისტრატორის მიერ,{' '}
                 <span className="tabular">{formatDateTimeKa(result.settledAt)}</span>
-                {' · წყარო: '}
-                <span className="text-ink">{result.settlementSource}</span>
               </span>
             </p>
           ) : null}

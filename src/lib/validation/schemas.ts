@@ -354,11 +354,6 @@ export const settlePredictionSchema = z.object({
   predictionId: z.uuid(),
   outcome: z.enum(['WON', 'LOST', 'VOID', 'PUSH']),
   actualValue: z.coerce.number().optional(),
-  settlementSource: z
-    .string()
-    .trim()
-    .min(3, 'მიუთითეთ შედეგის წყარო.')
-    .max(200),
   note: z.string().trim().max(1000).optional(),
 });
 

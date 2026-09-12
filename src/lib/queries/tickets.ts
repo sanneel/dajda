@@ -55,7 +55,6 @@ const publicTicketSelect = {
       profitUnitsCenti: true,
       settledAt: true,
       outcome: true,
-      settlementSource: true,
     },
   },
   // The legs, in slip order: what the public ticket is drawn from.

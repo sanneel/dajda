@@ -265,7 +265,7 @@ export async function getAnalystBySlug(slug: string) {
       correctionOfId: true,
       sport: { select: { code: true, nameKa: true } },
       result: {
-        select: { profitUnitsCenti: true, settledAt: true, settlementSource: true },
+        select: { profitUnitsCenti: true, settledAt: true },
       },
     },
   });

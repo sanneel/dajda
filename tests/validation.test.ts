@@ -343,19 +343,19 @@ describe('settlement input', () => {
   const valid = {
     predictionId: '00000000-0000-4000-8000-000000000001',
     outcome: 'WON',
-    settlementSource: 'ლიგის ოფიციალური ოქმი',
   };
 
   it('accepts a valid settlement', () => {
     expect(settlePredictionSchema.safeParse(valid).success).toBe(true);
   });
 
-  it('requires a settlement source', () => {
-    // A result with no stated source is not verifiable.
-    expect(
-      settlePredictionSchema.safeParse({ ...valid, settlementSource: '' })
-        .success,
-    ).toBe(false);
+  it('ignores a settlement source, which is no longer collected', () => {
+    const parsed = settlePredictionSchema.safeParse({
+      ...valid,
+      settlementSource: 'ლიგის ოფიციალური ოქმი',
+    });
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && 'settlementSource' in parsed.data).toBe(false);
   });
 
   it('refuses PENDING as a settled outcome', () => {

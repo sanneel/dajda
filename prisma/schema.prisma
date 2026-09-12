@@ -661,9 +661,11 @@ model PredictionResult {
   actualValueMilli Int?
 
   settledAt        DateTime @default(now())
-  /// Free text describing where the settling data came from (e.g. official
-  /// league feed, manual review). Never inferred.
-  settlementSource String
+  /// Historical only. The settling admin used to type where the result came
+  /// from; every settlement went through the same person reading the same
+  /// screenshot, so the field recorded the word "screenshot" over and over and
+  /// bought nothing. Kept nullable so the rows that carry one keep it.
+  settlementSource String?
   note             String?
 
   settledById String? @db.Uuid

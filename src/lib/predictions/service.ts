@@ -478,7 +478,6 @@ export async function settlePrediction(
           input.actualValue === undefined
             ? null
             : Math.round(input.actualValue * 1000),
-        settlementSource: input.settlementSource,
         note: input.note ?? null,
         settledById: actor.userId,
       },
@@ -497,10 +496,7 @@ export async function settlePrediction(
         summary: `ფსონი დაითვალა: ${outcome} (${prediction.titleKa})`,
         actorId: actor.userId,
         actorRole: 'ADMIN',
-        metadata: {
-          profitUnitsCenti,
-          settlementSource: input.settlementSource,
-        },
+        metadata: { profitUnitsCenti },
       },
       tx,
     );
