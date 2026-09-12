@@ -233,20 +233,30 @@ export default async function AnalystProfilePage({
 
           {/*
            * The promise and how it is going, where a buyer reads it before
-           * paying: what the author declared for a month, and how many they
-           * have published in this calendar month so far.
+           * paying. The list outside measures what this author publishes; the
+           * number that matters here is the one they COMMITTED to (terms 6.4),
+           * so it is said in words rather than left as a figure in a strip,
+           * with the month's running count beside it. An author selling a
+           * subscription with no declaration says so: silence would read as
+           * no obligation.
            */}
-          <p className="mt-3 text-sm text-ink-muted">
-            {profile.monthlyMinimum !== null ? (
-              <>
-                თვეში მინიმუმ{' '}
-                <span className="tabular text-ink">{profile.monthlyMinimum}</span>{' '}
-                პროგნოზი ·{' '}
-              </>
-            ) : null}
-            ამ თვეში გამოქვეყნდა{' '}
-            <span className="tabular text-ink">{publishedThisMonth}</span>
-          </p>
+          {profile.monthlyMinimum !== null ? (
+            <p className="mt-3 text-sm text-ink-muted">
+              {'ავტორს დეკლარირებული აქვს თვეში მინიმუმ '}
+              <span className="tabular font-semibold text-ink">
+                {profile.monthlyMinimum}
+              </span>
+              {' პროგნოზი · ამ თვეში გამოქვეყნდა '}
+              <span className="tabular text-ink">{publishedThisMonth}</span>
+            </p>
+          ) : (
+            <p className="mt-3 text-sm text-ink-muted">
+              {sellsSubscription
+                ? 'ავტორს თვიური მინიმუმი დეკლარირებული არ აქვს · ამ თვეში გამოქვეყნდა '
+                : 'ამ თვეში გამოქვეყნდა '}
+              <span className="tabular text-ink">{publishedThisMonth}</span>
+            </p>
+          )}
         </div>
 
         {/* The owner gets the action that belongs to them; everyone else gets

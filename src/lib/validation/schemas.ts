@@ -352,7 +352,12 @@ export const markFinishedSchema = z.object({
 
 export const settlePredictionSchema = z.object({
   predictionId: z.uuid(),
-  outcome: z.enum(['WON', 'LOST', 'VOID', 'PUSH']),
+  /*
+   * VOID is not offered: it and PUSH both return the stake and score zero, so
+   * the two were one outcome wearing two names. Rows settled as VOID before
+   * this keep it; nothing new may be settled that way.
+   */
+  outcome: z.enum(['WON', 'LOST', 'PUSH']),
   actualValue: z.coerce.number().optional(),
   note: z.string().trim().max(1000).optional(),
 });

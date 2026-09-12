@@ -47,17 +47,15 @@ export function AnalystRow({
     },
     {
       /*
-       * The author's DECLARED floor (terms 6.4), not a measured average. It
-       * has to be visible before a subscription is bought, and a rate
-       * computed from three weeks of history was neither a promise nor a
-       * number anybody could hold them to. Declared by the month, shown by
-       * the week, because a week is the span a subscriber actually feels.
+       * What this author actually publishes, averaged over the selected
+       * period - not the floor they declared. The declared figure is a
+       * promise, and it belongs where a buyer reads the promise: on the
+       * profile, beside the price. Standing here among measured columns it
+       * read as a measurement, and it undercounted every author who posts
+       * more than they owe.
        */
       label: 'პროგნოზი/კვირა',
-      value:
-        analyst.monthlyMinimum !== null
-          ? `${Math.max(1, Math.round(analyst.monthlyMinimum / 4))}+`
-          : '·',
+      value: stats.total > 0 ? formatPerWeek(analyst.avgPerWeek) : '·',
     },
     {
       label: 'სიზუსტე',
@@ -213,6 +211,15 @@ export function AnalystRow({
       </div>
     </li>
   );
+}
+
+/**
+ * Tickets per week. One decimal below ten, because the gap between 2.1 and 2.8
+ * a week is most of a ticket and a rounded "2" hides it; whole numbers above
+ * that, where the fraction has stopped saying anything.
+ */
+function formatPerWeek(perWeek: number): string {
+  return perWeek < 10 ? perWeek.toFixed(1) : String(Math.round(perWeek));
 }
 
 /**

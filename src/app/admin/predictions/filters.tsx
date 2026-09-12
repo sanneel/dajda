@@ -67,7 +67,9 @@ export function PredictionFilters({
               { value: 'PENDING', label: 'მოლოდინში' },
               { value: 'WON', label: 'დაჯდა' },
               { value: 'LOST', label: 'არ დაჯდა' },
-              { value: 'VOID', label: 'ბათილი' },
+              // Legacy: nothing new settles this way, but the rows that did
+              // are still here and still need finding.
+              { value: 'VOID', label: 'ბათილი (ძველი)' },
               { value: 'PUSH', label: 'დაბრუნებული' },
             ]}
           />

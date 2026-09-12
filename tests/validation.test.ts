@@ -363,4 +363,15 @@ describe('settlement input', () => {
       settlePredictionSchema.safeParse({ ...valid, outcome: 'PENDING' }).success,
     ).toBe(false);
   });
+
+  it('refuses VOID, which PUSH replaced', () => {
+    // Both returned the stake and scored zero. One returned-stake outcome
+    // reaches settlement now; the rows already settled as VOID keep it.
+    expect(
+      settlePredictionSchema.safeParse({ ...valid, outcome: 'VOID' }).success,
+    ).toBe(false);
+    expect(
+      settlePredictionSchema.safeParse({ ...valid, outcome: 'PUSH' }).success,
+    ).toBe(true);
+  });
 });

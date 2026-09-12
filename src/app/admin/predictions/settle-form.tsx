@@ -5,10 +5,16 @@ import { settlePredictionAction } from '@/actions/admin';
 import { Alert } from '@/components/ui/feedback';
 import { Button } from '@/components/ui/button';
 
+/*
+ * Three verdicts, not four. "ბათილი" and "დაბრუნებული" computed the same
+ * thing - stake back, zero profit, out of the hit rate - so the pair only
+ * ever asked an admin to pick a word for an outcome the platform treats
+ * identically. Returned-stake is now one button. VOID stays in the enum
+ * because settled rows carry it and a published record is not rewritten.
+ */
 const OUTCOMES = [
   { value: 'WON', label: 'დაჯდა' },
   { value: 'LOST', label: 'არ დაჯდა' },
-  { value: 'VOID', label: 'ბათილი' },
   { value: 'PUSH', label: 'დაბრუნებული' },
 ];
 
@@ -17,7 +23,7 @@ const OUTCOMES = [
  *
  * Two things are deliberate about its shape:
  *
- *   1. The outcome is a row of four chips with NOTHING preselected. A select
+ *   1. The outcome is a row of chips with NOTHING preselected. A select
  *      that opened on "დაჯდა" let an admin type a source, press the button and
  *      record a win they never chose. Now the verdict is a click of its own.
  *   2. The outcome is the only required field. A typed source used to sit
