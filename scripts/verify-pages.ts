@@ -50,9 +50,31 @@ const prisma = new PrismaClient({
  */
 const SESSION_COOKIE = 'dajda_session';
 
-type Who = 'anon' | 'reader' | 'analyst';
+type Who = 'anon' | 'reader' | 'analyst' | 'forged';
 
-type Route = { path: string; as: Who };
+/**
+ * What the route is supposed to do for this viewer.
+ *
+ *   'renders' - answers with a page (or a redirect that is not a bounce to
+ *               the sign-in screen)
+ *   'refused' - must NOT answer with a page: a sign-in bounce, a 403 or a
+ *               404 are all acceptable ways of saying no, and a 200 is a
+ *               hole in the authorization
+ */
+type Expectation = 'renders' | 'refused';
+
+type Route = {
+  path: string;
+  as: Who;
+  expect?: Expectation;
+  /** Text the answer must contain. */
+  contains?: string;
+  /** Text the answer must NOT contain. */
+  absent?: string;
+};
+
+/** Rendered by the analyst layout to anyone without an approved profile. */
+const NO_PROFILE_NOTICE = 'ანალიტიკოსის პროფილი არ გაქვთ';
 
 /**
  * A page that renders for an anonymous visitor and fails for a signed-in one
@@ -82,10 +104,56 @@ const ROUTES: Route[] = [
   { path: '/apply', as: 'reader' },
 
   { path: '/', as: 'analyst' },
-  { path: '/analyst', as: 'analyst' },
-  { path: '/analyst/earnings', as: 'analyst' },
+  // The other side of the same assertion: the author gets the workspace, not
+  // the notice. Without this the check above passes on a page that is broken
+  // for everybody.
+  { path: '/analyst', as: 'analyst', absent: NO_PROFILE_NOTICE },
+  { path: '/analyst/earnings', as: 'analyst', absent: NO_PROFILE_NOTICE },
   { path: '/dashboard', as: 'analyst' },
   { path: '/dashboard/settings', as: 'analyst' },
+
+  /*
+   * The negative half, and the more important one. Everything above proves a
+   * page still renders; these prove a page still refuses. Authorization is
+   * the thing that breaks silently when a layout is moved or a nav rewritten,
+   * because nothing about the screen looks wrong to whoever broke it - they
+   * are signed in as someone who is allowed.
+   */
+  { path: '/dashboard', as: 'anon', expect: 'refused' },
+  { path: '/dashboard/settings', as: 'anon', expect: 'refused' },
+  { path: '/apply', as: 'anon', expect: 'refused' },
+  { path: '/analyst', as: 'anon', expect: 'refused' },
+  { path: '/analyst/earnings', as: 'anon', expect: 'refused' },
+  { path: '/admin', as: 'anon', expect: 'refused' },
+  { path: '/admin/predictions', as: 'anon', expect: 'refused' },
+  { path: '/admin/users', as: 'anon', expect: 'refused' },
+  { path: '/admin/payouts', as: 'anon', expect: 'refused' },
+
+  /*
+   * A reader is not an analyst. The workspace answers them with a 200 - an
+   * explanation and a link to apply - so the status code says nothing here
+   * and the test has to read the page. What must never appear is the
+   * workspace itself.
+   */
+  { path: '/analyst', as: 'reader', contains: NO_PROFILE_NOTICE },
+  { path: '/analyst/earnings', as: 'reader', contains: NO_PROFILE_NOTICE },
+  // ...and neither of them is an administrator.
+  { path: '/admin', as: 'reader', expect: 'refused' },
+  { path: '/admin/predictions', as: 'reader', expect: 'refused' },
+  { path: '/admin/users', as: 'reader', expect: 'refused' },
+  { path: '/admin/payouts', as: 'reader', expect: 'refused' },
+  { path: '/admin/analysts', as: 'reader', expect: 'refused' },
+  { path: '/admin/audit', as: 'reader', expect: 'refused' },
+
+  { path: '/admin', as: 'analyst', expect: 'refused' },
+  { path: '/admin/predictions', as: 'analyst', expect: 'refused' },
+  { path: '/admin/users', as: 'analyst', expect: 'refused' },
+  { path: '/admin/payouts', as: 'analyst', expect: 'refused' },
+
+  // A tampered cookie is not a session.
+  { path: '/dashboard', as: 'forged', expect: 'refused' },
+  { path: '/analyst', as: 'forged', expect: 'refused' },
+  { path: '/admin', as: 'forged', expect: 'refused' },
 ];
 
 async function sessionCookieFor(where: { analyst: boolean }): Promise<string> {
@@ -184,6 +252,8 @@ async function main(): Promise<void> {
     anon: null,
     reader: await sessionCookieFor({ analyst: false }),
     analyst: await sessionCookieFor({ analyst: true }),
+    // A well-formed token that was never issued. Nothing may accept it.
+    forged: `${SESSION_COOKIE}=${generateToken()}`,
   };
   const routes = [...ROUTES, ...(await discoveredRoutes())];
   await prisma.$disconnect();
@@ -202,7 +272,7 @@ async function main(): Promise<void> {
         env: { ...process.env, DATABASE_POOL_MAX: process.env.DATABASE_POOL_MAX ?? '1' },
       });
 
-  const failures: { route: Route; status: number }[] = [];
+  const failures: { route: Route; status: number; note?: string }[] = [];
 
   try {
     await waitForServer();
@@ -222,7 +292,11 @@ async function main(): Promise<void> {
         redirect: 'manual',
         headers,
       });
-      for (let attempt = 0; attempt < 2 && response.status >= 500; attempt += 1) {
+      for (
+        let attempt = 0;
+        attempt < 2 && response.status >= 500 && route.expect !== 'refused';
+        attempt += 1
+      ) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         response = await fetch(`${base}${route.path}`, {
           redirect: 'manual',
@@ -231,19 +305,35 @@ async function main(): Promise<void> {
       }
 
       /*
-       * Under 400 is a rendered page or a deliberate redirect. The exception
-       * is a signed-in request bounced to /login: that is the session not
-       * being honoured, which is a broken page wearing a 307, and counting
-       * it as a pass is how an authentication regression ships.
+       * Only a 2xx is a rendered page, and that is the whole test on both
+       * sides. A route that must refuse may do it any honest way - a bounce
+       * to the sign-in screen, a redirect home, a 403, a 404 that does not
+       * admit the page exists - and the only wrong answer is showing it. A
+       * route that must render has to actually answer: a signed-in request
+       * redirected away is the session not being honoured, which is a broken
+       * page wearing a 307, and letting that pass is how an authentication
+       * regression ships.
        */
-      const location = response.headers.get('location') ?? '';
-      const bouncedToLogin =
-        route.as !== 'anon' && location.includes('/login');
-      const ok = response.status < 400 && !bouncedToLogin;
-      if (!ok) failures.push({ route, status: response.status });
+      const rendered = response.status >= 200 && response.status < 300;
+      let ok = route.expect === 'refused' ? !rendered : rendered;
+      let note = '';
+
+      if (ok && rendered && (route.contains || route.absent)) {
+        const body = await response.text();
+        if (route.contains && !body.includes(route.contains)) {
+          ok = false;
+          note = ` (missing: ${route.contains})`;
+        }
+        if (ok && route.absent && body.includes(route.absent)) {
+          ok = false;
+          note = ` (must not contain: ${route.absent})`;
+        }
+      }
+
+      if (!ok) failures.push({ route, status: response.status, note });
 
       console.info(
-        `${ok ? 'ok  ' : 'FAIL'} ${String(response.status).padEnd(3)} ${route.as.padEnd(7)} ${route.path}`,
+        `${ok ? 'ok  ' : 'FAIL'} ${String(response.status).padEnd(3)} ${route.as.padEnd(7)} ${(route.expect ?? 'renders').padEnd(8)} ${route.path}${note}`,
       );
     }
   } finally {
@@ -262,8 +352,8 @@ async function main(): Promise<void> {
 
   if (failures.length > 0) {
     console.error(`\n${failures.length} route(s) failed:`);
-    for (const { route, status } of failures) {
-      console.error(`  ${status}  ${route.as}  ${route.path}`);
+    for (const { route, status, note } of failures) {
+      console.error(`  ${status}  ${route.as}  ${route.path}${note ?? ''}`);
     }
     process.exit(1);
   }
