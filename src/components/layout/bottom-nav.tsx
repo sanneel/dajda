@@ -37,7 +37,8 @@ function tabsFor(
      * An analyst had two tabs for themselves - a workspace and an account
      * page - which is one more than the bar has room for and one more than
      * the idea deserves: their workspace IS their page. It takes the profile
-     * slot; account settings stay reachable from inside it.
+     * slot; account settings stay reachable from inside it, and the public
+     * page from the workspace's own header.
      */
     isAnalyst && profileHref
       ? { href: profileHref, label: 'პროფილი', icon: User }

@@ -27,12 +27,16 @@ export async function SiteHeader() {
   // APPROVED, not merely applied: a pending applicant is not an analyst yet.
   const isAnalyst = actor?.analystStatus === 'APPROVED';
   /*
-   * An approved analyst's "profile" is their PUBLIC page - the one readers
-   * judge them on and the one they check. The workspace behind it (drafts,
-   * settling, pricing, broadcasts) is reachable from there, rather than
-   * standing beside it in the nav as a second, near-identical profile.
+   * An author pressing "პროფილი" is going to work: to post a ticket, settle
+   * one, check what is running. That is the workspace, and sending them to
+   * the public page first made every one of those two clicks away, through a
+   * page built for somebody else to read.
+   *
+   * The public page keeps its own entry, named for what it is - საჯარო
+   * გვერდი - in the account sheet and at the top of the workspace.
    */
-  const profileHref =
+  const workspaceHref = isAnalyst ? '/analyst' : null;
+  const publicProfileHref =
     isAnalyst && actor?.analystSlug ? `/analysts/${actor.analystSlug}` : null;
 
   /*
@@ -74,9 +78,9 @@ export async function SiteHeader() {
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 lg:flex">
-          {profileHref ? (
+          {workspaceHref ? (
             <Link
-              href={profileHref}
+              href={workspaceHref}
               className="inline-flex min-h-11 items-center px-2 text-sm text-accent hover:underline"
             >
               პროფილი
@@ -116,7 +120,7 @@ export async function SiteHeader() {
               photoPath={photoPath}
               analystStatus={actor.analystStatus}
               isAdmin={isAdmin}
-              profileHref={profileHref}
+              profileHref={publicProfileHref}
             />
           ) : (
             <AuthButtons socialButtons={<SocialSignIn />} />
@@ -143,14 +147,14 @@ export async function SiteHeader() {
               photoPath={photoPath}
               analystStatus={actor.analystStatus}
               isAdmin={isAdmin}
-              profileHref={profileHref}
+              profileHref={publicProfileHref}
             />
           ) : null}
           <MobileNav
             isAuthenticated={Boolean(actor)}
             isAdmin={isAdmin}
             isAnalyst={isAnalyst}
-            profileHref={profileHref}
+            profileHref={workspaceHref}
             earnings={earningsMinor === null ? null : formatMoney(earningsMinor)}
           />
         </div>
@@ -166,7 +170,7 @@ export async function SiteHeader() {
     <BottomNav
       isAuthenticated={Boolean(actor)}
       isAnalyst={isAnalyst}
-      profileHref={profileHref}
+      profileHref={workspaceHref}
     />
     </>
   );

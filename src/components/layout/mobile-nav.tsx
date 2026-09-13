@@ -24,7 +24,7 @@ export function MobileNav({
   isAuthenticated: boolean;
   isAdmin: boolean;
   isAnalyst?: boolean;
-  /** An analyst's public profile, when they have one. */
+  /** An analyst's own workspace. The public page is in the account sheet. */
   profileHref?: string | null;
   /** An analyst's earnings balance, already formatted; null for everyone else. */
   earnings?: string | null;
