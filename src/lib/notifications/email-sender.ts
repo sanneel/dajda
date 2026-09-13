@@ -28,7 +28,7 @@ function renderBody(message: OutboxMessage): string {
     link ? `\n${link}` : null,
     '\n***',
     'DAJDA · სპორტული ანალიზი, გამჭვირვალე ჩანაწერით.',
-    `შეტყობინებების გამორთვა: ${appUrl}/dashboard/settings`,
+    `შეტყობინებების გამორთვა: ${appUrl}/account?tab=preferences`,
   ]
     .filter((part) => part !== null)
     .join('\n');
@@ -48,7 +48,7 @@ function renderHtml(message: OutboxMessage): string {
       ? { cta: { label: 'გახსნა DAJDA-ზე', url: `${appUrl}${message.linkPath}` } }
       : {}),
     footerLines: [
-      `შეტყობინებების გამორთვა: ${appUrl}/dashboard/settings`,
+      `შეტყობინებების გამორთვა: ${appUrl}/account?tab=preferences`,
     ],
   });
 }

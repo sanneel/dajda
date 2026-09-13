@@ -150,7 +150,7 @@ export async function GET(request: Request) {
       ...context,
     });
 
-    redirect('/dashboard');
+    redirect('/account');
   }
 
   // New person: hand the verified profile to the confirmation step.

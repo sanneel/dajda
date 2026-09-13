@@ -43,16 +43,20 @@ describe('payment return hop', () => {
   });
 
   it('never leaves the site', () => {
-    expect(safeDestination('https://evil.example/')).toBe('/dashboard');
-    expect(safeDestination('//evil.example')).toBe('/dashboard');
-    expect(safeDestination('/\\evil.example')).toBe('/dashboard');
-    expect(safeDestination(undefined)).toBe('/dashboard');
+    // The fallback is the account hub; what is asserted is that a supplied
+    // destination pointing off-site never survives, whatever that hub is
+    // called this month.
+    expect(safeDestination('https://evil.example/')).toBe('/account');
+    expect(safeDestination('//evil.example')).toBe('/account');
+    expect(safeDestination('/\\evil.example')).toBe('/account');
+    expect(safeDestination(undefined)).toBe('/account');
     expect(safeDestination('/free/abc')).toBe('/free/abc');
     const to = resolveReturnRedirect(
       APP,
       `${APP}/api/payments/return?order=dajda-1&to=https%3A%2F%2Fevil.example`,
       null,
     );
-    expect(to.startsWith(`${APP}/dashboard`)).toBe(true);
+    expect(to.startsWith(APP)).toBe(true);
+    expect(to).not.toContain('evil.example');
   });
 });

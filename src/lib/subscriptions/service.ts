@@ -140,7 +140,7 @@ export async function startSubscriptionCheckout(
       amountMinor: plan.priceMinor,
       currency: plan.currency,
       description: `DAJDA: ${plan.nameKa}`,
-      returnUrl: buildReturnUrl(env.APP_URL, orderId, "/dashboard"),
+      returnUrl: buildReturnUrl(env.APP_URL, orderId, "/account"),
       callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
       customerEmail: actor.email,
     });

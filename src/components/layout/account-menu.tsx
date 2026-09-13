@@ -117,16 +117,11 @@ export function AccountMenu({
             <nav aria-label="ანგარიშის ნავიგაცია" className="flex-1 p-3">
               <ul className="space-y-1">
                 <li>
-                  <Item href="/dashboard" icon={<User className="size-4" />}>
+                  {/* One entry, because there is one account page. Its
+                      tabs are inside it, not in this list: a sheet that
+                      repeats a page's own navigation is two menus. */}
+                  <Item href="/account" icon={<User className="size-4" />}>
                     ანგარიში
-                  </Item>
-                </li>
-                <li>
-                  <Item
-                    href="/dashboard/settings"
-                    icon={<Settings className="size-4" />}
-                  >
-                    პარამეტრები
                   </Item>
                 </li>
 

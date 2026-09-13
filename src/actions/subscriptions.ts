@@ -55,7 +55,7 @@ export async function startCheckoutAction(
     });
 
     if (result.kind === 'ACTIVATED') {
-      revalidatePath('/dashboard');
+      revalidatePath('/account');
       return ok({ status: 'ACTIVATED' });
     }
 
@@ -87,7 +87,7 @@ export async function cancelSubscriptionAction(
       role: actor.role,
     });
 
-    revalidatePath('/dashboard');
+    revalidatePath('/account');
     return ok({ canceled: true });
   } catch (error) {
     return toActionFailure(error);
@@ -118,7 +118,7 @@ export async function toggleSavedAnalystAction(
 
     if (existing) {
       await prisma.savedAnalyst.delete({ where: { id: existing.id } });
-      revalidatePath('/dashboard');
+      revalidatePath('/account');
       return ok({ saved: false });
     }
 
@@ -131,7 +131,7 @@ export async function toggleSavedAnalystAction(
       data: { userId: actor.userId, analystProfileId },
     });
 
-    revalidatePath('/dashboard');
+    revalidatePath('/account');
     return ok({ saved: true });
   } catch (error) {
     return toActionFailure(error);

@@ -34,9 +34,9 @@ export function buildReturnUrl(
  * redirect.
  */
 export function safeDestination(raw: string | null | undefined): string {
-  if (typeof raw !== 'string') return '/dashboard';
+  if (typeof raw !== 'string') return '/account';
   if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) {
-    return '/dashboard';
+    return '/account';
   }
   return raw;
 }

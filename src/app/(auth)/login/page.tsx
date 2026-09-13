@@ -19,7 +19,7 @@ export default async function LoginPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   // Already signed in - no reason to show the form again.
-  if (await getCurrentUser()) redirect('/dashboard');
+  if (await getCurrentUser()) redirect('/account');
 
   /*
    * The Google callback funnels almost every failure here with one flag; the

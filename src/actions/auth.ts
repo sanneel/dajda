@@ -182,7 +182,7 @@ export async function registerAction(
     return toActionFailure(error);
   }
 
-  if (success) redirect('/dashboard');
+  if (success) redirect('/account');
   return fail(ERROR_CODES.INTERNAL);
 }
 
@@ -346,7 +346,7 @@ export async function loginAction(
     return toActionFailure(error);
   }
 
-  if (success) redirect('/dashboard');
+  if (success) redirect('/account');
   return fail(ERROR_CODES.INTERNAL);
 }
 
@@ -536,7 +536,7 @@ export async function verifyEmailCodeAction(
       });
     });
 
-    revalidatePath('/dashboard');
+    revalidatePath('/account');
     return ok({ verified: true });
   } catch (error) {
     return toActionFailure(error);

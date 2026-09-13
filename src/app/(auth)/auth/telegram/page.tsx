@@ -19,7 +19,7 @@ export const metadata: Metadata = {
  * verification. Nothing on this page trusts anything before that check.
  */
 export default async function TelegramAuthPage() {
-  if (await getCurrentUser()) redirect('/dashboard');
+  if (await getCurrentUser()) redirect('/account');
 
   return (
     <div className="rounded-md border border-line bg-surface p-6 sm:p-8">

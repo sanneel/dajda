@@ -42,7 +42,7 @@ function tabsFor(
     isAnalyst && profileHref
       ? { href: profileHref, label: 'პროფილი', icon: User }
       : isAuthenticated
-        ? { href: '/dashboard', label: 'პროფილი', icon: User }
+        ? { href: '/account', label: 'ანგარიში', icon: User }
         : { href: '/login', label: 'შესვლა', icon: LogIn },
   ];
 }

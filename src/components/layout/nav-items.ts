@@ -4,7 +4,7 @@ export type NavItem = { href: string; label: string };
 /*
  * No "გამოწერები" entry: a subscription is bought on the analyst's own
  * profile, so there is no platform-wide purchase page to navigate to. Managing
- * an existing subscription lives under /dashboard.
+ * an existing subscription lives under /account.
  *
  * No "სტატისტიკა" entry either: the platform record now sits on the home page,
  * above the analysts it describes, instead of on a page of its own.

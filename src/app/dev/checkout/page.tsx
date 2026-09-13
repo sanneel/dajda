@@ -78,7 +78,7 @@ export default async function DevCheckoutPage({
 
         <p className="mt-6 border-t border-line pt-4 text-sm">
           <Link
-            href="/dashboard"
+            href="/account"
             className="text-accent hover:underline"
           >
             გამოწერების გვერდზე დაბრუნება
