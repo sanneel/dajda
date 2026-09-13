@@ -358,7 +358,6 @@ export const settlePredictionSchema = z.object({
    * this keep it; nothing new may be settled that way.
    */
   outcome: z.enum(['WON', 'LOST', 'PUSH']),
-  actualValue: z.coerce.number().optional(),
   note: z.string().trim().max(1000).optional(),
 });
 

@@ -474,10 +474,6 @@ export async function settlePrediction(
         predictionId: prediction.id,
         outcome,
         profitUnitsCenti,
-        actualValueMilli:
-          input.actualValue === undefined
-            ? null
-            : Math.round(input.actualValue * 1000),
         note: input.note ?? null,
         settledById: actor.userId,
       },

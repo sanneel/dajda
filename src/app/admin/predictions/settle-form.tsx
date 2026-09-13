@@ -26,10 +26,11 @@ const OUTCOMES = [
  *   1. The outcome is a row of chips with NOTHING preselected. A select
  *      that opened on "დაჯდა" let an admin type a source, press the button and
  *      record a win they never chose. Now the verdict is a click of its own.
- *   2. The outcome is the only required field. A typed source used to sit
- *      beside it, but every settlement is one admin reading the slip and the
- *      result screenshot stored with the bet, so the box collected the same
- *      few words forever while the evidence was already on the page.
+ *   2. The outcome is the ONLY field. A typed source and an observed value
+ *      used to sit beside it; both were noise. Every settlement is one admin
+ *      reading the slip and the result screenshot already stored with the
+ *      bet, and the platform holds no line to compare a value against, so
+ *      the two boxes asked for work that decided nothing.
  *
  * On the queue page the form is open from the start, because settling IS the
  * task there; in the bet browser it stays behind a button so a list of
@@ -101,27 +102,6 @@ export function SettleForm({
           </p>
         ) : null}
       </fieldset>
-
-      <div className="sm:max-w-48">
-        <div>
-          <label
-            htmlFor={`actual-${predictionId}`}
-            className="mb-1 block text-xs font-medium text-ink-muted"
-          >
-            ფაქტობრივი მნიშვნელობა{' '}
-            <span className="font-normal text-ink-faint">(არასავალდებულო)</span>
-          </label>
-          <input
-            id={`actual-${predictionId}`}
-            name="actualValue"
-            type="number"
-            step="0.01"
-            inputMode="decimal"
-            placeholder="ტოტალი, ხაზი"
-            className="min-h-11 w-full rounded-md border border-line bg-surface px-3 text-sm text-ink"
-          />
-        </div>
-      </div>
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" disabled={pending}>

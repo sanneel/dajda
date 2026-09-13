@@ -254,7 +254,6 @@ export async function settlePredictionAction(
     const parsed = settlePredictionSchema.safeParse({
       predictionId: formData.get('predictionId'),
       outcome: formData.get('outcome'),
-      actualValue: formData.get('actualValue') || undefined,
       note: formData.get('note') || undefined,
     });
 

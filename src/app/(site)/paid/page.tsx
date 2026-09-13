@@ -85,22 +85,6 @@ export default async function PaidTicketsPage({
           აქ განთავსებული ბილეთები არ შედის გამოწერაში: თითოეული მათგანი
           ცალკე, ერთეული ბილეთის სახით იყიდება.
         </p>
-
-        {/*
-         * The second product, named on the page that sells the first. A
-         * reader looking at a list that mixes both has to be told which is
-         * which before the rows make sense, and the subscription is the one
-         * whose price is not printed on the row.
-         */}
-        <div className="mt-5 rounded-card border border-line bg-surface p-4 sm:p-5">
-          <h2 className="font-display text-xl text-ink sm:text-2xl">
-            გამოწერის პროგნოზები
-          </h2>
-          <p className="mt-1.5 max-w-2xl text-sm text-ink-muted">
-            შეძენა მოიცავს მომდევნო ერთი თვის განმავლობაში ანალიტიკოსის მიერ
-            გამოქვეყნებულ გამოწერის ბილეთებზე სრულ წვდომას.
-          </p>
-        </div>
       </header>
 
       {/* Posting belongs on the feed being posted to: an analyst reading the
