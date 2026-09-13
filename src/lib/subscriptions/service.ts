@@ -8,6 +8,7 @@ import { getPaymentProvider } from "@/lib/payments";
 import { abandonRefusedCheckout } from "@/lib/payments/abandon";
 import { addBillingPeriod } from "@/lib/payments/webhook";
 import { renewalRequest } from "./checkout-rules";
+import { recurringBillingEnabled } from "./recurring";
 import { expireLapsedSubscriptions } from "./expiry";
 
 /**
@@ -155,7 +156,7 @@ export async function startSubscriptionCheckout(
       callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
       customerEmail: actor.email,
       ...(renewalRequest(
-        env.SUBSCRIPTION_RECURRING,
+        recurringBillingEnabled(),
         plan.billingPeriod,
         new Date(),
       ) ?? {}),

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getEnv } from '@/lib/env';
+import { recurringBillingEnabled } from '@/lib/subscriptions/recurring';
 import { PaymentMarks } from '@/components/payment-marks';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 
@@ -59,7 +59,6 @@ function products(recurring: boolean): {
 }
 
 export default function PricingPage() {
-  const { SUBSCRIPTION_RECURRING } = getEnv();
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-8">
       <header>
@@ -71,7 +70,7 @@ export default function PricingPage() {
       </header>
 
       <dl className="mt-8 border-t border-line">
-        {products(SUBSCRIPTION_RECURRING).map((product) => (
+        {products(recurringBillingEnabled()).map((product) => (
           <div
             key={product.id}
             id={product.id}

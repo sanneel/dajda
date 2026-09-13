@@ -376,10 +376,19 @@ Two things gate turning it on:
 2. **The terms.** `docs/legal/terms.md` carries a
    `<!-- billing-mode: oneoff|recurring -->` marker that `npm run legal:sync`
    compiles into `TERMS_BILLING_MODE`. Setting the flag while the published
-   terms still promise that a card is never charged again **fails at boot**,
-   not at a customer's renewal. The replacement clauses are drafted in
+   terms still promise that a card is never charged again **fails the build**
+   (`npm run check:billing`, wired into `vercel-build`), so it never reaches a
+   customer's renewal. The replacement clauses are drafted in
    `docs/legal/recurring-billing-clauses.md` and need a lawyer's review before
    the marker moves.
+
+   If a contradictory config does arise at runtime, it degrades rather than
+   breaking: `lib/subscriptions/recurring.ts` follows the terms, sells one
+   month at a time, logs once and reports `warnings: ["billing-config"]` from
+   `/api/health`. An earlier version enforced this in the environment schema,
+   where it threw on every request - and since the site header reads env, a
+   single wrong variable answered 500 on every page while the deployment
+   reported success. One variable should not be able to do that.
 
 The buyer-facing copy switches with the flag too - the plan card, pricing,
 how it works, the author list and the registration form - so the site cannot

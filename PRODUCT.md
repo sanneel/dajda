@@ -73,8 +73,10 @@ threshold sort below the rest and are labelled "მცირე შერჩე�
   built and tested, but the signed Flitt annex is e-commerce acquiring and
   scheduling charges needs the contract to cover it, which is a question for
   Flitt rather than for the code. The published terms are held to the same
-  choice by a marker the environment checks at boot, so the site cannot
-  promise one billing and perform the other. Decided 2026-09-13, restoring
+  choice by a marker checked at build time, so the site cannot promise one
+  billing and perform the other; if the two ever disagree at runtime the terms
+  win and the site keeps serving, because one wrong variable taking every page
+  down is a worse failure than the one it guards against. Decided 2026-09-13, restoring
   what the 2026-09-11 annex reading removed - that reading was prompted by two
   declined IBAN payouts, which say nothing about recurring charges.
   Decided 2026-09-08. Authors receive 85%

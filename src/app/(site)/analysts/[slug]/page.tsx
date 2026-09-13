@@ -22,7 +22,7 @@ import { RecordTabs } from './record-tabs';
 import { ReportForm } from '@/components/report-form';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 import { SaveAnalystButton } from './save-button';
-import { getEnv } from '@/lib/env';
+import { recurringBillingEnabled } from '@/lib/subscriptions/recurring';
 import { SubscribeButton } from './subscribe-button';
 import { AddTicketButton } from '@/components/add-ticket-button';
 import { AnalystHistory } from './history';
@@ -312,7 +312,7 @@ export default async function AnalystProfilePage({
                 isAuthenticated={Boolean(actor)}
                 monthlyMinimum={profile.monthlyMinimum}
                 owned={holdsPlan}
-                recurring={getEnv().SUBSCRIPTION_RECURRING}
+                recurring={recurringBillingEnabled()}
                 openOnMount={wantsSubscribe}
               />
             ) : (

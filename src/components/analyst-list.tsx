@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getEnv } from '@/lib/env';
+import { recurringBillingEnabled } from '@/lib/subscriptions/recurring';
 import type { AnalystListItem } from '@/lib/queries/analysts';
 import {
   formatMoney,
@@ -205,7 +205,7 @@ export function AnalystRow({
                 {formatMoney(cheapestPlan.priceMinor, cheapestPlan.currency)}
               </span>{' '}
               {BILLING_PERIOD_KA[cheapestPlan.billingPeriod]} ·{' '}
-              {getEnv().SUBSCRIPTION_RECURRING
+              {recurringBillingEnabled()
                 ? 'ავტომატურად განახლდება'
                 : 'ავტომატურად არ განახლდება'}
             </>

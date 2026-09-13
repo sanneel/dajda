@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getEnv } from '@/lib/env';
+import { recurringBillingEnabled } from '@/lib/subscriptions/recurring';
 import { Wallet } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { prisma } from '@/lib/db';
@@ -122,7 +122,7 @@ export async function SiteHeader() {
           ) : (
             <AuthButtons
               socialButtons={<SocialSignIn />}
-              recurring={getEnv().SUBSCRIPTION_RECURRING}
+              recurring={recurringBillingEnabled()}
             />
           )}
         </div>

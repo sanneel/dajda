@@ -55,21 +55,22 @@ describe('environment configuration', () => {
     expect(getEnv().APP_URL).toBe('https://dajda.ge');
   });
 
-  /*
-   * Recurring billing and the published terms have to agree. The flag turns
-   * on a charge the customer does not initiate; the terms are where they were
-   * told it would happen. Shipping one without the other is the failure this
-   * guard exists to make impossible, so it is pinned in both directions.
-   */
   it('does not charge a card again unless asked to', () => {
     setEnv(VALID_PRODUCTION);
     expect(getEnv().SUBSCRIPTION_RECURRING).toBe(false);
   });
 
-  it('refuses to renew while the terms still promise it never happens', () => {
-    // docs/legal/terms.md is marked billing-mode: oneoff.
+  /*
+   * Whether renewals actually happen is decided in subscriptions/recurring.ts,
+   * against the published terms, and NOT here. This used to be an env guard
+   * that refused to parse, which took every page down over one variable - env
+   * is read by the site header. A contradiction now fails the build instead
+   * (scripts/check-billing-config.mjs), so parsing must still succeed.
+   */
+  it('parses a contradictory billing flag instead of downing the site', () => {
     setEnv({ ...VALID_PRODUCTION, SUBSCRIPTION_RECURRING: 'true' });
-    expect(() => getEnv()).toThrow(/SUBSCRIPTION_RECURRING/);
+    expect(() => getEnv()).not.toThrow();
+    expect(getEnv().SUBSCRIPTION_RECURRING).toBe(true);
   });
 
   it('refuses to boot production with the mock payment provider', () => {

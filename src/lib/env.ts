@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { TERMS_BILLING_MODE } from '@/lib/legal/billing-mode.generated';
 
 /**
  * Server-side environment. Never import this from a client component - it
@@ -87,9 +86,11 @@ const envSchema = z
      * contract to cover them. So this is off until the gateway confirms the
      * merchant may schedule them, and turning it on is the whole switch.
      *
-     * It also selects the copy that tells a buyer what their card will do and
-     * the terms clauses that say the same thing, so what the site promises
-     * cannot drift away from what it does.
+     * This is the declared intent, not the answer: the published terms have to
+     * describe renewal too, and lib/subscriptions/recurring.ts is what every
+     * caller reads. A contradiction fails the build
+     * (scripts/check-billing-config.mjs) rather than the request, because one
+     * wrong variable should not take a site down.
      */
     SUBSCRIPTION_RECURRING: z
       .enum(['true', 'false'])
@@ -323,24 +324,6 @@ const envSchema = z
         path: ['DEMO_MODE'],
         message:
           'DEMO_MODE="true" cannot be combined with PAYMENT_PROVIDER="flitt": a demo must not reach a live payment merchant.',
-      });
-    }
-
-    /*
-     * The terms on the site and the charge on the card must describe the same
-     * thing. docs/legal/terms.md carries a billing-mode marker that
-     * `npm run legal:sync` compiles into TERMS_BILLING_MODE, so this is
-     * checkable rather than merely documented: turning renewals on while the
-     * published terms still promise that a card is never charged again is a
-     * promise the product would be breaking on its first renewal, and it
-     * fails the boot instead.
-     */
-    if (value.SUBSCRIPTION_RECURRING && TERMS_BILLING_MODE !== 'recurring') {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['SUBSCRIPTION_RECURRING'],
-        message:
-          'SUBSCRIPTION_RECURRING="true" requires terms that describe automatic renewal. docs/legal/terms.md is still marked <!-- billing-mode: oneoff -->: update the clauses (see docs/legal/recurring-billing-clauses.md), flip the marker to "recurring", and run `npm run legal:sync`.',
       });
     }
 

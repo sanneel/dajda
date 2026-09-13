@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
-import { getEnv } from '@/lib/env';
+import { recurringBillingEnabled } from '@/lib/subscriptions/recurring';
 
 export const metadata: Metadata = {
   title: 'როგორ მუშაობს?',
@@ -91,7 +91,6 @@ function sections(recurring: boolean) {
 }
 
 export default function HowItWorksPage() {
-  const { SUBSCRIPTION_RECURRING } = getEnv();
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-8">
       <header>
@@ -110,7 +109,7 @@ export default function HowItWorksPage() {
        * every one of them in exchange for a shorter scrollbar.
        */}
       <dl className="mt-8 border-t border-line">
-        {sections(SUBSCRIPTION_RECURRING).map((section) => (
+        {sections(recurringBillingEnabled()).map((section) => (
           <div key={section.id} id={section.id} className="border-b border-line py-6">
             <dt className="font-display text-lg text-ink">
               {section.question}

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { getEnv } from '@/lib/env';
+import { recurringBillingContradicted } from '@/lib/subscriptions/recurring';
 
 /**
  * Liveness/readiness probe.
@@ -13,6 +14,12 @@ import { getEnv } from '@/lib/env';
  * deployment answered "database: down" while the database was up and
  * healthy, which sent an afternoon of debugging at the wrong thing. A probe
  * that names the wrong subsystem is worse than one that says nothing.
+ *
+ * Warnings are for a deployment that serves correctly but is not doing what
+ * its operator asked - today, renewals declared on while the published terms
+ * still describe one-off payments. That is not an outage and must not answer
+ * 503, or a working site would be pulled out of rotation; it is also not
+ * nothing, because the operator believes a feature is on that is off.
  */
 export const dynamic = 'force-dynamic';
 
@@ -27,9 +34,16 @@ export async function GET() {
     );
   }
 
+  // Configured, so the declared billing can be compared with the terms.
+  const warnings = recurringBillingContradicted() ? ['billing-config'] : [];
+
   try {
     await prisma.$queryRaw`SELECT 1`;
-    return Response.json({ status: 'ok', database: 'up' });
+    return Response.json({
+      status: 'ok',
+      database: 'up',
+      ...(warnings.length ? { warnings } : {}),
+    });
   } catch (error) {
     console.error('[dajda] health check failed', error);
     return Response.json(
