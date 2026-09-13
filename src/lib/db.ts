@@ -43,12 +43,21 @@ function createPrismaClient(): PrismaClient {
   });
 }
 
-/** The client behind the export, built at most once per process. */
+/**
+ * The client behind the export, built at most once per process.
+ *
+ * The module-level cache is what makes that true. The globalThis one exists
+ * only for dev-mode module reloading, so it cannot be the whole story: in
+ * production nothing writes there, and without `created` every property
+ * access on the proxy below would open its own connection pool.
+ */
+let created: PrismaClient | null = null;
+
 function client(): PrismaClient {
-  const existing = globalForPrisma.dajdaPrisma;
+  const existing = globalForPrisma.dajdaPrisma ?? created;
   if (existing) return existing;
 
-  const created = createPrismaClient();
+  created = createPrismaClient();
   if (process.env.NODE_ENV !== 'production') {
     globalForPrisma.dajdaPrisma = created;
   }

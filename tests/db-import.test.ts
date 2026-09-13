@@ -42,4 +42,32 @@ describe('importing the database client', () => {
       /Invalid environment configuration[\s\S]*DATABASE_URL/,
     );
   });
+
+  it('builds one client per process, not one per property access', async () => {
+    /*
+     * The reason this is worth a test: the deferred client is reached through
+     * a proxy, so "cached" has to mean cached in the module, not only on
+     * globalThis. Caching only on globalThis works in development and opens a
+     * fresh connection pool on every property access in production, which
+     * exhausts the database instead of connecting to it.
+     */
+    // NODE_ENV is typed read-only, and production is exactly the mode that
+    // had the bug: nothing writes to globalThis there. DEMO_MODE waives the
+    // payment and email checks so the rest of the production guard does not
+    // need a full merchant configuration here.
+    const env = process.env as Record<string, string | undefined>;
+    env.DATABASE_URL = 'postgresql://user:pass@db.internal:5432/dajda';
+    env.AUTH_SECRET = 'x'.repeat(32);
+    env.NODE_ENV = 'production';
+    env.DEMO_MODE = 'true';
+    env.APP_URL = 'https://dajda.ge';
+    resetEnvCache();
+
+    const { prisma } = await import('@/lib/db');
+
+    // Connecting is lazy in Prisma, so touching delegates never opens a
+    // socket; what this compares is the client object behind each access.
+    expect(prisma.sport).toBe(prisma.sport);
+    expect(prisma.prediction).toBe(prisma.prediction);
+  });
 });
