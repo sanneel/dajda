@@ -4,6 +4,7 @@ import {
   flittSignatureV2,
   FlittPaymentProvider,
   flittSignature,
+  SUBSCRIPTION_MAX_RENEWALS,
   type FlittConfig,
 } from '@/lib/payments/flitt';
 import { AppError } from '@/lib/errors';
@@ -83,8 +84,11 @@ describe('subscription checkout', () => {
       // Documented format is date and time; a bare date gets midnight.
       start_time: '2026-09-17 00:00:00',
       // The gateway insists on a bound (quantity or end_time); without one
-      // the card is declined with 2008 at payment time.
-      quantity: 120,
+      // the card is declined with 2008 at payment time. It also declines a
+      // bound it disagrees with - 120 monthly charges against a page that had
+      // computed a five-year end date was the same 2008 - so this tracks the
+      // gateway's own window rather than a number we would prefer.
+      quantity: SUBSCRIPTION_MAX_RENEWALS,
       state: 'Y',
       readonly: 'Y',
     });

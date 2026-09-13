@@ -47,11 +47,20 @@ import type {
 export const FLITT_PROVIDER_CODE = 'flitt';
 
 /**
- * How many renewals a subscription calendar is opened for. The gateway needs
- * a bound; ten years of monthly charges is one no card survives, and a
- * cancellation stops the calendar long before. Integer(6) at the gateway.
+ * How many renewals a subscription calendar is opened for.
+ *
+ * The gateway needs a bound, and the bound has to be one the gateway itself
+ * agrees with. Asking for 120 monthly charges was accepted at checkout and
+ * then declined at payment with 2008 "Order parameters are incorrect": the
+ * hosted page had computed an end date five years out while the quantity
+ * claimed ten, and a schedule that disagrees with itself is exactly what that
+ * code is for. Sixty is that five-year window, expressed in the unit the
+ * gateway counts in.
+ *
+ * The number is nominal either way: no card survives five years, and a
+ * cancellation stops the calendar long before it runs out.
  */
-export const SUBSCRIPTION_MAX_RENEWALS = 120;
+export const SUBSCRIPTION_MAX_RENEWALS = 60;
 
 /** Parameters the gateway adds to a response but excludes from the digest. */
 const SIGNATURE_EXCLUDED = new Set(['signature', 'response_signature_string']);
