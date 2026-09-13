@@ -451,11 +451,28 @@ relationships the status colours rely on.
    and are labelled as such in the UI. They need review against Georgian law
    before launch - particularly the boundary between selling analysis and
    regulated gambling activity.
-2. **Flitt is unverified against a live account.** No credentials exist in this
-   environment. The adapter follows the published spec and its signature logic
-   is tested against Flitt's documented example, but the HTTP conversation,
-   error codes and callback field names have not been exercised against a real
-   merchant. Expect a short integration pass.
+2. **Flitt is verified live as far as the first charge, and no further.**
+   A 1.00 GEL subscription went through the production merchant on
+   2026-09-14: the order was approved, `subscription` came back true, the
+   gateway opened a calendar charging monthly from 2026-10-14 to 2031-09-13,
+   a `rectoken` was issued and sealed, and the server callback arrived and
+   was processed. Checkout, signing (protocol 2.0), the token vault and the
+   webhook are therefore real, not just specified.
+
+   Two things past that point are still only unit-tested, because neither has
+   happened yet against a live account:
+
+   - **A renewal.** The first gateway-initiated charge falls on 2026-10-14.
+     Until one lands, nothing has proven that it arrives naming
+     `parent_order_id`, that the period extends, or that the analyst is paid
+     their share of it.
+   - **A cancellation.** `/api/subscription` with `action=stop` has never been
+     refused or accepted by the real gateway. This one matters more than its
+     size suggests: terms 11.1 promises cancellation at any time, and
+     `cancelSubscription` deliberately fails the whole cancellation if the
+     gateway refuses the stop rather than leaving somebody who believes they
+     cancelled being charged. Worth exercising against a live subscription
+     before real customers hold one.
 3. **No email delivery.** Verification and reset tokens are issued, hashed and
    expired correctly, but nothing sends them; in development the reset link is
    printed to the server console. A mailer is the only missing piece.
