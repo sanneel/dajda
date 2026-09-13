@@ -43,9 +43,44 @@ function createPrismaClient(): PrismaClient {
   });
 }
 
-export const prisma: PrismaClient =
-  globalForPrisma.dajdaPrisma ?? createPrismaClient();
+/** The client behind the export, built at most once per process. */
+function client(): PrismaClient {
+  const existing = globalForPrisma.dajdaPrisma;
+  if (existing) return existing;
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.dajdaPrisma = prisma;
+  const created = createPrismaClient();
+  if (process.env.NODE_ENV !== 'production') {
+    globalForPrisma.dajdaPrisma = created;
+  }
+  return created;
 }
+
+/**
+ * Built on first use, not on import.
+ *
+ * `next build` imports every route module to read its configuration, and
+ * importing one of these reached this file. Constructing the client here calls
+ * getEnv(), so a build machine with no DATABASE_URL - a CI runner, a preview
+ * deployment whose database variables are scoped to production - died while
+ * collecting page data, having compiled the whole application successfully.
+ * Nothing queried anything; the import alone was fatal.
+ *
+ * The requirement itself is not relaxed: the first real query still calls
+ * getEnv() and still refuses to run without a configured environment, with the
+ * same message. It is only no longer asked at a moment when the answer cannot
+ * exist and nobody needs it. Same reasoning as prisma.config.ts, which already
+ * attaches the datasource only when a URL is actually present.
+ *
+ * A Proxy rather than a getter because every call site does
+ * `import { prisma }` and uses it as the client itself.
+ */
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    const instance = client();
+    const value = Reflect.get(instance, property) as unknown;
+    return typeof value === 'function' ? value.bind(instance) : value;
+  },
+  has(_target, property) {
+    return Reflect.has(client(), property);
+  },
+});
