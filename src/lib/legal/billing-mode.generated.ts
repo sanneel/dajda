@@ -7,4 +7,4 @@
 
 export type BillingMode = 'oneoff' | 'recurring';
 
-export const TERMS_BILLING_MODE: BillingMode = 'oneoff';
+export const TERMS_BILLING_MODE: BillingMode = 'recurring';
