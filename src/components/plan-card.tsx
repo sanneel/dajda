@@ -34,10 +34,17 @@ export function PlanCard({
   isAuthenticated,
   currentStatus,
   monthlyMinimum,
+  recurring,
 }: {
   plan: PlanView;
   featured?: boolean;
   isAuthenticated: boolean;
+  /**
+   * Whether buying opens a renewal calendar (SUBSCRIPTION_RECURRING). Passed
+   * in rather than read here: this is a client component, and the flag lives
+   * in the server environment.
+   */
+  recurring: boolean;
   /**
    * The author's declared monthly floor (terms 6.4). Stated on the card
    * because the rule requires it to be visible BEFORE the subscription is
@@ -164,18 +171,35 @@ export function PlanCard({
         {!isFree ? (
           /*
            * The terms sit on the button, not only in the terms document: what
-           * the payment buys, and that it is not taken again. This is the last
-           * screen before a card is charged, so it is where a person decides,
-           * and a payment provider checks for exactly this disclosure here.
+           * the payment buys, and what happens to the card afterwards. This is
+           * the last screen before a card is charged, so it is where a person
+           * decides, and a payment provider checks for exactly this disclosure
+           * here. When the charge repeats, the amount, how often, and how to
+           * stop it all have to be on this screen - saying it only in the
+           * terms is what makes a recurring charge a surprise.
            */
           <p className="mt-3 text-xs leading-relaxed text-ink-faint">
-            ერთჯერადი გადახდა:{' '}
-            <span className="tabular text-ink-muted">
-              {formatMoney(plan.priceMinor, plan.currency)}
-            </span>{' '}
-            ერთი თვის წვდომისთვის. ავტომატურად არ განახლდება: ბარათიდან თანხა
-            ხელახლა არ ჩამოიჭრება, და გასაგრძელებლად ვადის ბოლოს გადაიხდით
-            ხელახლა.
+            {recurring ? (
+              <>
+                <span className="tabular text-ink-muted">
+                  {formatMoney(plan.priceMinor, plan.currency)}
+                </span>{' '}
+                თვეში. გამოწერა ავტომატურად განახლდება და ბარათიდან იმავე თანხა
+                ჩამოიჭრება ყოველი პერიოდის ბოლოს, სანამ არ გააუქმებთ. გაუქმება
+                ნებისმიერ დროს შეგიძლიათ პროფილის გვერდიდან; წვდომა გადახდილი
+                პერიოდის ბოლომდე რჩება.
+              </>
+            ) : (
+              <>
+                ერთჯერადი გადახდა:{' '}
+                <span className="tabular text-ink-muted">
+                  {formatMoney(plan.priceMinor, plan.currency)}
+                </span>{' '}
+                ერთი თვის წვდომისთვის. ავტომატურად არ განახლდება: ბარათიდან
+                თანხა ხელახლა არ ჩამოიჭრება, და გასაგრძელებლად ვადის ბოლოს
+                გადაიხდით ხელახლა.
+              </>
+            )}
           </p>
         ) : null}
         {!isFree ? (

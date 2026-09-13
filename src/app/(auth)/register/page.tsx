@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/authorization';
+import { getEnv } from '@/lib/env';
 import { RegisterForm } from '@/components/auth/register-form';
 import { SocialSignIn } from '@/components/auth/social-signin';
 
@@ -26,7 +27,7 @@ export default async function RegisterPage() {
 
       <div className="mt-6">
         <SocialSignIn />
-        <RegisterForm />
+        <RegisterForm recurring={getEnv().SUBSCRIPTION_RECURRING} />
       </div>
 
       <p className="mt-6 border-t border-line pt-5 text-sm text-ink-muted">

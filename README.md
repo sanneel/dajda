@@ -293,6 +293,7 @@ adapter in `src/lib/db.ts`.
 | `FLITT_SECRET_KEY` | flitt only | Payment key used for request signatures |
 | `FLITT_WEBHOOK_SECRET` | flitt | Callback key; falls back to `FLITT_SECRET_KEY` |
 | `FLITT_API_URL` | flitt | Defaults to `https://pay.flitt.com` |
+| `SUBSCRIPTION_RECURRING` | no | `true` renews subscriptions automatically. Off by default - see [Recurring billing](#recurring-billing) |
 | `DATABASE_POOL_MAX` | no | Cap the pool. Set to `1` for `npm run dev:db`. |
 
 Environment is parsed and validated by Zod at first use
@@ -347,6 +348,42 @@ is mapped explicitly; anything else is treated as unknown.
 The signature functions are unit tested against the **worked example from
 Flitt's own documentation**, so the algorithm is verified. What is *not*
 verified is the live HTTP conversation - see [Assumptions](#assumptions).
+
+### Recurring billing
+
+A subscription can be sold two ways, and `SUBSCRIPTION_RECURRING` picks which:
+
+| | `false` (default) | `true` |
+| --- | --- | --- |
+| Checkout | One payment, one month | Opens a renewal calendar and stores a card token |
+| Next month | The customer pays again | The gateway charges the card and posts a webhook |
+| Cancelling | Nothing to cancel | `stop` at the gateway, access until the period ends |
+| Lapse | Closes on its date | Three days' grace, so a renewal in flight still lands |
+
+Everything the flag turns on is implemented and tested: the calendar
+(protocol 2.0, because nested `recurring_data` cannot be signed under 1.0),
+the sealed card token, the renewal webhook that extends the period and pays
+the author their share, and the cancel path. The code reads `cardToken` to
+tell the two kinds apart, so both can exist side by side and subscriptions
+sold under one mode keep behaving that way.
+
+Two things gate turning it on:
+
+1. **The Flitt annex.** The signed annex for this merchant is e-commerce
+   acquiring. Scheduling charges needs the contract to cover it - confirm
+   with Flitt before flipping the flag. (This is the same reading that
+   retired the gateway payout call; payouts are now made by hand.)
+2. **The terms.** `docs/legal/terms.md` carries a
+   `<!-- billing-mode: oneoff|recurring -->` marker that `npm run legal:sync`
+   compiles into `TERMS_BILLING_MODE`. Setting the flag while the published
+   terms still promise that a card is never charged again **fails at boot**,
+   not at a customer's renewal. The replacement clauses are drafted in
+   `docs/legal/recurring-billing-clauses.md` and need a lawyer's review before
+   the marker moves.
+
+The buyer-facing copy switches with the flag too - the plan card, pricing,
+how it works, the author list and the registration form - so the site cannot
+promise one billing and perform the other.
 
 ---
 

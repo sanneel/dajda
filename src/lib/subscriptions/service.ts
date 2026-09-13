@@ -7,6 +7,7 @@ import { AUDIT_ACTIONS, writeAuditLog } from "@/lib/audit";
 import { getPaymentProvider } from "@/lib/payments";
 import { abandonRefusedCheckout } from "@/lib/payments/abandon";
 import { addBillingPeriod } from "@/lib/payments/webhook";
+import { renewalRequest } from "./checkout-rules";
 import { expireLapsedSubscriptions } from "./expiry";
 
 /**
@@ -127,11 +128,21 @@ export async function startSubscriptionCheckout(
   });
 
   /*
-   * One month, paid once. The contract with the payment provider covers
-   * taking payments and nothing that charges a card again on its own, so the
-   * checkout opens no renewal calendar and asks for no reusable card token.
-   * The month is set when the payment is confirmed, and continuing means
-   * paying again once it ends.
+   * Two ways to sell the same month, chosen by SUBSCRIPTION_RECURRING.
+   *
+   * On: the checkout takes the first payment and leaves a renewal calendar
+   * behind it, scheduled to charge again the day this period lapses. Each
+   * renewal arrives as a webhook naming this order as its parent and extends
+   * the subscription without the customer returning; the card token is asked
+   * for alongside, as the fallback for a merchant-initiated charge. The token
+   * is also what every later read - the dashboard's wording, the expiry
+   * grace, the cancel path - uses to tell a renewing subscription from a
+   * one-off one, so it must be requested whenever a calendar is opened.
+   *
+   * Off: one month, paid once. No calendar, no token, and continuing means
+   * paying again once it ends. This is the default, and stays the default
+   * until the gateway confirms the merchant may schedule renewals - see
+   * SUBSCRIPTION_RECURRING in lib/env.ts.
    */
   let session;
   try {
@@ -143,6 +154,11 @@ export async function startSubscriptionCheckout(
       returnUrl: buildReturnUrl(env.APP_URL, orderId, "/dashboard"),
       callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
       customerEmail: actor.email,
+      ...(renewalRequest(
+        env.SUBSCRIPTION_RECURRING,
+        plan.billingPeriod,
+        new Date(),
+      ) ?? {}),
     });
   } catch (error) {
     // A refused checkout must not leave a PENDING subscription that blocks
@@ -164,13 +180,16 @@ export async function startSubscriptionCheckout(
 /**
  * Stop a subscription from renewing. Access stays until the period ends.
  *
- * Subscriptions bought now do not renew, so for them there is nothing to stop
- * and the dashboard does not offer this. It remains for one bought while
- * checkouts still opened a renewal calendar at the gateway, which is the one
- * that carries a card token: that calendar is stopped first, and a gateway
- * that refuses fails the whole cancellation rather than leaving a customer
- * who believes they canceled being charged next month. Deleting an account
- * also comes through here, for either kind.
+ * What needs stopping is the gateway's renewal calendar, and the card token
+ * is what says a subscription has one: every checkout that opened a calendar
+ * asked for a token in the same breath. So a subscription carrying a token
+ * has its calendar stopped first, and a gateway that refuses fails the whole
+ * cancellation rather than leaving a customer who believes they canceled
+ * being charged next month. A subscription without one - sold while
+ * SUBSCRIPTION_RECURRING was off, or on a free plan, or before a provider
+ * switch - has nothing to stop at the gateway and simply stops renewing by
+ * never having renewed; the dashboard does not offer this for those.
+ * Deleting an account also comes through here, for either kind.
  */
 export async function cancelSubscription(
   subscriptionId: string,

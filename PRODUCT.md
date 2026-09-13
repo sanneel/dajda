@@ -68,6 +68,15 @@ threshold sort below the rest and are labelled "მცირე შერჩე�
   Neither ever opens on settlement - paid work stays paid, and the record
   stays checkable through the odds, dates and outcomes, which are never
   hidden. An administrator and the author always see everything.
+- A subscription renews automatically, or is sold one month at a time, and
+  `SUBSCRIPTION_RECURRING` chooses. It ships OFF: the gateway machinery is
+  built and tested, but the signed Flitt annex is e-commerce acquiring and
+  scheduling charges needs the contract to cover it, which is a question for
+  Flitt rather than for the code. The published terms are held to the same
+  choice by a marker the environment checks at boot, so the site cannot
+  promise one billing and perform the other. Decided 2026-09-13, restoring
+  what the 2026-09-11 annex reading removed - that reading was prompted by two
+  declined IBAN payouts, which say nothing about recurring charges.
   Decided 2026-09-08. Authors receive 85%
   (`ANALYST_SHARE_PERCENT`, matching the signed agreement) and may withdraw
   only on the last calendar day of the month, to a card, after an

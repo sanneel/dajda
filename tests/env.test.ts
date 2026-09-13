@@ -29,6 +29,7 @@ const VALID_PRODUCTION = {
 function setEnv(values: Record<string, string | undefined>) {
   for (const key of Object.keys(VALID_PRODUCTION)) delete process.env[key];
   delete process.env.DEMO_MODE;
+  delete process.env.SUBSCRIPTION_RECURRING;
   delete process.env.NEXT_PHASE;
   for (const [key, value] of Object.entries(values)) {
     if (value === undefined) delete process.env[key];
@@ -52,6 +53,23 @@ describe('environment configuration', () => {
   it('accepts a fully configured production environment', () => {
     setEnv(VALID_PRODUCTION);
     expect(getEnv().APP_URL).toBe('https://dajda.ge');
+  });
+
+  /*
+   * Recurring billing and the published terms have to agree. The flag turns
+   * on a charge the customer does not initiate; the terms are where they were
+   * told it would happen. Shipping one without the other is the failure this
+   * guard exists to make impossible, so it is pinned in both directions.
+   */
+  it('does not charge a card again unless asked to', () => {
+    setEnv(VALID_PRODUCTION);
+    expect(getEnv().SUBSCRIPTION_RECURRING).toBe(false);
+  });
+
+  it('refuses to renew while the terms still promise it never happens', () => {
+    // docs/legal/terms.md is marked billing-mode: oneoff.
+    setEnv({ ...VALID_PRODUCTION, SUBSCRIPTION_RECURRING: 'true' });
+    expect(() => getEnv()).toThrow(/SUBSCRIPTION_RECURRING/);
   });
 
   it('refuses to boot production with the mock payment provider', () => {

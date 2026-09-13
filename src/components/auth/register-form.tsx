@@ -7,7 +7,7 @@ import { Checkbox, Field, Input } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 
-export function RegisterForm() {
+export function RegisterForm({ recurring }: { recurring: boolean }) {
   const [state, action, pending] = useActionState(registerAction, null);
 
   /*
@@ -124,8 +124,9 @@ export function RegisterForm() {
             გამოწერის გარეშეც შეიძლება, ავტორის დადებული ერთჯერადი ფასით.
           </li>
           <li>
-            გამოწერა ავტომატურად არ განახლდება: გადახდა ხსნის ერთი თვის
-            წვდომას, და გასაგრძელებლად ვადის ბოლოს გადაიხდით ხელახლა.
+            {recurring
+              ? 'გამოწერა ავტომატურად განახლდება ყოველთვიურად, სანამ არ გააუქმებთ. გაუქმება ნებისმიერ დროს შეგიძლიათ პროფილის გვერდიდან.'
+              : 'გამოწერა ავტომატურად არ განახლდება: გადახდა ხსნის ერთი თვის წვდომას, და გასაგრძელებლად ვადის ბოლოს გადაიხდით ხელახლა.'}
           </li>
           <li>პლატფორმა 18 წელს მიღწეულთათვისაა.</li>
         </ul>

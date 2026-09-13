@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getEnv } from '@/lib/env';
 import { Wallet } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { prisma } from '@/lib/db';
@@ -119,7 +120,10 @@ export async function SiteHeader() {
               profileHref={profileHref}
             />
           ) : (
-            <AuthButtons socialButtons={<SocialSignIn />} />
+            <AuthButtons
+              socialButtons={<SocialSignIn />}
+              recurring={getEnv().SUBSCRIPTION_RECURRING}
+            />
           )}
         </div>
 

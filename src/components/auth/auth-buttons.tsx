@@ -28,8 +28,11 @@ export function AuthButtons({
   // place it. It sits ABOVE the form here for the same reason it does on the
   // /login and /register pages: one tap beats a form nobody needed.
   socialButtons,
+  recurring,
 }: {
   socialButtons?: ReactNode;
+  /** Handed to the form's product summary; see RegisterForm's `recurring`. */
+  recurring: boolean;
 }) {
   const [mode, setMode] = useState<Mode | null>(null);
 
@@ -75,7 +78,7 @@ export function AuthButtons({
         title="რეგისტრაცია"
       >
         {socialButtons}
-        <RegisterForm />
+        <RegisterForm recurring={recurring} />
         <p className="mt-5 border-t border-line pt-4 text-sm text-ink-muted">
           უკვე გაქვთ ანგარიში?{' '}
           <button

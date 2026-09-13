@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { getEnv } from '@/lib/env';
 import { PaymentMarks } from '@/components/payment-marks';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 
@@ -19,36 +20,46 @@ export const metadata: Metadata = {
  * schema (whose ceiling matches the provider's per-transaction limit).
  * Change those and change this page.
  */
-const PRODUCTS: {
+/*
+ * Built per request rather than at import, because the renewal sentence
+ * depends on SUBSCRIPTION_RECURRING and reading env at module scope would
+ * make a build without one fail.
+ */
+function products(recurring: boolean): {
   id: string;
   name: string;
   price: string;
   unit: string;
   description: string[];
-}[] = [
-  {
-    id: 'subscription',
-    name: 'ავტორის თვიური გამოწერა',
-    price: '30, 40 ან 50 ₾',
-    unit: 'თვეში, ფასს ავტორი ირჩევს',
-    description: [
-      'ერთი ავტორის სააბონენტო ბილეთებზე წვდომა კალენდარული თვის განმავლობაში: სპორტული მოვლენის ანალიზი, არჩეული პოზიციები, კოეფიციენტები და დაწყების დრო. ავტორი იღებს ვალდებულებას თვეში დეკლარირებულ მინიმალურ რაოდენობაზე, რომელიც მის გვერდზე გადახდამდე ჩანს.',
-      'გამოწერა ცალკე გაყიდულ ბილეთებს არ მოიცავს: ისინი ცალკე იყიდება და მხოლოდ მყიდველისთვის იხსნება. გამოწერა ავტომატურად არ განახლდება: ერთი გადახდა ხსნის ერთ თვეს, და გასაგრძელებლად ვადის ბოლოს გადაიხდით ხელახლა.',
-    ],
-  },
-  {
-    id: 'ticket',
-    name: 'ცალკეული ფასიანი ბილეთი',
-    price: '1-დან 500 ₾-მდე',
-    unit: 'ერთჯერადად, ფასს ავტორი ადებს',
-    description: [
-      'ერთი კონკრეტული პროგნოზი, გამოწერის გარეშე. შეძენამდე ჩანს ავტორი, კოეფიციენტი, ფასი და პირველი პოზიციის დაწყების დრო; შეძენის შემდეგ იხსნება სრული ჩანაწერი და ანალიზი.',
-      'ერთჯერადი შეძენაა, არ განახლდება და ხსნის მხოლოდ იმ ერთ ბილეთს. ბილეთი თქვენთვის ღია რჩება შედეგის დათვლის შემდეგაც.',
-    ],
-  },
-];
+}[] {
+  return [
+    {
+      id: 'subscription',
+      name: 'ავტორის თვიური გამოწერა',
+      price: '30, 40 ან 50 ₾',
+      unit: 'თვეში, ფასს ავტორი ირჩევს',
+      description: [
+        'ერთი ავტორის სააბონენტო ბილეთებზე წვდომა კალენდარული თვის განმავლობაში: სპორტული მოვლენის ანალიზი, არჩეული პოზიციები, კოეფიციენტები და დაწყების დრო. ავტორი იღებს ვალდებულებას თვეში დეკლარირებულ მინიმალურ რაოდენობაზე, რომელიც მის გვერდზე გადახდამდე ჩანს.',
+        recurring
+          ? 'გამოწერა ცალკე გაყიდულ ბილეთებს არ მოიცავს: ისინი ცალკე იყიდება და მხოლოდ მყიდველისთვის იხსნება. გამოწერა ავტომატურად განახლდება ყოველთვიურად და ბარათიდან იმავე თანხა ჩამოიჭრება, სანამ არ გააუქმებთ. გაუქმება ნებისმიერ დროს შეგიძლიათ პროფილის გვერდიდან; წვდომა გადახდილი პერიოდის ბოლომდე რჩება.'
+          : 'გამოწერა ცალკე გაყიდულ ბილეთებს არ მოიცავს: ისინი ცალკე იყიდება და მხოლოდ მყიდველისთვის იხსნება. გამოწერა ავტომატურად არ განახლდება: ერთი გადახდა ხსნის ერთ თვეს, და გასაგრძელებლად ვადის ბოლოს გადაიხდით ხელახლა.',
+      ],
+    },
+    {
+      id: 'ticket',
+      name: 'ცალკეული ფასიანი ბილეთი',
+      price: '1-დან 500 ₾-მდე',
+      unit: 'ერთჯერადად, ფასს ავტორი ადებს',
+      description: [
+        'ერთი კონკრეტული პროგნოზი, გამოწერის გარეშე. შეძენამდე ჩანს ავტორი, კოეფიციენტი, ფასი და პირველი პოზიციის დაწყების დრო; შეძენის შემდეგ იხსნება სრული ჩანაწერი და ანალიზი.',
+        'ერთჯერადი შეძენაა, არ განახლდება და ხსნის მხოლოდ იმ ერთ ბილეთს. ბილეთი თქვენთვის ღია რჩება შედეგის დათვლის შემდეგაც.',
+      ],
+    },
+  ];
+}
 
 export default function PricingPage() {
+  const { SUBSCRIPTION_RECURRING } = getEnv();
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-8">
       <header>
@@ -60,7 +71,7 @@ export default function PricingPage() {
       </header>
 
       <dl className="mt-8 border-t border-line">
-        {PRODUCTS.map((product) => (
+        {products(SUBSCRIPTION_RECURRING).map((product) => (
           <div
             key={product.id}
             id={product.id}

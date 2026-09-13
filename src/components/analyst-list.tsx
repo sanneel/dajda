@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getEnv } from '@/lib/env';
 import type { AnalystListItem } from '@/lib/queries/analysts';
 import {
   formatMoney,
@@ -203,8 +204,10 @@ export function AnalystRow({
               <span className="tabular">
                 {formatMoney(cheapestPlan.priceMinor, cheapestPlan.currency)}
               </span>{' '}
-              {BILLING_PERIOD_KA[cheapestPlan.billingPeriod]} · ავტომატურად
-              არ განახლდება
+              {BILLING_PERIOD_KA[cheapestPlan.billingPeriod]} ·{' '}
+              {getEnv().SUBSCRIPTION_RECURRING
+                ? 'ავტომატურად განახლდება'
+                : 'ავტომატურად არ განახლდება'}
             </>
           )}
         </p>

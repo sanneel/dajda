@@ -1,12 +1,11 @@
 /**
  * When a subscription's paid month is over, as a pure rule.
  *
- * Subscriptions do not renew: the payment contract covers taking payments and
- * nothing that charges a card again on its own. So a subscription ends on its
- * own date. One bought while checkouts still opened a renewal calendar at the
- * gateway (it carries a card token) is given a few days' grace, so a renewal
- * the gateway charges on the day still extends it instead of arriving at a
- * row that has already closed.
+ * A subscription with a renewal calendar at the gateway (it carries a card
+ * token) is given a few days' grace, so a renewal the gateway charges on the
+ * day still extends it instead of arriving at a row that has already closed.
+ * One sold without a calendar has nothing in flight to wait for and ends on
+ * its own date.
  */
 
 export const RENEWAL_GRACE_MS = 3 * 24 * 60 * 60 * 1000;

@@ -27,12 +27,15 @@ export function SubscribeButton({
   isAuthenticated,
   monthlyMinimum,
   owned,
+  recurring,
   openOnMount = false,
 }: {
   label: string;
   plans: SubscribePlan[];
   isAuthenticated: boolean;
   monthlyMinimum: number | null;
+  /** Handed down to the card's disclosure; see PlanCard's `recurring`. */
+  recurring: boolean;
   /** The reader already holds one of these plans. */
   owned: boolean;
   openOnMount?: boolean;
@@ -65,6 +68,7 @@ export function SubscribeButton({
               isAuthenticated={isAuthenticated}
               currentStatus={plan.currentStatus}
               monthlyMinimum={monthlyMinimum}
+              recurring={recurring}
             />
           ))}
         </div>

@@ -41,6 +41,13 @@ function parse(path) {
 
   let title = '';
   let updated = '';
+  /*
+   * Which billing the document describes. It is a marker rather than prose
+   * because a deploy has to be able to check it: see SUBSCRIPTION_RECURRING
+   * in src/lib/env.ts, which refuses to boot when the terms on the site
+   * describe one billing and the checkout performs the other.
+   */
+  let billingMode = null;
   const sections = [];
   let current = null;
   let paragraph = [];
@@ -54,7 +61,10 @@ function parse(path) {
   };
 
   for (const line of lines) {
-    if (line.startsWith('# ') && !title) {
+    const billing = line.match(/^<!--\s*billing-mode:\s*(oneoff|recurring)\s*-->$/);
+    if (billing) {
+      billingMode = billing[1];
+    } else if (line.startsWith('# ') && !title) {
       title = line.slice(2).trim();
     } else if (line.startsWith('ბოლო განახლება:')) {
       updated = line.replace('ბოლო განახლება:', '').trim();
@@ -70,7 +80,7 @@ function parse(path) {
   }
   flushParagraph();
 
-  return { title, updated, sections };
+  return { title, updated, sections, billingMode };
 }
 
 const documents = {
@@ -92,12 +102,37 @@ export type LegalDoc = { title: string; updated: string; sections: LegalSection[
 
 const body = Object.entries(documents)
   .map(
-    ([name, doc]) =>
+    ([name, { billingMode: _ignored, ...doc }]) =>
       `export const ${name}: LegalDoc = ${JSON.stringify(doc, null, 2)};`,
   )
   .join('\n\n');
 
 writeFileSync('src/lib/legal/generated.ts', `${banner}\n${body}\n`);
+
+/*
+ * The billing marker goes in a module of its own, not beside the documents:
+ * the environment guard imports it at boot, and it should not have to pull
+ * every word of the terms into that bundle to read one string.
+ */
+if (documents.TERMS.billingMode === null) {
+  throw new Error(
+    'docs/legal/terms.md has no <!-- billing-mode: oneoff|recurring --> marker',
+  );
+}
+writeFileSync(
+  'src/lib/legal/billing-mode.generated.ts',
+  `/**
+ * GENERATED FILE - do not edit by hand.
+ *
+ * Which billing docs/legal/terms.md describes. Regenerate with:
+ *   npm run legal:sync
+ */
+
+export type BillingMode = 'oneoff' | 'recurring';
+
+export const TERMS_BILLING_MODE: BillingMode = '${documents.TERMS.billingMode}';
+`,
+);
 console.log(
   'generated',
   Object.entries(documents)
