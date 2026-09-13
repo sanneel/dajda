@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { prisma } from '@/lib/db';
 import { requireUser } from '@/lib/auth/authorization';
 import { telegramBotConfigured } from '@/lib/auth/telegram';
+import { canChangeOwnName } from '@/lib/account/identity';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { ProfileForm } from './profile-form';
 import { NotificationForm } from './notification-form';
@@ -55,7 +56,11 @@ export default async function SettingsPage() {
       <Card>
         <CardHeader title="ანგარიში" />
         <CardBody>
-          <ProfileForm defaultName={user.name} email={user.email} />
+          <ProfileForm
+            defaultName={user.name}
+            email={user.email}
+            nameLocked={!canChangeOwnName(actor)}
+          />
         </CardBody>
       </Card>
 

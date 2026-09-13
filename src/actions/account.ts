@@ -21,6 +21,7 @@ import {
   notificationPreferencesSchema,
   updateProfileSchema,
 } from '@/lib/validation/schemas';
+import { canChangeOwnName, NAME_LOCKED_KA } from '@/lib/account/identity';
 
 /** Account settings. The caller is always the session user - never an id. */
 export async function updateProfileAction(
@@ -29,6 +30,15 @@ export async function updateProfileAction(
 ): Promise<ActionResult<{ updated: true }>> {
   try {
     const actor = await requireUser();
+
+    /*
+     * Checked here, not only hidden in the form: the form is a courtesy, this
+     * is the rule. An analyst's name was verified against an identity
+     * document, so it is an administrator's to correct.
+     */
+    if (!canChangeOwnName(actor)) {
+      return fail(ERROR_CODES.FORBIDDEN, NAME_LOCKED_KA);
+    }
 
     const parsed = updateProfileSchema.safeParse({
       name: formData.get('name'),

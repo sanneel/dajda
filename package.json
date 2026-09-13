@@ -19,6 +19,7 @@
     "db:seed:demo": "tsx prisma/seed.ts --demo",
     "demo:purge": "tsx scripts/purge-demo.ts",
     "verify:migrations": "node scripts/verify-migrations.mjs",
+    "verify:pages": "tsx scripts/verify-pages.ts",
     "legal:sync": "node scripts/sync-legal.mjs",
     "verify:payments": "tsx scripts/verify-payment-flow.ts",
     "dev:db": "node scripts/dev-db.mjs --dir ./.pgdata",

@@ -5,13 +5,17 @@ import { updateProfileAction } from '@/actions/account';
 import { Field, Input } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
+import { NAME_LOCKED_KA } from '@/lib/account/identity';
 
 export function ProfileForm({
   defaultName,
   email,
+  nameLocked = false,
 }: {
   defaultName: string;
   email: string;
+  /** An analyst's name was verified against a document; see lib/account/identity. */
+  nameLocked?: boolean;
 }) {
   const [state, action, pending] = useActionState(updateProfileAction, null);
 
@@ -31,15 +35,21 @@ export function ProfileForm({
         <Alert tone="error">{state.error.message}</Alert>
       ) : null}
 
-      <Field label="სახელი" htmlFor="name" required error={fieldErrors?.name?.[0]}>
-        <Input
-          id="name"
-          name="name"
-          defaultValue={defaultName}
-          required
-          error={Boolean(fieldErrors?.name?.[0])}
-        />
-      </Field>
+      {nameLocked ? (
+        <Field label="სახელი" htmlFor="name-readonly" hint={NAME_LOCKED_KA}>
+          <Input id="name-readonly" defaultValue={defaultName} disabled readOnly />
+        </Field>
+      ) : (
+        <Field label="სახელი" htmlFor="name" required error={fieldErrors?.name?.[0]}>
+          <Input
+            id="name"
+            name="name"
+            defaultValue={defaultName}
+            required
+            error={Boolean(fieldErrors?.name?.[0])}
+          />
+        </Field>
+      )}
 
       <Field
         label="ელფოსტა"
@@ -49,9 +59,11 @@ export function ProfileForm({
         <Input id="email-readonly" defaultValue={email} disabled readOnly />
       </Field>
 
-      <Button type="submit" disabled={pending}>
-        {pending ? 'ინახება…' : 'შენახვა'}
-      </Button>
+      {nameLocked ? null : (
+        <Button type="submit" disabled={pending}>
+          {pending ? 'ინახება…' : 'შენახვა'}
+        </Button>
+      )}
     </form>
   );
 }

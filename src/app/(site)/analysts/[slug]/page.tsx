@@ -313,7 +313,18 @@ export default async function AnalystProfilePage({
                 owned={holdsPlan}
                 openOnMount={wantsSubscribe}
               />
-            ) : null}
+            ) : (
+              /*
+               * An author who has not activated a price has nothing to sell,
+               * and the page used to answer that by rendering nothing at all:
+               * a reader who came to subscribe found no button, no price and
+               * no reason, which reads as a broken page rather than as an
+               * author who is not selling yet. Say it instead.
+               */
+              <span className="inline-flex min-h-11 items-center rounded-control border border-dashed border-line-strong px-4 text-sm text-ink-muted">
+                ავტორს გამოწერა ჯერ არ აქვს გააქტიურებული
+              </span>
+            )}
             {actor ? (
               <SaveAnalystButton
                 analystProfileId={profile.id}
