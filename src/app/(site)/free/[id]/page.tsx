@@ -10,6 +10,11 @@ import {
 } from '@/lib/queries/tickets';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { isTicketLocked } from '@/lib/auth/entitlements';
+import {
+  GATE_SENTENCE_KA,
+  GATE_TITLE_KA,
+  ticketGate,
+} from '@/lib/tickets/gate';
 import { prisma } from '@/lib/db';
 import {
   formatDateTimeKa,
@@ -186,7 +191,9 @@ export default async function TicketPage({
         </div>
 
         <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">
-          {locked ? `დახურული პროგნოზი · ${ticket.sport.nameKa}` : ticket.titleKa}
+          {locked
+            ? `${GATE_TITLE_KA[ticketGate(ticket.visibility)]} · ${ticket.sport.nameKa}`
+            : ticket.titleKa}
         </h1>
 
         <p className="tabular mt-2 text-sm text-ink-muted">
@@ -203,11 +210,7 @@ export default async function TicketPage({
         <div className="flex flex-col items-start gap-4 rounded-card border border-line bg-surface p-5 sm:p-6">
           <Lock className="size-5 text-ink-faint" aria-hidden="true" />
           <p className="font-medium text-ink">
-            {isPaid
-              ? ticket.visibility === 'PREMIUM'
-                ? 'ეს ბილეთი იხსნება მხოლოდ შეძენით'
-                : 'ეს ბილეთი იხსნება მხოლოდ ავტორის გამოწერით'
-              : 'ეს პროგნოზი იხსნება შესვლის შემდეგ'}
+            {GATE_SENTENCE_KA[ticketGate(ticket.visibility)]}
           </p>
 
           <div className="grid w-full grid-cols-2 gap-4 py-1 sm:max-w-sm">

@@ -102,7 +102,7 @@ export default async function FreeTicketsPage({
         </p>
       ) : (
         <p className="mb-6 rounded-card border border-line bg-surface px-4 py-3.5 text-sm text-ink-muted sm:px-5">
-          დახურული პროგნოზები იხსნება შესვლის შემდეგ.{' '}
+          უფასო პროგნოზები იხსნება შესვლის შემდეგ, გადახდის გარეშე.{' '}
           <Link href="/login" className="text-accent underline">
             შესვლა
           </Link>{' '}

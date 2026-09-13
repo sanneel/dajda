@@ -2,6 +2,12 @@ import Link from 'next/link';
 import type { FeedTicket } from '@/lib/queries/tickets';
 import { PREDICTION_VISIBILITY_KA } from '@/lib/labels';
 import {
+  GATE_ACTION_KA,
+  GATE_PRICE_KA,
+  GATE_TITLE_KA,
+  ticketGate,
+} from '@/lib/tickets/gate';
+import {
   formatDateTimeKa,
   formatMoney,
   formatOdds,
@@ -77,7 +83,7 @@ export function TicketList({
               <div className="min-w-0 flex-1">
                 <p className="font-medium leading-snug text-ink">
                   {locked
-                    ? 'დახურული პროგნოზი'
+                    ? GATE_TITLE_KA[ticketGate(ticket.visibility)]
                     : hidden
                       ? 'უფასო პროგნოზი'
                       : ticket.titleKa}
@@ -151,11 +157,12 @@ export function TicketList({
                 href={`/free/${ticket.id}`}
                 className="mt-3 flex min-h-11 items-center justify-between rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-ink-faint"
               >
-                {/* A locked ticket with no price of its own opens on the
-                    author's subscription and on nothing else, so the button
-                    says that rather than promising a look. */}
+                {/* The button names the gate this particular ticket is
+                    behind. It used to say "opens with a subscription" for
+                    every locked row, which put a price on a free prediction
+                    that a signed-out reader only had to sign in to read. */}
                 {locked
-                  ? 'გამოწერით გაიხსნება'
+                  ? GATE_ACTION_KA[ticketGate(ticket.visibility)]
                   : maskPicks
                     ? 'პროგნოზის ნახვა'
                     : 'დეტალურად ნახვა'}
@@ -222,7 +229,7 @@ export function TicketList({
                         className="font-medium text-ink hover:text-accent"
                       >
                         {locked
-                          ? 'დახურული პროგნოზი'
+                          ? GATE_TITLE_KA[ticketGate(ticket.visibility)]
                           : hidden
                             ? 'უფასო პროგნოზი · ნახვა'
                             : ticket.titleKa}
@@ -300,16 +307,15 @@ export function TicketList({
                       </div>
                     ) : locked ? (
                       /*
-                       * A subscription-only ticket has no price of its own,
-                       * and this cell used to say "ნახვა" - an invitation to
-                       * look at something the reader cannot open. The column
-                       * is headed "ფასი", so it says what this one costs.
+                       * The column is headed "ფასი", so it says what this one
+                       * costs - and for a free ticket shut only because
+                       * nobody is signed in, that is nothing.
                        */
                       <Link
                         href={`/free/${ticket.id}`}
                         className="text-xs font-medium text-accent hover:underline"
                       >
-                        გამოწერით
+                        {GATE_PRICE_KA[ticketGate(ticket.visibility)]}
                       </Link>
                     ) : (
                       <span className="text-ink-faint">·</span>

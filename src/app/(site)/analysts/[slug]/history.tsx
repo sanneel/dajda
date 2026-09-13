@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { formatDateTimeKa, formatMoney, formatOdds } from '@/lib/format';
+import { GATE_TITLE_KA, ticketGate } from '@/lib/tickets/gate';
 import { StatusBadge } from '@/components/ui/badge';
 import { ShowMoreList } from '@/components/ui/show-more';
 
@@ -103,7 +104,7 @@ export function AnalystHistory({ entries }: { entries: HistoryEntry[] }) {
                 href={`/free/${entry.id}`}
                 className="min-w-0 flex-1 font-medium text-ink hover:text-accent"
               >
-                {entry.titleKa ?? 'დახურული პროგნოზი'}
+                {entry.titleKa ?? GATE_TITLE_KA[ticketGate(entry.visibility)]}
               </Link>
 
               {entry.visibility === 'PREMIUM' && entry.priceMinor !== null ? (
