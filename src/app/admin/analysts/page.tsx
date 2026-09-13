@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth/authorization';
+import { PlanPriceForm } from './plan-price-form';
 import { formatDateKa } from '@/lib/format';
 import { ANALYST_STATUS_KA } from '@/lib/labels';
 import { decideAnalystAction } from '@/actions/admin';
@@ -40,6 +41,11 @@ export default async function AdminAnalystsPage() {
       user: { select: { email: true } },
       sports: { select: { sport: { select: { nameKa: true } } } },
       _count: { select: { predictions: true } },
+      plans: {
+        where: { tier: 'PREMIUM', isActive: true },
+        take: 1,
+        select: { priceMinor: true },
+      },
     },
   });
 
@@ -231,6 +237,24 @@ export default async function AdminAnalystsPage() {
                           <div className="text-xs text-ink-faint">
                             {profile.user.email}
                           </div>
+                          {/* The price buyers are shown, and the way to move
+                              it for a live payment test. Only on an approved
+                              author: nobody else has a plan to reprice. */}
+                          {profile.status === 'APPROVED' ? (
+                            <div className="mt-1.5">
+                              <div className="tabular text-xs text-ink-muted">
+                                {profile.plans[0]
+                                  ? `გამოწერა: ${(profile.plans[0].priceMinor / 100).toFixed(2)} ₾ / თვე`
+                                  : 'გამოწერა: გააქტიურებული არაა'}
+                              </div>
+                              <PlanPriceForm
+                                analystProfileId={profile.id}
+                                currentPriceMinor={
+                                  profile.plans[0]?.priceMinor ?? null
+                                }
+                              />
+                            </div>
+                          ) : null}
                         </td>
                         <td className="py-3">
                           <Badge

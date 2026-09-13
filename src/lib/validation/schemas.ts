@@ -443,6 +443,30 @@ export const analystDecisionSchema = z.object({
   reason: z.string().trim().max(500).optional(),
 });
 
+/**
+ * An administrator setting one author's subscription price.
+ *
+ * The three tiers in clause 9.1 are what an AUTHOR may choose. This is not
+ * that: it is an administrator overriding the price on one plan, which is
+ * how a live payment is tested against the gateway without charging anyone
+ * thirty lari. The floor is the 0.10 GEL Flitt asks for in a test
+ * transaction; the ceiling is the highest price the terms name, because
+ * nothing above it could ever be legitimate.
+ */
+export const adminPlanPriceSchema = z.object({
+  analystProfileId: z.uuid(),
+  priceGel: z.coerce
+    .number('შეიყვანეთ ფასი.')
+    .min(0.1, 'მინიმუმი 0.10 ლარია.')
+    .max(50, 'მაქსიმუმი 50 ლარია.')
+    .transform((value) => Math.round(value * 100)),
+  reason: z
+    .string()
+    .trim()
+    .min(3, 'მიუთითეთ მიზეზი.')
+    .max(300, 'მიზეზი ძალიან გრძელია.'),
+});
+
 export const userStatusSchema = z.object({
   userId: z.uuid(),
   status: z.enum(['ACTIVE', 'SUSPENDED']),

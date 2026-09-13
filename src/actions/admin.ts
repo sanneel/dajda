@@ -18,6 +18,7 @@ import {
   type ActionResult,
 } from '@/lib/errors';
 import {
+  adminPlanPriceSchema,
   analystDecisionSchema,
   correctPredictionSchema,
   createPredictionSchema,
@@ -195,6 +196,90 @@ export async function setUserStatusAction(
 // ---------------------------------------------------------------------------
 // Predictions
 // ---------------------------------------------------------------------------
+
+/**
+ * Override one author's subscription price.
+ *
+ * Clause 9.1 gives an AUTHOR three prices to choose between. An
+ * administrator is not choosing on their behalf: this exists so a live
+ * payment can be put through the real gateway for a lari instead of thirty,
+ * which is the only way to see a charge arrive - and, with renewals on, to
+ * see the subscription appear on the gateway's recurring page.
+ *
+ * It reprices an existing plan and never creates one. Opening a plan is also
+ * where an author declares the monthly minimum they are held to (clause
+ * 6.4), and an administrator inventing that declaration would put a promise
+ * in the author's name that the author never made.
+ *
+ * A reason is required and the whole thing is audited: a price below the
+ * published tiers is a departure from what the site tells buyers, so it has
+ * to be answerable afterwards.
+ */
+export async function setAnalystPlanPriceAction(
+  _previous: ActionResult<{ priceMinor: number }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ priceMinor: number }>> {
+  try {
+    const admin = await requireAdmin();
+
+    const parsed = adminPlanPriceSchema.safeParse({
+      analystProfileId: formData.get('analystProfileId'),
+      priceGel: formData.get('priceGel'),
+      reason: formData.get('reason'),
+    });
+    if (!parsed.success) {
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      );
+    }
+
+    const { analystProfileId, priceGel: priceMinor, reason } = parsed.data;
+
+    const profile = await prisma.analystProfile.findUnique({
+      where: { id: analystProfileId },
+      select: { id: true, displayName: true, slug: true },
+    });
+    if (!profile) throw new AppError(ERROR_CODES.NOT_FOUND);
+
+    const plan = await prisma.subscriptionPlan.findFirst({
+      where: { analystProfileId, tier: 'PREMIUM' },
+      select: { id: true, priceMinor: true, isActive: true },
+    });
+    if (!plan || !plan.isActive) {
+      return fail(
+        ERROR_CODES.CONFLICT,
+        'ავტორს გამოწერა გააქტიურებული არ აქვს. ფასს ჯერ თავად ავტორი აყენებს.',
+      );
+    }
+
+    await prisma.subscriptionPlan.update({
+      where: { id: plan.id },
+      data: { priceMinor },
+    });
+
+    await writeAuditLog({
+      action: AUDIT_ACTIONS.PLAN_REPRICED,
+      entityType: 'SubscriptionPlan',
+      entityId: plan.id,
+      summary: `ადმინმა შეცვალა ფასი: ${profile.displayName} ${plan.priceMinor / 100} -> ${priceMinor / 100} ლარი (${reason})`,
+      actorId: admin.userId,
+      actorRole: 'ADMIN',
+      metadata: { from: plan.priceMinor, to: priceMinor, reason },
+    });
+
+    // Every surface that prints the price reads the plan row.
+    revalidatePath('/admin/analysts');
+    revalidatePath('/');
+    revalidatePath('/analysts');
+    revalidatePath(`/analysts/${profile.slug}`);
+
+    return ok({ priceMinor });
+  } catch (error) {
+    return toActionFailure(error);
+  }
+}
 
 export async function createPredictionAction(
   _previous: ActionResult<{ predictionId: string }> | null,
