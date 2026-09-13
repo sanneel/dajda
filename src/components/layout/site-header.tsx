@@ -130,6 +130,22 @@ export async function SiteHeader() {
          */}
         <div className="ml-auto flex items-center gap-1 lg:hidden">
           {actor ? <NotificationBell userId={actor.userId} /> : null}
+          {/*
+           * The account sheet is on EVERY width, not only desktop. While it
+           * was inside the lg-only cluster above, a signed-in phone had no
+           * route to პარამეტრები and no way to sign out at all: the drawer
+           * was invisible, the menu beside it carried neither, and the two
+           * account pages carry no navigation of their own.
+           */}
+          {actor ? (
+            <AccountMenu
+              name={actor.name}
+              photoPath={photoPath}
+              analystStatus={actor.analystStatus}
+              isAdmin={isAdmin}
+              profileHref={profileHref}
+            />
+          ) : null}
           <MobileNav
             isAuthenticated={Boolean(actor)}
             isAdmin={isAdmin}
