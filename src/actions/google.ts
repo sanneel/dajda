@@ -118,6 +118,6 @@ export async function completeGoogleSignupAction(
     return toActionFailure(error);
   }
   // redirect throws by design; it must live outside the try.
-  if (created) redirect('/dashboard');
+  if (created) redirect('/account');
   return ok({ created: true });
 }

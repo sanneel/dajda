@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RegisterPage() {
-  if (await getCurrentUser()) redirect('/dashboard');
+  if (await getCurrentUser()) redirect('/account');
 
   return (
     <div className="rounded-md border border-line bg-surface p-6 sm:p-8">

@@ -1,10 +1,19 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useRef } from 'react';
 import { updateNotificationPreferencesAction } from '@/actions/account';
 import { Checkbox } from '@/components/ui/field';
-import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
+
+/**
+ * Each switch saves itself.
+ *
+ * There is no partial state here worth batching: five independent switches,
+ * every one of them meaningful on its own. A save button under them only
+ * created a way to lose a change - toggle, navigate, and the preference
+ * silently never happened - and put a second identically-labelled შენახვა on
+ * a page that already had one.
+ */
 
 export function NotificationForm({
   defaults,
@@ -24,11 +33,17 @@ export function NotificationForm({
     updateNotificationPreferencesAction,
     null,
   );
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Submits the whole form, so a switch always saves the set as it now
+  // stands rather than its own value against a stale copy of the others.
+  const save = () => formRef.current?.requestSubmit();
 
   const fieldErrors = state && !state.ok ? state.error.fieldErrors : undefined;
 
   return (
     <form
+      ref={formRef}
       action={action}
       className="space-y-4"
       noValidate
@@ -36,7 +51,11 @@ export function NotificationForm({
       // keeps what was typed (see register-form for the full story).
       onReset={(event) => event.preventDefault()}
     >
-      {state?.ok ? <Alert tone="success">პრეფერენციები შენახულია.</Alert> : null}
+      {pending ? (
+        <p className="text-xs text-ink-faint" role="status">ინახება…</p>
+      ) : state?.ok ? (
+        <p className="text-xs text-ink-muted" role="status">შენახულია.</p>
+      ) : null}
       {state && !state.ok && !fieldErrors ? (
         <Alert tone="error">{state.error.message}</Alert>
       ) : null}
@@ -48,24 +67,28 @@ export function NotificationForm({
           id="emailOnNewPrediction"
           name="emailOnNewPrediction"
           defaultChecked={defaults.emailOnNewPrediction}
+          onChange={save}
           label="ახალი ფსონი გამოწერილი ავტორისგან"
         />
         <Checkbox
           id="emailOnSettlement"
           name="emailOnSettlement"
           defaultChecked={defaults.emailOnSettlement}
+          onChange={save}
           label="ნანახი ფსონის შედეგი დაფიქსირდა"
         />
         <Checkbox
           id="emailOnLiveSession"
           name="emailOnLiveSession"
           defaultChecked={defaults.emailOnLiveSession}
+          onChange={save}
           label="გამოწერილმა ავტორმა ლაივი გამოაცხადა"
         />
         <Checkbox
           id="emailProductUpdates"
           name="emailProductUpdates"
           defaultChecked={defaults.emailProductUpdates}
+          onChange={save}
           label="პლატფორმის სიახლეები"
         />
       </fieldset>
@@ -83,6 +106,7 @@ export function NotificationForm({
           id="telegramEnabled"
           name="telegramEnabled"
           defaultChecked={defaults.telegramEnabled}
+          onChange={save}
           label="შეტყობინებები Telegram-ში"
         />
         {!defaults.telegramConnected ? (
@@ -97,9 +121,7 @@ export function NotificationForm({
         />
       </fieldset>
 
-      <Button type="submit" disabled={pending}>
-        {pending ? 'ინახება…' : 'შენახვა'}
-      </Button>
+      {/* No save button: every switch above has already saved itself. */}
     </form>
   );
 }

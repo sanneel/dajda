@@ -409,7 +409,13 @@ export const notificationPreferencesSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  name: z.string().trim().min(2).max(80),
+  // The same constraint registerSchema states, stated the same way. Left
+  // bare, zod answered a Georgian form in English.
+  name: z
+    .string()
+    .trim()
+    .min(2, 'სახელი უნდა შეიცავდეს მინიმუმ 2 სიმბოლოს.')
+    .max(80, 'სახელი ძალიან გრძელია.'),
 });
 
 export const analystApplicationSchema = z.object({

@@ -50,7 +50,7 @@ export async function purchaseTicketAction(
     if (result.kind === 'PURCHASED') {
       revalidatePath(`/free/${predictionId}`);
       revalidatePath('/paid');
-      revalidatePath('/dashboard');
+      revalidatePath('/account');
       return ok({ status: 'PURCHASED' });
     }
 

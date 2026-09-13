@@ -26,7 +26,7 @@ export default async function VerifyEmailPage({
       </div>
 
       <p className="mt-6 border-t border-line pt-5 text-sm text-ink-muted">
-        <Link href="/dashboard" className="text-accent hover:underline">
+        <Link href="/account" className="text-accent hover:underline">
           პროფილზე გადასვლა
         </Link>
       </p>

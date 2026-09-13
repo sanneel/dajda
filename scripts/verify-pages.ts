@@ -99,8 +99,11 @@ const ROUTES: Route[] = [
   { path: '/free', as: 'reader' },
   { path: '/paid', as: 'reader' },
   { path: '/pricing', as: 'reader' },
-  { path: '/dashboard', as: 'reader' },
-  { path: '/dashboard/settings', as: 'reader' },
+  { path: '/account', as: 'reader' },
+  { path: '/account?tab=preferences', as: 'reader' },
+  { path: '/account?tab=security', as: 'reader' },
+  // A tab nobody offers falls back to the overview rather than erroring.
+  { path: '/account?tab=nonsense', as: 'reader' },
   { path: '/apply', as: 'reader' },
 
   { path: '/', as: 'analyst' },
@@ -109,8 +112,9 @@ const ROUTES: Route[] = [
   // for everybody.
   { path: '/analyst', as: 'analyst', absent: NO_PROFILE_NOTICE },
   { path: '/analyst/earnings', as: 'analyst', absent: NO_PROFILE_NOTICE },
-  { path: '/dashboard', as: 'analyst' },
-  { path: '/dashboard/settings', as: 'analyst' },
+  { path: '/account', as: 'analyst' },
+  { path: '/account?tab=preferences', as: 'analyst' },
+  { path: '/account?tab=security', as: 'analyst' },
 
   /*
    * The negative half, and the more important one. Everything above proves a
@@ -119,8 +123,9 @@ const ROUTES: Route[] = [
    * because nothing about the screen looks wrong to whoever broke it - they
    * are signed in as someone who is allowed.
    */
-  { path: '/dashboard', as: 'anon', expect: 'refused' },
-  { path: '/dashboard/settings', as: 'anon', expect: 'refused' },
+  { path: '/account', as: 'anon', expect: 'refused' },
+  { path: '/account?tab=preferences', as: 'anon', expect: 'refused' },
+  { path: '/account?tab=security', as: 'anon', expect: 'refused' },
   { path: '/apply', as: 'anon', expect: 'refused' },
   { path: '/analyst', as: 'anon', expect: 'refused' },
   { path: '/analyst/earnings', as: 'anon', expect: 'refused' },
@@ -151,7 +156,7 @@ const ROUTES: Route[] = [
   { path: '/admin/payouts', as: 'analyst', expect: 'refused' },
 
   // A tampered cookie is not a session.
-  { path: '/dashboard', as: 'forged', expect: 'refused' },
+  { path: '/account', as: 'forged', expect: 'refused' },
   { path: '/analyst', as: 'forged', expect: 'refused' },
   { path: '/admin', as: 'forged', expect: 'refused' },
 ];

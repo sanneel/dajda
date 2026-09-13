@@ -25,7 +25,7 @@ export default async function AdminLayout({
   // Authoritative check. The proxy layer performs no access control at all.
   const actor = await getCurrentUser();
   if (!actor) redirect('/login');
-  if (actor.role !== 'ADMIN') redirect('/dashboard');
+  if (actor.role !== 'ADMIN') redirect('/account');
 
   /*
    * What is waiting on a person, summed for the nav. Four cheap counts on
@@ -58,7 +58,7 @@ export default async function AdminLayout({
               {actor.name}
             </span>
             <Link
-              href="/dashboard"
+              href="/account"
               className="inline-flex min-h-9 items-center rounded-control px-2.5 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
             >
               პროფილი

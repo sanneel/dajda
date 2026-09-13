@@ -91,7 +91,13 @@ export function AccountMenu({
             id="account-panel"
             ref={panelRef}
             tabIndex={-1}
-            className="fixed inset-y-0 right-0 z-50 flex w-[min(20rem,85vw)] flex-col overflow-y-auto border-l border-line bg-surface pb-[env(safe-area-inset-bottom)]"
+            /*
+             * The phone's tab bar is fixed over the bottom of the screen, so
+             * a panel that only clears the safe area puts its last row -
+             * გამოსვლა - underneath it. Reserve the bar's height, as the main
+             * menu does; the desktop breakpoint has no bar and no padding.
+             */
+            className="fixed inset-y-0 right-0 z-50 flex w-[min(20rem,85vw)] flex-col overflow-y-auto border-l border-line bg-surface pb-[calc(3.75rem+env(safe-area-inset-bottom))] lg:pb-[env(safe-area-inset-bottom)]"
           >
             <div className="flex items-start justify-between gap-3 border-b border-line p-4">
               <div className="flex min-w-0 items-center gap-3">
@@ -111,16 +117,11 @@ export function AccountMenu({
             <nav aria-label="ანგარიშის ნავიგაცია" className="flex-1 p-3">
               <ul className="space-y-1">
                 <li>
-                  <Item href="/dashboard" icon={<User className="size-4" />}>
+                  {/* One entry, because there is one account page. Its
+                      tabs are inside it, not in this list: a sheet that
+                      repeats a page's own navigation is two menus. */}
+                  <Item href="/account" icon={<User className="size-4" />}>
                     ანგარიში
-                  </Item>
-                </li>
-                <li>
-                  <Item
-                    href="/dashboard/settings"
-                    icon={<Settings className="size-4" />}
-                  >
-                    პარამეტრები
                   </Item>
                 </li>
 

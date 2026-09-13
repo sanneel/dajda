@@ -24,7 +24,7 @@ export function MobileNav({
   isAuthenticated: boolean;
   isAdmin: boolean;
   isAnalyst?: boolean;
-  /** An analyst's public profile, when they have one. */
+  /** An analyst's own workspace. The public page is in the account sheet. */
   profileHref?: string | null;
   /** An analyst's earnings balance, already formatted; null for everyone else. */
   earnings?: string | null;
@@ -140,18 +140,13 @@ export function MobileNav({
             <ThemeToggle />
           </div>
 
-          <div className="mt-5 space-y-2 border-t border-line pt-5">
-            {isAuthenticated ? (
-              <Link
-                href="/dashboard"
-                className="flex min-h-12 items-center justify-center rounded-md border border-line text-base text-ink"
-              >
-                პროფილი
-              </Link>
-            ) : (
+          {/* Signed in, the account lives behind the avatar beside this
+              button - repeating it here was a second door to one room. */}
+          {isAuthenticated ? null : (
+            <div className="mt-5 space-y-2 border-t border-line pt-5">
               <AuthLinks />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       ) : null}
     </div>

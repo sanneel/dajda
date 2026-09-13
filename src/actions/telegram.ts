@@ -204,7 +204,7 @@ export async function telegramAuthAction(
     return toActionFailure(error);
   }
 
-  if (success) redirect('/dashboard');
+  if (success) redirect('/account');
   return fail(ERROR_CODES.INTERNAL);
 }
 
@@ -245,7 +245,7 @@ export async function unlinkTelegramAction(
   try {
     const actor = await requireUser();
     await unlinkTelegram(actor.userId);
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/account?tab=preferences');
     return ok({ unlinked: true });
   } catch (error) {
     return toActionFailure(error);

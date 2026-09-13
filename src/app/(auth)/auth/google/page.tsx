@@ -21,7 +21,7 @@ export const metadata: Metadata = {
  * form and the Telegram flow collect, nothing more.
  */
 export default async function GoogleConfirmPage() {
-  if (await getCurrentUser()) redirect('/dashboard');
+  if (await getCurrentUser()) redirect('/account');
 
   const sealed = (await cookies()).get(GOOGLE_PROFILE_COOKIE)?.value;
   const profile = sealed ? openGoogleProfile(sealed) : null;
