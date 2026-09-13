@@ -18,7 +18,7 @@ import {
 } from '@/lib/notifications/broadcast';
 import { audienceFor } from '@/lib/notifications/outbox';
 import { Card, CardBody } from '@/components/ui/card';
-import { Avatar } from '@/components/ui/avatar';
+import { AnalystPhotoPicker } from '@/components/analyst/photo-picker';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { PREDICTION_VISIBILITY_KA } from '@/lib/labels';
 import { Alert, EmptyState } from '@/components/ui/feedback';
@@ -169,7 +169,10 @@ export default async function AnalystPage() {
         <CardBody>
           <div className="flex flex-col gap-5">
             <div className="flex items-start gap-4">
-              <Avatar name={profile.displayName} src={profile.photoPath} size="lg" />
+              <AnalystPhotoPicker
+                name={profile.displayName}
+                photoPath={profile.photoPath}
+              />
 
               <div className="min-w-0 flex-1">
                 <h1 className="font-display text-2xl leading-tight text-ink sm:text-3xl">

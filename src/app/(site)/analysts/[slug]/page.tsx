@@ -17,7 +17,7 @@ import {
   formatMoney,
 } from '@/lib/format';
 import { Badge, DemoBadge } from '@/components/ui/badge';
-import { Avatar } from '@/components/ui/avatar';
+import { AnalystPhotoPicker } from '@/components/analyst/photo-picker';
 import { RecordTabs } from './record-tabs';
 import { ReportForm } from '@/components/report-form';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
@@ -211,7 +211,11 @@ export default async function AnalystProfilePage({
       {/* Identity                                                        */}
       {/* ------------------------------------------------------------- */}
       <header className="flex flex-col gap-5 sm:flex-row sm:items-start">
-        <Avatar name={profile.displayName} src={profile.photoPath} size="lg" />
+        <AnalystPhotoPicker
+          name={profile.displayName}
+          photoPath={profile.photoPath}
+          editable={isOwner}
+        />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

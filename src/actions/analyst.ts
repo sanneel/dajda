@@ -494,6 +494,71 @@ async function uniqueSlug(
  * The three prices clause 9.1 of the terms allows, in tetri. Not an env
  * knob: the signed document names the numbers, so the code does too.
  */
+/**
+ * Replace the author's photograph.
+ *
+ * The photo was taken once, on the application form, and there was no way to
+ * change it afterwards: an author whose picture was wrong had to ask an
+ * administrator. It is their own public identity, so it is theirs to set.
+ *
+ * The new image goes through the same decode and re-encode as a bet slip, so
+ * it arrives stripped of its metadata and cannot carry an executable payload.
+ * The previous photograph's row is left alone: a cached page may still point
+ * at it, and an unreferenced image costs a row.
+ */
+export async function updateAnalystPhotoAction(
+  _previous: ActionResult<{ photoPath: string }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ photoPath: string }>> {
+  try {
+    const analyst = await requireApprovedAnalyst();
+
+    const limit = rateLimiter.check(
+      `analyst-photo:${analyst.userId}`,
+      RATE_LIMITS.analystPhoto,
+    );
+    if (!limit.allowed) {
+      return fail(
+        ERROR_CODES.RATE_LIMITED,
+        'ძალიან ბევრი მცდელობა. სცადეთ ცოტა ხანში.',
+      );
+    }
+
+    const photo = formData.get('photo');
+    if (!(photo instanceof File) || photo.size === 0) {
+      return fail(ERROR_CODES.VALIDATION_ERROR, undefined, {
+        photo: ['აირჩიეთ ფოტო.'],
+      });
+    }
+
+    const { urlPath } = await storeScreenshot(photo);
+
+    const profile = await prisma.analystProfile.update({
+      where: { id: analyst.analystProfileId },
+      data: { photoPath: urlPath },
+      select: { id: true, slug: true, displayName: true },
+    });
+
+    await writeAuditLog({
+      action: AUDIT_ACTIONS.ANALYST_PHOTO_CHANGED,
+      entityType: 'AnalystProfile',
+      entityId: profile.id,
+      summary: `ფოტო შეიცვალა: ${profile.displayName}`,
+      actorId: analyst.userId,
+      actorRole: analyst.role,
+    });
+
+    // Every surface draws the face from the profile row.
+    revalidatePath('/analyst');
+    revalidatePath('/analysts');
+    revalidatePath(`/analysts/${profile.slug}`);
+
+    return ok({ photoPath: urlPath });
+  } catch (error) {
+    return toActionFailure(error);
+  }
+}
+
 const PLAN_PRICES_MINOR = [3000, 4000, 5000] as const;
 
 /**

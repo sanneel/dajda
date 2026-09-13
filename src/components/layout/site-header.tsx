@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth/authorization';
 import { prisma } from '@/lib/db';
 import { formatMoney } from '@/lib/format';
 import { Logo } from '@/components/brand/logo';
-import { Avatar } from '@/components/ui/avatar';
+import { AccountMenu } from './account-menu';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { AuthButtons } from '@/components/auth/auth-buttons';
 import { SocialSignIn } from '@/components/auth/social-signin';
@@ -41,15 +41,21 @@ export async function SiteHeader() {
    * a webhook can credit it between two page loads, and a stale figure next
    * to the avatar would be worse than none.
    */
-  const earningsMinor =
+  const account =
     isAnalyst && actor
-      ? (
-          await prisma.user.findUnique({
-            where: { id: actor.userId },
-            select: { earningsMinor: true },
-          })
-        )?.earningsMinor ?? null
+      ? await prisma.user.findUnique({
+          where: { id: actor.userId },
+          select: {
+            earningsMinor: true,
+            // The photograph the reader sees on their public page, so the
+            // avatar in the bar is the same face rather than initials.
+            analystProfile: { select: { photoPath: true } },
+          },
+        })
       : null;
+
+  const earningsMinor = account?.earningsMinor ?? null;
+  const photoPath = account?.analystProfile?.photoPath ?? null;
 
   return (
     <>
@@ -101,15 +107,17 @@ export async function SiteHeader() {
 
           {actor ? <NotificationBell userId={actor.userId} /> : null}
 
+          {/* The avatar opens the account sheet rather than jumping to one
+              page of it: ანგარიში, პარამეტრები, the workspace and the way
+              out are all one tap from here now. */}
           {actor ? (
-            <Link
-              href="/dashboard"
-              aria-label={`პროფილი — ${actor.name}`}
-              title={actor.name}
-              className="inline-flex size-11 items-center justify-center rounded-full transition-opacity hover:opacity-80"
-            >
-              <Avatar name={actor.name} size="sm" />
-            </Link>
+            <AccountMenu
+              name={actor.name}
+              photoPath={photoPath}
+              analystStatus={actor.analystStatus}
+              isAdmin={isAdmin}
+              profileHref={profileHref}
+            />
           ) : (
             <AuthButtons socialButtons={<SocialSignIn />} />
           )}

@@ -90,6 +90,8 @@ export const RATE_LIMITS = {
   verifyEmailCode: { limit: 5, windowMs: 15 * 60 * 1000 },
   /** An application decodes an image and is reviewed by a person. */
   analystApplication: { limit: 3, windowMs: 60 * 60 * 1000 },
+  /** Changing a photograph decodes an image; generous, but not unbounded. */
+  analystPhoto: { limit: 10, windowMs: 60 * 60 * 1000 },
   /** A withdrawal moves money and is reviewed by a person. */
   withdrawal: { limit: 5, windowMs: 60 * 60 * 1000 },
   report: { limit: 10, windowMs: 60 * 60 * 1000 },

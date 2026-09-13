@@ -30,6 +30,8 @@ export const AUDIT_ACTIONS = {
   ANALYST_APPROVED: 'analyst.approved',
   ANALYST_REJECTED: 'analyst.rejected',
   ANALYST_SUSPENDED: 'analyst.suspended',
+  /** The author replaced their own photograph. Public-facing identity. */
+  ANALYST_PHOTO_CHANGED: 'analyst.photo_changed',
 
   /** The analyst set their subscription price - money-facing, so audited. */
   PLAN_CREATED: 'plan.created',
