@@ -22,15 +22,23 @@
  * `start` is accepted too, for putting back a calendar stopped by mistake.
  */
 import 'dotenv/config';
-import { FlittPaymentProvider } from '../src/lib/payments/flitt';
+import {
+  FlittPaymentProvider,
+  flittSignature,
+  redactCardToken,
+} from '../src/lib/payments/flitt';
 import { AppError } from '../src/lib/errors';
 
 const action = process.argv[2];
 const orderId = process.argv[3];
 
-if (action !== 'stop' && action !== 'start') {
+if (action !== 'status' && action !== 'stop' && action !== 'start') {
   console.error(
-    'Usage: npx tsx scripts/flitt-subscription-state.ts <stop|start> <order-id>\n',
+    'Usage: npx tsx scripts/flitt-subscription-state.ts <status|stop|start> <order-id>\n' +
+      '\n' +
+      '  status  read what the gateway knows about the order, changing nothing\n' +
+      '  stop    stop the renewal calendar\n' +
+      '  start   put back a calendar stopped by mistake\n',
   );
   process.exit(2);
 }
@@ -55,8 +63,60 @@ const provider = new FlittPaymentProvider({
   apiUrl: process.env.FLITT_API_URL ?? 'https://pay.flitt.com',
 });
 
+/**
+ * Read-only: the gateway's full answer for one order.
+ *
+ * Nothing is mapped or narrowed, because the field that answers "will this
+ * card be charged again" is the gateway's to name, not ours to guess. The
+ * reusable card token is blanked - it is a charging capability and does not
+ * belong in a terminal or a screenshot.
+ */
+async function status(): Promise<void> {
+  const request = { merchant_id: merchantId as string, order_id: orderId as string };
+  const response = await fetch(
+    `${process.env.FLITT_API_URL ?? 'https://pay.flitt.com'}/api/status/order_id`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        request: { ...request, signature: flittSignature(request, secretKey as string) },
+      }),
+    },
+  );
+
+  const body = (await response.json()) as { response?: Record<string, unknown> };
+  const answer = body?.response;
+  if (!answer) {
+    console.log('  the gateway returned no order data');
+    process.exitCode = 1;
+    return;
+  }
+
+  const safe = redactCardToken(answer);
+  for (const key of Object.keys(safe).sort()) {
+    const value = safe[key];
+    if (value === '' || value === null || value === undefined) continue;
+    console.log(
+      `  ${key.padEnd(28)} ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`,
+    );
+  }
+
+  console.log(
+    '\nLook for the subscription/recurring fields above. A calendar that is\n' +
+      'still live and one that has been stopped read differently there; the\n' +
+      "portal's payment page shows neither, because it shows the order as it\n" +
+      'was created.',
+  );
+}
+
 async function main(): Promise<void> {
-  console.log(`\n${action} subscription for order ${orderId}\n`);
+  console.log(`\n${action} for order ${orderId}\n`);
+
+  if (action === 'status') {
+    await status();
+    return;
+  }
+
   try {
     const result = await provider.setSubscriptionState({
       orderId: orderId as string,
