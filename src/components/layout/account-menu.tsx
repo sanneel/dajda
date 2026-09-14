@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ExternalLink, LogOut, Settings, Ticket, User, X } from 'lucide-react';
+import {
+  ExternalLink,
+  LogOut,
+  Rss,
+  Settings,
+  Ticket,
+  User,
+  X,
+} from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { logoutAction } from '@/actions/auth';
 
@@ -117,18 +125,30 @@ export function AccountMenu({
             <nav aria-label="ანგარიშის ნავიგაცია" className="flex-1 p-3">
               <ul className="space-y-1">
                 <li>
-                  {/* One entry, because there is one account page. Its
-                      tabs are inside it, not in this list: a sheet that
-                      repeats a page's own navigation is two menus. */}
+                  {/* One entry, because there is one account page: the
+                      settings that were spread across its tabs are all on
+                      it now, in one column. */}
                   <Item href="/account" icon={<User className="size-4" />}>
                     ანგარიში
                   </Item>
                 </li>
 
+                <li>
+                  {/*
+                   * The reader's own timeline. Everywhere else on the site
+                   * is arranged by the thing - free bets, paid bets, one
+                   * author's record - which answers "who is good" and not
+                   * "what is new from the people I already chose".
+                   */}
+                  <Item href="/feed" icon={<Rss className="size-4" />}>
+                    ფიდი
+                  </Item>
+                </li>
+
                 {/*
                  * Three states, not two: an approved analyst gets their
-                 * workspace, a pending applicant the status of the
-                 * application, everyone else the way to apply.
+                 * workspace and their public page, a pending applicant the
+                 * status of the application, everyone else the way to apply.
                  */}
                 {analystStatus === 'APPROVED' ? (
                   <>

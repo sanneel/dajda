@@ -22,11 +22,18 @@ export function TelegramConnect({
   connected,
   username,
   configured,
+  compact = false,
 }: {
   connected: boolean;
   username: string | null;
   /** False when the deployment has no bot; then there is nothing to offer. */
   configured: boolean;
+  /**
+   * One button in the page header rather than a card of explanation. The
+   * instructions still appear, but only after the button is pressed and the
+   * bot is open - which is when they are needed and not before.
+   */
+  compact?: boolean;
 }) {
   const [linkState, linkAction, linkPending] = useActionState(
     startTelegramLinkAction,
@@ -46,10 +53,50 @@ export function TelegramConnect({
   }, [linkState]);
 
   if (!configured) {
+    if (compact) return null;
     return (
       <p className="text-sm text-ink-muted">
         Telegram-ის ბოტი ამ დაყენებაზე ჯერ არ არის კონფიგურირებული.
       </p>
+    );
+  }
+
+  if (compact) {
+    return (
+      <div className="shrink-0 text-right">
+        {connected ? (
+          <form action={unlinkAction}>
+            <span className="mb-1 flex items-center justify-end gap-1.5 text-xs font-medium text-win">
+              <Check className="size-3.5" aria-hidden="true" />
+              Telegram{username ? ` @${username}` : ''}
+            </span>
+            <button
+              type="submit"
+              disabled={unlinkPending}
+              className="text-xs text-ink-faint hover:text-loss hover:underline"
+            >
+              {unlinkPending ? 'ითიშება…' : 'გათიშვა'}
+            </button>
+          </form>
+        ) : (
+          <form action={linkAction}>
+            <Button type="submit" variant="secondary" size="sm" disabled={linkPending}>
+              <Send className="size-4" aria-hidden="true" />
+              {linkPending ? 'იხსნება…' : 'Telegram-ის დაკავშირება'}
+            </Button>
+            {linkState?.ok ? (
+              <p className="mt-1 max-w-56 text-xs text-ink-muted">
+                ბოტში დააჭირეთ Start-ს, შემდეგ განაახლეთ გვერდი.
+              </p>
+            ) : null}
+            {linkState && !linkState.ok ? (
+              <p className="mt-1 max-w-56 text-xs text-loss" role="alert">
+                {linkState.error.message}
+              </p>
+            ) : null}
+          </form>
+        )}
+      </div>
     );
   }
 

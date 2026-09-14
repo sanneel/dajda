@@ -32,6 +32,8 @@ export const AUDIT_ACTIONS = {
   ANALYST_SUSPENDED: 'analyst.suspended',
   /** The author replaced their own photograph. Public-facing identity. */
   ANALYST_PHOTO_CHANGED: 'analyst.photo_changed',
+  /** The author changed their public byline. The legal name cannot move. */
+  ANALYST_NAME_CHANGED: 'analyst.name_changed',
 
   /** The analyst set their subscription price - money-facing, so audited. */
   PLAN_CREATED: 'plan.created',

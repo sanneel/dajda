@@ -245,7 +245,7 @@ export async function unlinkTelegramAction(
   try {
     const actor = await requireUser();
     await unlinkTelegram(actor.userId);
-    revalidatePath('/account?tab=preferences');
+    revalidatePath('/account');
     return ok({ unlinked: true });
   } catch (error) {
     return toActionFailure(error);

@@ -28,6 +28,7 @@ import { selectionsFromFormData } from '@/lib/predictions/slip';
 import { formatOdds } from '@/lib/format';
 import {
   analystApplicationSchema,
+  analystDisplayNameSchema,
   monthlyMinimumSchema,
   createPredictionSchema,
   markFinishedSchema,
@@ -771,6 +772,78 @@ export async function acknowledgeOnboardingAction(
     });
     revalidatePath('/analyst');
     return ok({ read: true });
+  } catch (error) {
+    return toActionFailure(error);
+  }
+}
+
+/**
+ * Change the public byline.
+ *
+ * The author's legal name is locked: an administrator checked it against a
+ * document, and the whole point of that check is that it does not move. The
+ * byline never carried that claim - it is chosen on the application form and
+ * is the name readers know - so it stays the author's to change.
+ *
+ * The slug does not follow it. Every link anyone has to this author, every
+ * share and every search result, is built from the slug; renaming would break
+ * all of them to tidy a URL nobody reads.
+ */
+export async function updateAnalystDisplayNameAction(
+  _previous: ActionResult<{ displayName: string }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ displayName: string }>> {
+  try {
+    const analyst = await requireApprovedAnalyst();
+
+    const parsed = analystDisplayNameSchema.safeParse({
+      displayName: formData.get('displayName'),
+    });
+    if (!parsed.success) {
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      );
+    }
+
+    const limit = rateLimiter.check(
+      `analyst-name:${analyst.userId}`,
+      RATE_LIMITS.analystPhoto,
+    );
+    if (!limit.allowed) {
+      return fail(
+        ERROR_CODES.RATE_LIMITED,
+        'ძალიან ბევრი მცდელობა. სცადეთ ცოტა ხანში.',
+      );
+    }
+
+    const before = await prisma.analystProfile.findUnique({
+      where: { id: analyst.analystProfileId },
+      select: { displayName: true },
+    });
+
+    const profile = await prisma.analystProfile.update({
+      where: { id: analyst.analystProfileId },
+      data: { displayName: parsed.data.displayName },
+      select: { id: true, slug: true, displayName: true },
+    });
+
+    await writeAuditLog({
+      action: AUDIT_ACTIONS.ANALYST_NAME_CHANGED,
+      entityType: 'AnalystProfile',
+      entityId: profile.id,
+      summary: `საჯარო სახელი: ${before?.displayName ?? '·'} -> ${profile.displayName}`,
+      actorId: analyst.userId,
+      actorRole: analyst.role,
+    });
+
+    revalidatePath('/account');
+    revalidatePath('/analyst');
+    revalidatePath('/analysts');
+    revalidatePath(`/analysts/${profile.slug}`);
+
+    return ok({ displayName: profile.displayName });
   } catch (error) {
     return toActionFailure(error);
   }

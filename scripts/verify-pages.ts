@@ -101,11 +101,16 @@ const ROUTES: Route[] = [
   { path: '/free', as: 'reader' },
   { path: '/paid', as: 'reader' },
   { path: '/pricing', as: 'reader' },
-  { path: '/account', as: 'reader' },
-  { path: '/account?tab=preferences', as: 'reader' },
-  { path: '/account?tab=security', as: 'reader' },
-  // A tab nobody offers falls back to the overview rather than erroring.
+  /*
+   * One page, so the assertions are about what is ON it rather than which
+   * tab is showing. Sign-in and closing the account used to live behind
+   * tabs; a reader who never found the tab never found them.
+   */
+  { path: '/account', as: 'reader', contains: 'შესვლის მეთოდი' },
+  { path: '/account', as: 'reader', contains: 'ანგარიშის დახურვა' },
+  // A query nobody offers is ignored rather than erroring.
   { path: '/account?tab=nonsense', as: 'reader' },
+  { path: '/feed', as: 'reader' },
   { path: '/apply', as: 'reader' },
 
   { path: '/', as: 'analyst' },
@@ -114,9 +119,12 @@ const ROUTES: Route[] = [
   // for everybody.
   { path: '/analyst', as: 'analyst', absent: NO_PROFILE_NOTICE },
   { path: '/analyst/earnings', as: 'analyst', absent: NO_PROFILE_NOTICE },
-  { path: '/account', as: 'analyst' },
-  { path: '/account?tab=preferences', as: 'analyst' },
-  { path: '/account?tab=security', as: 'analyst' },
+  // The author's public byline and photograph are theirs to change, and
+  // the account page is where they do it.
+  { path: '/account', as: 'analyst', contains: 'საჯარო სახელი' },
+  { path: '/feed', as: 'analyst' },
+  // A reader has no byline to edit, so the block must not appear for them.
+  { path: '/account', as: 'reader', absent: 'საჯარო სახელი' },
 
   /*
    * The negative half, and the more important one. Everything above proves a
@@ -126,8 +134,8 @@ const ROUTES: Route[] = [
    * are signed in as someone who is allowed.
    */
   { path: '/account', as: 'anon', expect: 'refused' },
-  { path: '/account?tab=preferences', as: 'anon', expect: 'refused' },
-  { path: '/account?tab=security', as: 'anon', expect: 'refused' },
+  { path: '/feed', as: 'anon', expect: 'refused' },
+  { path: '/feed', as: 'forged', expect: 'refused' },
   { path: '/apply', as: 'anon', expect: 'refused' },
   { path: '/analyst', as: 'anon', expect: 'refused' },
   { path: '/analyst/earnings', as: 'anon', expect: 'refused' },

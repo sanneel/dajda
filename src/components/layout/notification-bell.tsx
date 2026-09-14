@@ -112,7 +112,7 @@ export async function NotificationBell({ userId }: { userId: string }) {
           {needsTelegram ? (
             <li>
               <Link
-                href="/account?tab=preferences"
+                href="/account"
                 className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-elevated"
               >
                 <Send className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden="true" />

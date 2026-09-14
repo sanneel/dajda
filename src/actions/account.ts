@@ -58,7 +58,7 @@ export async function updateProfileAction(
       data: { name: parsed.data.name },
     });
 
-    revalidatePath('/account?tab=preferences');
+    revalidatePath('/account');
     return ok({ updated: true });
   } catch (error) {
     return toActionFailure(error);
@@ -112,7 +112,7 @@ export async function updateNotificationPreferencesAction(
       },
     });
 
-    revalidatePath('/account?tab=preferences');
+    revalidatePath('/account');
     return ok({ updated: true });
   } catch (error) {
     return toActionFailure(error);

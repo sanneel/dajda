@@ -418,6 +418,19 @@ export const updateProfileSchema = z.object({
     .max(80, 'სახელი ძალიან გრძელია.'),
 });
 
+/**
+ * The public byline, changed by its owner after approval.
+ *
+ * The same field and the same bounds as the application's, deliberately: it is
+ * the one name on the site that was never a legal claim, so it stays the
+ * author's to set. The legal name is the one an administrator verified against
+ * a document and is locked (src/lib/account/identity.ts) - these two are
+ * different fields and only this one is editable.
+ */
+export const analystDisplayNameSchema = z.object({
+  displayName: z.string().trim().min(2, 'შეიყვანეთ საჯარო სახელი.').max(60),
+});
+
 export const analystApplicationSchema = z.object({
   /** Legal name, verified against the identity document by an administrator. */
   firstName: z.string().trim().min(2, 'შეიყვანეთ სახელი.').max(40),

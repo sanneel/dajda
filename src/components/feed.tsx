@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Radio } from 'lucide-react';
 import type { FeedEntry } from '@/lib/queries/feed';
 import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
+import { Avatar } from './ui/avatar';
 import { StatusBadge } from './ui/badge';
 import { ShowMoreList } from './ui/show-more';
 import { SportTile } from './sport-tile';
@@ -22,6 +23,7 @@ export function Feed({
   entries,
   emptyText = 'ჯერ არაფერია.',
   lockedBetIds,
+  showAuthor = false,
 }: {
   entries: FeedEntry[];
   emptyText?: string;
@@ -31,6 +33,12 @@ export function Feed({
    * Decided by the caller, because only the page knows who is looking.
    */
   lockedBetIds?: ReadonlySet<string>;
+  /**
+   * On one author's page the author is the page, and repeating their name on
+   * every row is noise. In a reader's own feed the entries come from several
+   * people at once and the name is the first thing they need.
+   */
+  showAuthor?: boolean;
 }) {
   if (entries.length === 0) {
     return <p className="py-6 text-sm text-ink-faint">{emptyText}</p>;
@@ -45,12 +53,17 @@ export function Feed({
     <ShowMoreList className="border-t border-line" initial={5}>
       {entries.map((entry) =>
         entry.type === 'post' ? (
-          <PostEntry key={`post-${entry.post.id}`} post={entry.post} />
+          <PostEntry
+            key={`post-${entry.post.id}`}
+            post={entry.post}
+            showAuthor={showAuthor}
+          />
         ) : (
           <BetEntry
             key={`bet-${entry.bet.id}`}
             bet={entry.bet}
             locked={lockedBetIds?.has(entry.bet.id) ?? false}
+            showAuthor={showAuthor}
           />
         ),
       )}
@@ -66,12 +79,35 @@ function Timestamp({ at }: { at: Date }) {
   );
 }
 
-function PostEntry({ post }: { post: Extract<FeedEntry, { type: 'post' }>['post'] }) {
+function Author({
+  author,
+}: {
+  author: { displayName: string; slug: string; photoPath: string | null };
+}) {
+  return (
+    <Link
+      href={`/analysts/${author.slug}`}
+      className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-ink hover:text-accent"
+    >
+      <Avatar name={author.displayName} src={author.photoPath} size="sm" />
+      {author.displayName}
+    </Link>
+  );
+}
+
+function PostEntry({
+  post,
+  showAuthor,
+}: {
+  post: Extract<FeedEntry, { type: 'post' }>['post'];
+  showAuthor: boolean;
+}) {
   const isLive = post.kind === 'LIVE_NOTICE';
   const running = isLive && post.endedAt === null;
 
   return (
     <li className="border-b border-line py-5">
+      {showAuthor ? <Author author={post.author} /> : null}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {isLive ? (
           <span
@@ -124,12 +160,15 @@ function PostEntry({ post }: { post: Extract<FeedEntry, { type: 'post' }>['post'
 function BetEntry({
   bet,
   locked,
+  showAuthor,
 }: {
   bet: Extract<FeedEntry, { type: 'bet' }>['bet'];
   locked: boolean;
+  showAuthor: boolean;
 }) {
   return (
     <li className="border-b border-line py-5">
+      {showAuthor && bet.author ? <Author author={bet.author} /> : null}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="rule-label">ფსონი</span>
         {bet.publishedAt ? <Timestamp at={bet.publishedAt} /> : null}

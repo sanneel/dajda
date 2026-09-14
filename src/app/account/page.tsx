@@ -16,7 +16,7 @@ import { CancelSubscriptionButton } from "./cancel-button";
 import { ResendVerificationButton } from "./resend-verification-button";
 import { VerifyCodeForm } from "./verify-code-form";
 import { IdentityRow } from "./identity-row";
-import { AccountTabs, accountTabFrom } from "./tabs";
+import { AnalystIdentity } from "./analyst-identity";
 import { NotificationForm } from "./notification-form";
 import { TelegramConnect } from "./telegram-connect";
 import { CloseAccountForm } from "./close-account-form";
@@ -160,7 +160,17 @@ export default async function DashboardPage({
     }),
   ]);
 
-  const tab = accountTabFrom((await searchParams).tab);
+  /*
+   * The author's public identity, which only an approved author has. It is
+   * not the same as the account holder's name above it: that one was checked
+   * against a document and is locked, this one is a byline.
+   */
+  const analystIdentity = actor.analystProfileId
+    ? await prisma.analystProfile.findUnique({
+        where: { id: actor.analystProfileId },
+        select: { displayName: true, photoPath: true, slug: true, status: true },
+      })
+    : null;
 
   return (
     <div className="space-y-5">
@@ -170,11 +180,34 @@ export default async function DashboardPage({
        * the sections below it cost a whole screen before the first number.
        * A profile page's header is who you are; everything else is content.
        */}
-      <IdentityRow
-        name={actor.name}
-        email={actor.email}
-        nameLocked={!canChangeOwnName(actor)}
-      />
+      {/*
+       * Who you are on the left, the bot on the right. Linking Telegram was
+       * buried two tabs away behind a banner that pointed at it, which is a
+       * page telling you where the control is instead of being the control.
+       */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <IdentityRow
+            name={actor.name}
+            email={actor.email}
+            nameLocked={!canChangeOwnName(actor)}
+          />
+        </div>
+        <TelegramConnect
+          connected={account.telegramChatId !== null}
+          username={account.telegramUsername}
+          configured={telegramBotConfigured()}
+          compact
+        />
+      </div>
+
+      {analystIdentity && analystIdentity.status === 'APPROVED' ? (
+        <AnalystIdentity
+          displayName={analystIdentity.displayName}
+          photoPath={analystIdentity.photoPath}
+          slug={analystIdentity.slug}
+        />
+      ) : null}
 
       {returnStatus ? <PaymentReturnBanner status={returnStatus} /> : null}
 
@@ -213,22 +246,6 @@ export default async function DashboardPage({
         </Alert>
       ) : null}
 
-      {account.telegramChatId === null ? (
-        <Alert tone="info" title="დააკავშირეთ Telegram">
-          შეტყობინებები ბოტიდან ელფოსტაზე სწრაფად მოდის.{" "}
-          <Link
-            href="/account?tab=preferences"
-            className="font-medium underline"
-          >
-            დაკავშირება პრეფერენციებში →
-          </Link>
-        </Alert>
-      ) : null}
-
-      <AccountTabs current={tab} />
-
-      {tab === "overview" ? (
-        <>
       {/* ---------------------------------------------------------------- */}
       {/* Subscriptions                                                     */}
       {/* ---------------------------------------------------------------- */}
@@ -564,24 +581,17 @@ export default async function DashboardPage({
           )}
         </div>
       </details>
-        </>
-      ) : null}
-
-      {tab === "preferences" ? (
-        <div className="space-y-5">
-          {/* Linking the bot and switching its notifications on are one
-              decision; they used to be two cards with a hint in the second
-              contradicting the state of the first. */}
+      <div className="space-y-5">
           <Card>
             <CardHeader
-              title="Telegram"
-              description="შეტყობინებები ბოტიდან. ბოტი პირველ შეტყობინებას ვერ გიგზავნით სანამ თქვენ არ დაიწყებთ საუბარს."
+              title="შესვლის მეთოდი"
+              description="რითი იხსნება ეს ანგარიში."
             />
             <CardBody>
-              <TelegramConnect
-                connected={account.telegramChatId !== null}
-                username={account.telegramUsername}
-                configured={telegramBotConfigured()}
+              <SignInMethods
+                hasPassword={account.password.length > 0}
+                googleLinked={account.googleId !== null}
+                telegramLinked={account.telegramChatId !== null}
               />
             </CardBody>
           </Card>
@@ -614,29 +624,13 @@ export default async function DashboardPage({
               <ThemeToggle />
             </CardBody>
           </Card>
-        </div>
-      ) : null}
-
-      {tab === "security" ? (
-        <div className="space-y-5">
-          <Card>
-            <CardHeader
-              title="შესვლის მეთოდი"
-              description="რითი იხსნება ეს ანგარიში."
-            />
-            <CardBody>
-              <SignInMethods
-                hasPassword={account.password.length > 0}
-                googleLinked={account.googleId !== null}
-                telegramLinked={account.telegramChatId !== null}
-              />
-            </CardBody>
-          </Card>
 
           {/*
-           * Behind its own tab rather than at the foot of the page people
-           * scroll through to reach a switch. Closing an account should be
-           * somewhere you went on purpose.
+           * Last, and the only card with a coloured edge. It used to sit
+           * behind a tab of its own, which hid it from anyone who did not
+           * know the tab existed - a person closing their account should
+           * find it, and the edge is what keeps it from being pressed by
+           * accident.
            */}
           <Card className="border-loss/40">
             <CardHeader
@@ -648,7 +642,6 @@ export default async function DashboardPage({
             </CardBody>
           </Card>
         </div>
-      ) : null}
     </div>
   );
 }
