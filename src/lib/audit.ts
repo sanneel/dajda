@@ -56,6 +56,9 @@ export const AUDIT_ACTIONS = {
   SUBSCRIPTION_RENEWED: 'subscription.renewed',
   SUBSCRIPTION_CANCELED: 'subscription.canceled',
   SUBSCRIPTION_EXPIRED: 'subscription.expired',
+  /** An administrator opened a live cancellation test on the real gateway. */
+  SUBSCRIPTION_TEST_OPENED: 'subscription.test_opened',
+  SUBSCRIPTION_TEST_STOPPED: 'subscription.test_stopped',
 
   PAYMENT_CREATED: 'payment.created',
   TICKET_PURCHASED: 'ticket.purchased',

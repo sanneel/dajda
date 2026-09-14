@@ -25,7 +25,6 @@
     "verify:payments": "tsx scripts/verify-payment-flow.ts",
     "probe:recurring": "tsx scripts/probe-flitt-recurring.ts",
     "subscription:state": "tsx scripts/flitt-subscription-state.ts",
-    "subscription:cancel-test": "tsx scripts/subscription-cancel-test.ts",
     "dev:db": "node scripts/dev-db.mjs --dir ./.pgdata",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
     "dev:next": "next dev",

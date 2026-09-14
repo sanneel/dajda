@@ -50,7 +50,7 @@ const prisma = new PrismaClient({
  */
 const SESSION_COOKIE = 'dajda_session';
 
-type Who = 'anon' | 'reader' | 'analyst' | 'forged';
+type Who = 'anon' | 'reader' | 'analyst' | 'admin' | 'forged';
 
 /**
  * What the route is supposed to do for this viewer.
@@ -75,6 +75,8 @@ type Route = {
 
 /** Rendered by the analyst layout to anyone without an approved profile. */
 const NO_PROFILE_NOTICE = 'ანალიტიკოსის პროფილი არ გაქვთ';
+
+const SUBSCRIPTION_TEST = '/admin/payments/subscription-test';
 
 /**
  * A page that renders for an anonymous visitor and fails for a signed-in one
@@ -155,26 +157,45 @@ const ROUTES: Route[] = [
   { path: '/admin/users', as: 'analyst', expect: 'refused' },
   { path: '/admin/payouts', as: 'analyst', expect: 'refused' },
 
+  /*
+   * The page that charges a live card. It renders for an administrator and
+   * for nobody else - the one route here where a hole would cost money
+   * rather than privacy.
+   */
+  { path: SUBSCRIPTION_TEST, as: 'admin', contains: 'გამოწერის ტესტი' },
+  { path: SUBSCRIPTION_TEST, as: 'anon', expect: 'refused' },
+  { path: SUBSCRIPTION_TEST, as: 'reader', expect: 'refused' },
+  { path: SUBSCRIPTION_TEST, as: 'analyst', expect: 'refused' },
+  { path: SUBSCRIPTION_TEST, as: 'forged', expect: 'refused' },
+
   // A tampered cookie is not a session.
   { path: '/account', as: 'forged', expect: 'refused' },
   { path: '/analyst', as: 'forged', expect: 'refused' },
   { path: '/admin', as: 'forged', expect: 'refused' },
 ];
 
-async function sessionCookieFor(where: { analyst: boolean }): Promise<string> {
-  const user = where.analyst
-    ? await prisma.user.findFirst({
-        where: { analystProfile: { status: 'APPROVED' } },
-        select: { id: true, email: true },
-      })
-    : await prisma.user.findFirst({
-        where: { role: 'USER', analystProfile: null, status: 'ACTIVE' },
-        select: { id: true, email: true },
-      });
+async function sessionCookieFor(
+  kind: 'reader' | 'analyst' | 'admin',
+): Promise<string> {
+  const where =
+    kind === 'analyst'
+      ? { analystProfile: { status: 'APPROVED' as const } }
+      : kind === 'admin'
+        ? { role: 'ADMIN' as const, status: 'ACTIVE' as const }
+        : {
+            role: 'USER' as const,
+            analystProfile: null,
+            status: 'ACTIVE' as const,
+          };
+
+  const user = await prisma.user.findFirst({
+    where,
+    select: { id: true, email: true },
+  });
 
   if (!user) {
     throw new Error(
-      `no ${where.analyst ? 'approved analyst' : 'reader'} in the database. Seed it first: npm run db:seed:demo`,
+      `no ${kind} in the database. Seed it first: npm run db:seed:demo`,
     );
   }
 
@@ -255,8 +276,9 @@ async function main(): Promise<void> {
    */
   const cookies: Record<Who, string | null> = {
     anon: null,
-    reader: await sessionCookieFor({ analyst: false }),
-    analyst: await sessionCookieFor({ analyst: true }),
+    reader: await sessionCookieFor('reader'),
+    analyst: await sessionCookieFor('analyst'),
+    admin: await sessionCookieFor('admin'),
     // A well-formed token that was never issued. Nothing may accept it.
     forged: `${SESSION_COOKIE}=${generateToken()}`,
   };

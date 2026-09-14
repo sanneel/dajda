@@ -45,6 +45,7 @@ const SECTIONS: Section[] = [
     pages: [
       { href: '/admin/payouts', label: 'გატანები' },
       { href: '/admin/payments', label: 'გადახდები' },
+      { href: '/admin/payments/subscription-test', label: 'გამოწერის ტესტი' },
     ],
   },
   {
