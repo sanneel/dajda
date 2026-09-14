@@ -94,6 +94,40 @@ describe('subscription checkout', () => {
     });
   });
 
+  it('takes a shorter bound when the caller names one', async () => {
+    // A live cancellation test opens a real calendar on a real card. If the
+    // stop being tested does not work, this bound is what ends it.
+    const sent = mockGateway({
+      response_status: 'success',
+      checkout_url: 'https://pay.flitt.test/checkout/abc',
+      payment_id: 700002,
+    });
+
+    const provider = new FlittPaymentProvider(CONFIG);
+    await provider.createCheckoutSession({
+      orderId: 'dajda-sub-bounded',
+      amountMinor: 10,
+      currency: 'GEL',
+      description: 'DAJDA: cancellation test',
+      returnUrl: 'https://dajda.ge/account',
+      callbackUrl: 'https://dajda.ge/api/webhooks/payments/flitt',
+      subscription: {
+        every: 1,
+        period: 'day',
+        startDate: '2026-09-15',
+        maxRenewals: 3,
+      },
+      requestCardToken: true,
+    });
+
+    const request = decodeV2Data(
+      String((sent[0]?.request as Record<string, unknown>).data),
+    );
+    const schedule = request.recurring_data as Record<string, unknown>;
+    expect(schedule.quantity).toBe(3);
+    expect(schedule.period).toBe('day');
+  });
+
   it('signs a subscription as one base64 payload (protocol 2.0)', async () => {
     const sent = mockGateway({
       response_status: 'success',

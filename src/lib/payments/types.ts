@@ -21,6 +21,14 @@ export type SubscriptionSchedule = {
    * takes the first payment; this is when the calendar starts.
    */
   startDate?: string;
+  /**
+   * How many renewals the calendar is allowed at most. The gateway insists
+   * on a bound; the product's is nominal, because a subscription runs until
+   * it is canceled. A live test is the case that needs a real one: if the
+   * cancellation being tested turns out not to work, this is what stops the
+   * card being charged for the rest of the year.
+   */
+  maxRenewals?: number;
 };
 
 export type CreateCheckoutInput = {

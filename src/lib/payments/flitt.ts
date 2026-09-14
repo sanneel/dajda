@@ -283,7 +283,7 @@ export class FlittPaymentProvider implements PaymentProvider {
         // checkout only to be declined at payment with 2008 "Order
         // parameters are incorrect". Our subscriptions run until canceled,
         // so the bound is nominal: enough renewals to outlive any card.
-        quantity: SUBSCRIPTION_MAX_RENEWALS,
+        quantity: input.subscription.maxRenewals ?? SUBSCRIPTION_MAX_RENEWALS,
         // The customer pays what the plan costs; the hosted page must not
         // let them edit the schedule.
         state: 'Y',
