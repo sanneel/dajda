@@ -20,10 +20,7 @@ export function CloseAccountForm() {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink-muted">
-          დახურვა გააუქმებს აქტიურ გამოწერებს და დახურავს წვდომას. ელფოსტა
-          გათავისუფლდება და მისით ახალი ანგარიშის შექმნა შესაძლებელი იქნება.
-          გამოქვეყნებული ჩანაწერი და გადახდების ისტორია კანონის მოთხოვნით
-          ინახება.
+          აქტიური გამოწერები უქმდება. შეუქცევადია.
         </p>
         <Button type="button" variant="danger" size="sm" onClick={() => setArmed(true)}>
           ანგარიშის დახურვა
@@ -35,9 +32,7 @@ export function CloseAccountForm() {
   return (
     <form action={action} className="space-y-3">
       <p className="text-sm text-ink">
-        დასადასტურებლად ჩაწერეთ სიტყვა{' '}
-        <strong className="font-semibold">დახურვა</strong> და დააჭირეთ ღილაკს.
-        ეს მოქმედება შეუქცევადია.
+        ჩაწერეთ სიტყვა <strong className="font-semibold">დახურვა</strong>.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <input

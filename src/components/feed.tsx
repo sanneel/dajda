@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Radio } from 'lucide-react';
 import type { FeedEntry } from '@/lib/queries/feed';
 import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
 import { Avatar } from './ui/avatar';
@@ -14,10 +13,6 @@ import { SportTile } from './sport-tile';
  * with a slip and a result, a post is text. Reading down the column it has to
  * stay obvious which is which, because only one of the two counts toward the
  * record the reader is here to check.
- *
- * A running live session is the only thing that gets a coloured marker, and it
- * is a dot and a word rather than an animated pill: the point is to say "this
- * is happening now", not to make the page feel busy.
  */
 export function Feed({
   entries,
@@ -102,57 +97,17 @@ function PostEntry({
   post: Extract<FeedEntry, { type: 'post' }>['post'];
   showAuthor: boolean;
 }) {
-  const isLive = post.kind === 'LIVE_NOTICE';
-  const running = isLive && post.endedAt === null;
-
   return (
     <li className="border-b border-line py-5">
       {showAuthor ? <Author author={post.author} /> : null}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {isLive ? (
-          <span
-            className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
-              running ? 'text-signal' : 'text-ink-faint'
-            }`}
-          >
-            <Radio className="size-3.5" aria-hidden="true" />
-            {running ? 'ლაივი მიმდინარეობს' : 'ლაივი დასრულდა'}
-          </span>
-        ) : (
-          <span className="rule-label">სტატუსი</span>
-        )}
+        <span className="rule-label">სტატუსი</span>
         <Timestamp at={post.createdAt} />
       </div>
-
-      {isLive && post.liveLabelKa ? (
-        <p className="mt-2 font-semibold text-ink">
-          {post.liveLabelKa}
-          {post.liveAt ? (
-            <span className="tabular ml-2 font-normal text-ink-muted">
-              {formatDateTimeKa(post.liveAt)}
-            </span>
-          ) : null}
-        </p>
-      ) : null}
 
       <p className="mt-1.5 whitespace-pre-line text-[0.9375rem] leading-relaxed text-ink-muted">
         {post.bodyKa}
       </p>
-
-      {/* Updates hang under the notice that opened the session, oldest first,
-          so the session reads as a transcript rather than a reversed stack. */}
-      {post.updates.length > 0 ? (
-        <ol className="mt-3 space-y-2 border-l-2 border-line pl-4">
-          {post.updates.map((update) => (
-            <li key={update.id}>
-              <Timestamp at={update.createdAt} />
-              <p className="mt-0.5 whitespace-pre-line text-sm leading-relaxed text-ink-muted">
-                {update.bodyKa}
-              </p>
-            </li>
-          ))}
-        </ol>
-      ) : null}
     </li>
   );
 }

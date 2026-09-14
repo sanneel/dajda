@@ -304,26 +304,6 @@ const postBodySchema = z
 export const notePostSchema = z.object({ bodyKa: postBodySchema });
 
 /**
- * A live announcement. Both the time and the match label are required: an
- * announcement without them is a note, and it is the two of them together that
- * justify interrupting somebody's inbox.
- */
-export const liveNoticeSchema = z.object({
-  bodyKa: postBodySchema,
-  liveAt: wallClockSchema('მიუთითეთ ლაივის დრო.'),
-  liveLabelKa: z
-    .string()
-    .trim()
-    .min(3, 'მიუთითეთ მატჩი ან ტურნირი.')
-    .max(160, 'დასახელება ძალიან გრძელია.'),
-});
-
-export const liveUpdateSchema = z.object({
-  parentId: z.uuid(),
-  bodyKa: postBodySchema,
-});
-
-/**
  * A broadcast to the analyst's audience.
  *
  * A subject is required and short: it is the whole message in a Telegram
@@ -402,7 +382,6 @@ export const resolveReportSchema = z.object({
 export const notificationPreferencesSchema = z.object({
   emailOnNewPrediction: z.coerce.boolean().default(false),
   emailOnSettlement: z.coerce.boolean().default(false),
-  emailOnLiveSession: z.coerce.boolean().default(false),
   emailProductUpdates: z.coerce.boolean().default(false),
   telegramEnabled: z.coerce.boolean().default(false),
   telegramUsername: telegramUsernameSchema.optional().or(z.literal('')),

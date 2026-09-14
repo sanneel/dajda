@@ -75,7 +75,6 @@ export async function updateNotificationPreferencesAction(
     const parsed = notificationPreferencesSchema.safeParse({
       emailOnNewPrediction: formData.get('emailOnNewPrediction') === 'on',
       emailOnSettlement: formData.get('emailOnSettlement') === 'on',
-      emailOnLiveSession: formData.get('emailOnLiveSession') === 'on',
       emailProductUpdates: formData.get('emailProductUpdates') === 'on',
       telegramEnabled: formData.get('telegramEnabled') === 'on',
       telegramUsername: formData.get('telegramUsername') || undefined,
@@ -97,7 +96,6 @@ export async function updateNotificationPreferencesAction(
         userId: actor.userId,
         emailOnNewPrediction: input.emailOnNewPrediction,
         emailOnSettlement: input.emailOnSettlement,
-        emailOnLiveSession: input.emailOnLiveSession,
         emailProductUpdates: input.emailProductUpdates,
         telegramEnabled: input.telegramEnabled,
         telegramUsername: input.telegramUsername || null,
@@ -105,7 +103,6 @@ export async function updateNotificationPreferencesAction(
       update: {
         emailOnNewPrediction: input.emailOnNewPrediction,
         emailOnSettlement: input.emailOnSettlement,
-        emailOnLiveSession: input.emailOnLiveSession,
         emailProductUpdates: input.emailProductUpdates,
         telegramEnabled: input.telegramEnabled,
         telegramUsername: input.telegramUsername || null,

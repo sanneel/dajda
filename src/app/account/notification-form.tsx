@@ -8,11 +8,11 @@ import { Alert } from '@/components/ui/feedback';
 /**
  * Each switch saves itself.
  *
- * There is no partial state here worth batching: five independent switches,
- * every one of them meaningful on its own. A save button under them only
- * created a way to lose a change - toggle, navigate, and the preference
- * silently never happened - and put a second identically-labelled შენახვა on
- * a page that already had one.
+ * There is no partial state here worth batching: independent switches, every
+ * one meaningful on its own. A save button under them only created a way to
+ * lose a change - toggle, navigate, and the preference silently never
+ * happened - and put a second identically-labelled შენახვა on a page that
+ * already had one.
  */
 
 export function NotificationForm({
@@ -21,7 +21,6 @@ export function NotificationForm({
   defaults: {
     emailOnNewPrediction: boolean;
     emailOnSettlement: boolean;
-    emailOnLiveSession: boolean;
     emailProductUpdates: boolean;
     telegramEnabled: boolean;
     telegramUsername: string | null;
@@ -76,13 +75,6 @@ export function NotificationForm({
           defaultChecked={defaults.emailOnSettlement}
           onChange={save}
           label="ნანახი ფსონის შედეგი დაფიქსირდა"
-        />
-        <Checkbox
-          id="emailOnLiveSession"
-          name="emailOnLiveSession"
-          defaultChecked={defaults.emailOnLiveSession}
-          onChange={save}
-          label="გამოწერილმა ავტორმა ლაივი გამოაცხადა"
         />
         <Checkbox
           id="emailProductUpdates"

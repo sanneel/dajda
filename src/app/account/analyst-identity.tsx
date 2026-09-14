@@ -21,11 +21,9 @@ import { AnalystPhotoPicker } from '@/components/analyst/photo-picker';
 export function AnalystIdentity({
   displayName,
   photoPath,
-  slug,
 }: {
   displayName: string;
   photoPath: string | null;
-  slug: string;
 }) {
   const [state, action, pending] = useActionState(
     updateAnalystDisplayNameAction,
@@ -118,12 +116,6 @@ export function AnalystIdentity({
           ) : null}
         </div>
       </div>
-
-      <p className="mt-3 border-t border-line pt-3 text-xs text-ink-faint">
-        ფოტოს შესაცვლელად დააჭირეთ თავად ფოტოს. თქვენი გვერდის მისამართი{' '}
-        <span className="tabular">/analysts/{slug}</span> სახელის შეცვლით არ
-        იცვლება — ძველი ბმულები მუშაობს.
-      </p>
     </div>
   );
 }

@@ -152,7 +152,6 @@ export default async function DashboardPage({
       select: {
         emailOnNewPrediction: true,
         emailOnSettlement: true,
-        emailOnLiveSession: true,
         emailProductUpdates: true,
         telegramEnabled: true,
         telegramUsername: true,
@@ -168,7 +167,7 @@ export default async function DashboardPage({
   const analystIdentity = actor.analystProfileId
     ? await prisma.analystProfile.findUnique({
         where: { id: actor.analystProfileId },
-        select: { displayName: true, photoPath: true, slug: true, status: true },
+        select: { displayName: true, photoPath: true, status: true },
       })
     : null;
 
@@ -205,7 +204,6 @@ export default async function DashboardPage({
         <AnalystIdentity
           displayName={analystIdentity.displayName}
           photoPath={analystIdentity.photoPath}
-          slug={analystIdentity.slug}
         />
       ) : null}
 
@@ -275,7 +273,6 @@ export default async function DashboardPage({
           {subscriptions.length === 0 ? (
             <EmptyState
               title="აქტიური გამოწერა არ გაქვთ"
-              description="გამოწერა ყოველი ავტორის პროფილზეა: აირჩიეთ ავტორი და ნახეთ მისი გეგმები."
               action={
                 <ButtonLink href="/#rating">ანალიტიკოსების ნახვა</ButtonLink>
               }
@@ -374,8 +371,8 @@ export default async function DashboardPage({
                   subscription.cardToken !== null &&
                   !subscription.cancelAtPeriodEnd,
               )
-                ? "გაუქმების შემდეგ წვდომა რჩება გადახდილი პერიოდის ბოლომდე და თანხა ავტომატურად აღარ ჩამოიჭრება."
-                : "გამოწერა ავტომატურად არ განახლდება: ვადის ბოლოს წვდომა მთავრდება, და გასაგრძელებლად ავტორის გვერდზე გადაიხდით ხელახლა."}
+                ? "გაუქმების შემდეგ თანხა აღარ ჩამოიჭრება, წვდომა კი პერიოდის ბოლომდე რჩება."
+                : "ავტომატურად არ განახლდება."}
             </p>
           ) : null}
         </div>
@@ -396,9 +393,8 @@ export default async function DashboardPage({
                 >
                   <span>
                     <span className="font-medium text-ink">
-                      ნახე ანალიტიკოსების რეიტინგი
+                      ანალიტიკოსების რეიტინგი
                     </span>
-                    {", ვისი პროგნოზები მართლდება"}
                   </span>
                   <span aria-hidden="true" className="text-accent">→</span>
                 </Link>
@@ -410,9 +406,8 @@ export default async function DashboardPage({
                 >
                   <span>
                     <span className="font-medium text-ink">
-                      გახსენი უფასო პროგნოზები
+                      უფასო პროგნოზები
                     </span>
-                    {" "}— გადახდის გარეშე
                   </span>
                   <span aria-hidden="true" className="text-accent">→</span>
                 </Link>
@@ -424,9 +419,8 @@ export default async function DashboardPage({
                 >
                   <span>
                     <span className="font-medium text-ink">
-                      ნახე ფასიანი პროგნოზები
+                      ფასიანი პროგნოზები
                     </span>
-                    {" "}— იყიდე ცალკე ან გამოწერით
                   </span>
                   <span aria-hidden="true" className="text-accent">→</span>
                 </Link>
@@ -583,10 +577,7 @@ export default async function DashboardPage({
       </details>
       <div className="space-y-5">
           <Card>
-            <CardHeader
-              title="შესვლის მეთოდი"
-              description="რითი იხსნება ეს ანგარიში."
-            />
+            <CardHeader title="შესვლის მეთოდი" />
             <CardBody>
               <SignInMethods
                 hasPassword={account.password.length > 0}
@@ -597,18 +588,14 @@ export default async function DashboardPage({
           </Card>
 
           <Card>
-            <CardHeader
-              title="შეტყობინებები"
-              description="რაზე მოგივიდეთ შეტყობინება. ცვლილება მაშინვე ინახება."
-            />
+            <CardHeader title="შეტყობინებები" />
             <CardBody>
               <NotificationForm
                 defaults={{
                   ...(preferences ?? {
                     emailOnNewPrediction: true,
                     emailOnSettlement: true,
-                    emailOnLiveSession: true,
-                    emailProductUpdates: false,
+                                emailProductUpdates: false,
                     telegramEnabled: false,
                     telegramUsername: null,
                   }),
@@ -619,7 +606,7 @@ export default async function DashboardPage({
           </Card>
 
           <Card>
-            <CardHeader title="თემა" description="ღია, მუქი, ან სისტემისა." />
+            <CardHeader title="თემა" />
             <CardBody>
               <ThemeToggle />
             </CardBody>
@@ -633,10 +620,7 @@ export default async function DashboardPage({
            * accident.
            */}
           <Card className="border-loss/40">
-            <CardHeader
-              title="ანგარიშის დახურვა"
-              description="შეუქცევადი მოქმედება. რეგისტრაციისას აღებული პირობა: დახურვა ნებისმიერ დროს შეგიძლიათ."
-            />
+            <CardHeader title="ანგარიშის დახურვა" />
             <CardBody>
               <CloseAccountForm />
             </CardBody>

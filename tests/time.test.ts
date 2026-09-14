@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseTbilisiLocal, toTbilisiLocalInput } from '@/lib/time';
-import {
-  createPredictionSchema,
-  liveNoticeSchema,
-} from '@/lib/validation/schemas';
+import { createPredictionSchema } from '@/lib/validation/schemas';
 
 /*
  * A `datetime-local` value is a Tbilisi wall clock. Read as the server's
@@ -60,17 +57,12 @@ describe('datetime-local as Tbilisi time', () => {
     expect(bet.eventAt?.toISOString()).toBe('2026-09-03T16:00:00.000Z');
     expect(bet.eventEndAt?.toISOString()).toBe('2026-09-03T18:30:00.000Z');
 
-    const live = liveNoticeSchema.parse({
-      bodyKa: 'ვიწყებთ ლაივს',
-      liveAt: '2026-09-03T20:00',
-      liveLabelKa: 'დინამო vs საბურთალო',
-    });
-    expect(live.liveAt.toISOString()).toBe('2026-09-03T16:00:00.000Z');
-
-    const bad = liveNoticeSchema.safeParse({
-      bodyKa: 'ვიწყებთ ლაივს',
-      liveAt: 'tonight',
-      liveLabelKa: 'დინამო vs საბურთალო',
+    // A time it cannot read is refused rather than defaulted to now.
+    const bad = createPredictionSchema.safeParse({
+      sportId: '3c1d1f1e-6b9e-4e2b-9d6a-2b3f4a5c6d7e',
+      screenshotPath: '/uploads/abcdef0123456789.webp',
+      odds: '1.85',
+      eventAt: 'tonight',
     });
     expect(bad.success).toBe(false);
   });

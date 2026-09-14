@@ -665,39 +665,6 @@ async function main() {
     },
   });
 
-  const liveNotice = await prisma.analystPost.create({
-    data: {
-      authorId: feedAuthor.id,
-      kind: 'LIVE_NOTICE',
-      bodyKa:
-        'ვიწყებ ლაივ პოსტინგს. ყველა პროგნოზს აქვე გამოვაქვეყნებ სკრინშოტით, კომენტარებთან ერთად.',
-      liveLabelKa: 'დინამო თბილისი vs საბურთალო',
-      liveAt: new Date(now + 90 * 60 * 1000),
-      isDemo: true,
-      createdAt: new Date(now - 2 * 60 * 60 * 1000),
-    },
-  });
-
-  await prisma.analystPost.createMany({
-    data: [
-      {
-        authorId: feedAuthor.id,
-        kind: 'LIVE_UPDATE',
-        parentId: liveNotice.id,
-        bodyKa: 'შემადგენლობები გამოვიდა. ორივე გუნდი სრული შემადგენლობითაა.',
-        isDemo: true,
-        createdAt: new Date(now - 100 * 60 * 1000),
-      },
-      {
-        authorId: feedAuthor.id,
-        kind: 'LIVE_UPDATE',
-        parentId: liveNotice.id,
-        bodyKa: 'პირველი ტაიმი მშვიდად მიდის. ველოდები კოეფიციენტის მომატებას.',
-        isDemo: true,
-        createdAt: new Date(now - 40 * 60 * 1000),
-      },
-    ],
-  });
 
   // -------------------------------------------------------------------------
   // Platform plans and the demo subscriber

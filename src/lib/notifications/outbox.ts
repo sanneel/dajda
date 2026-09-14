@@ -38,7 +38,6 @@ export type NotifiableEvent = {
  * the bot - rather than a checkbox that leaves the relationship in place.
  */
 export type NotificationTopic =
-  | 'LIVE_SESSION'
   | 'NEW_BET'
   | 'SETTLEMENT'
   | 'BROADCAST';
@@ -50,7 +49,6 @@ type Recipient = {
   prefs: {
     emailOnNewPrediction: boolean;
     emailOnSettlement: boolean;
-    emailOnLiveSession: boolean;
     telegramEnabled: boolean;
     telegramUsername: string | null;
   } | null;
@@ -75,7 +73,6 @@ export async function audienceFor(
       select: {
         emailOnNewPrediction: true,
         emailOnSettlement: true,
-        emailOnLiveSession: true,
         telegramEnabled: true,
         telegramUsername: true,
       },
@@ -118,7 +115,6 @@ function wantsEmail(recipient: Recipient, topic: NotificationTopic): boolean {
   if (topic === 'BROADCAST') return true;
   // No preference row yet means the defaults apply, and the defaults opt in.
   if (!recipient.prefs) return true;
-  if (topic === 'LIVE_SESSION') return recipient.prefs.emailOnLiveSession;
   if (topic === 'NEW_BET') return recipient.prefs.emailOnNewPrediction;
   return recipient.prefs.emailOnSettlement;
 }

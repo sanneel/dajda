@@ -20,18 +20,10 @@ const authorSelect = {
 
 const postSelect = {
   id: true,
-  kind: true,
   author: { select: authorSelect },
   bodyKa: true,
-  liveAt: true,
-  liveLabelKa: true,
-  endedAt: true,
   visibility: true,
   createdAt: true,
-  updates: {
-    orderBy: { createdAt: 'asc' },
-    select: { id: true, bodyKa: true, createdAt: true },
-  },
 } satisfies Prisma.AnalystPostSelect;
 
 const betSelect = {
@@ -67,7 +59,8 @@ export async function analystFeed(
 ): Promise<FeedEntry[]> {
   const [posts, bets] = await Promise.all([
     prisma.analystPost.findMany({
-      // Updates are nested under their notice, so they never appear loose.
+      // Top-level only. Live sessions are gone, but their replies are still
+      // rows and must not surface as loose posts.
       where: { authorId: analystProfileId, parentId: null },
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -173,29 +166,4 @@ export async function personalFeed(
 
   entries.sort((a, b) => b.at.getTime() - a.at.getTime());
   return entries.slice(0, limit);
-}
-
-/**
- * Live sessions that are running right now, across every analyst.
- *
- * "Running" is deliberately not `liveAt <= now`: an analyst announces ahead of
- * time and then ends the session by hand, so a notice counts as live from the
- * moment it is posted until its author closes it. A stale session is the
- * author's problem to close, and pretending it ended on a timer would show
- * readers a session that nobody is actually posting into.
- */
-export async function runningLiveSessions(limit = 5) {
-  return prisma.analystPost.findMany({
-    where: { kind: 'LIVE_NOTICE', endedAt: null, visibility: 'PUBLIC' },
-    orderBy: { liveAt: 'asc' },
-    take: limit,
-    select: {
-      id: true,
-      bodyKa: true,
-      liveAt: true,
-      liveLabelKa: true,
-      author: { select: { slug: true, displayName: true } },
-      _count: { select: { updates: true } },
-    },
-  });
 }

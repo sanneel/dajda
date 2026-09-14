@@ -98,13 +98,7 @@ export const RATE_LIMITS = {
   checkout: { limit: 10, windowMs: 10 * 60 * 1000 },
   /** Each post decodes and re-encodes an image, so it is worth capping. */
   postBet: { limit: 30, windowMs: 60 * 60 * 1000 },
-  /** Text posts are cheap, but a live session is a rapid stream of them. */
   feedPost: { limit: 120, windowMs: 60 * 60 * 1000 },
-  /**
-   * A live announcement fans out to every subscriber's inbox, so it is the one
-   * action here whose cost is paid by other people. Capped hard.
-   */
-  liveNotice: { limit: 6, windowMs: 12 * 60 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export const rateLimiter: RateLimiter = new InMemoryRateLimiter();

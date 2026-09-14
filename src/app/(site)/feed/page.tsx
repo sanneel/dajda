@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { isTicketLocked } from '@/lib/auth/entitlements';
@@ -67,30 +66,17 @@ export default async function FeedPage() {
     <div className="mx-auto w-full max-w-page px-4 py-6 sm:px-6 sm:py-8">
       <header className="mb-4">
         <h1 className="font-display text-2xl text-ink">ფიდი</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          ავტორები, რომლებზეც გამოწერა გაქვთ ან რომლებსაც მიჰყვებით.
-        </p>
       </header>
 
       {entries.length === 0 ? (
         <EmptyState
           title="ფიდი ცარიელია"
-          description="აირჩიეთ ავტორი, გამოიწერეთ ან მიჰყევით — და მათი პოსტები და ფსონები აქ მოგროვდება."
+          description="გამოიწერეთ ან მიჰყევით ავტორს."
           action={<ButtonLink href="/analysts">ავტორების ნახვა</ButtonLink>}
         />
       ) : (
         <Feed entries={entries} showAuthor lockedBetIds={lockedBetIds} />
       )}
-
-      {entries.length > 0 ? (
-        <p className="mt-6 text-xs text-ink-faint">
-          ვინ ჩანს აქ:{' '}
-          <Link href="/account" className="underline">
-            გამოწერები ანგარიშზეა
-          </Link>
-          , მიდევნება კი ავტორის გვერდზე.
-        </p>
-      ) : null}
     </div>
   );
 }

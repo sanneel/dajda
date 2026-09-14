@@ -57,7 +57,7 @@ export const metadata: Metadata = {
 export default async function AnalystPage() {
   const analyst = await requireApprovedAnalyst();
 
-  const [profile, sports, bets, feed, , audience, allowance, plan] =
+  const [profile, sports, bets, feed, audience, allowance, plan] =
     await Promise.all([
       prisma.analystProfile.findUniqueOrThrow({
         where: { id: analyst.analystProfileId },
@@ -101,15 +101,6 @@ export default async function AnalystPage() {
         },
       }),
       analystFeed(analyst.analystProfileId, 30),
-      prisma.analystPost.findMany({
-        where: {
-          authorId: analyst.analystProfileId,
-          kind: 'LIVE_NOTICE',
-          endedAt: null,
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, liveLabelKa: true, liveAt: true },
-      }),
       audienceFor(analyst.analystProfileId),
       broadcastAllowance(analyst.analystProfileId),
       prisma.subscriptionPlan.findFirst({

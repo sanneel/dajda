@@ -144,9 +144,6 @@ export function IdentityRow({
         )}
 
         <p className="truncate text-sm text-ink-muted">{email}</p>
-        {nameLocked ? (
-          <p className="mt-1 text-xs text-ink-faint">{NAME_LOCKED_KA}</p>
-        ) : null}
       </div>
     </header>
   );
