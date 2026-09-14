@@ -33,8 +33,7 @@ export default async function SubscriptionTestPage() {
         <h1 className="text-xl font-semibold text-ink">გამოწერის ტესტი</h1>
         <p className="mt-1 max-w-prose text-sm text-ink-muted">
           ორი ერთნაირი გამოწერა ერთსა და იმავე ბარათზე. ერთს ვაჩერებთ, მეორეს
-          არა. რომელს ჩამოეჭრება ერთ საათში — ეს არის პასუხი კითხვაზე,
-          მართლა ჩერდება თუ არა გაუქმება.
+          არა. რომელს ჩამოეჭრება — ეს არის პასუხი.
         </p>
       </div>
 

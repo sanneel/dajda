@@ -50,25 +50,24 @@ export function TestControls({ initial }: { initial: CancellationTest[] }) {
         <form action={open} className="mt-3 space-y-3">
           <div>
             <label
-              htmlFor="firstChargeInMinutes"
+              htmlFor="startInDays"
               className="mb-1 block text-xs font-medium text-ink-muted"
             >
-              პირველი ჩამოჭრა (წუთში)
+              პირველი ჩამოჭრა (დღეში, 0 = დღეს)
             </label>
             <input
-              id="firstChargeInMinutes"
-              name="firstChargeInMinutes"
+              id="startInDays"
+              name="startInDays"
               type="number"
-              min={15}
-              max={1440}
-              step={5}
-              defaultValue={60}
+              min={0}
+              max={7}
+              step={1}
+              defaultValue={0}
               required
               className="tabular min-h-11 w-40 rounded-control border border-line bg-canvas px-3 text-sm text-ink"
             />
             <p className="mt-1 text-xs text-ink-faint">
-              gateway-ის უმოკლესი ციკლი დღეა, მაგრამ პირველი ჩამოჭრა შეიძლება
-              ერთ საათში იყოს — სწორედ ის პასუხობს კითხვას.
+              Flitt დღეებით ითვლის — საათი და წუთი მას არ გადაეცემა.
             </p>
           </div>
 

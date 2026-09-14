@@ -50,43 +50,40 @@ export type CancellationTest = {
 };
 
 /**
- * The gateway's shortest cycle is a day, but the first charge can be put an
- * hour out, and that first charge is what answers the question. Written in the
- * merchant's own timezone, because a bare date would mean midnight and cost a
- * day.
+ * The gateway counts in days, and only days.
+ *
+ * A time was sent at first, on the reading that `start_time` documents a
+ * "YYYY-MM-DD HH24:MI:SS" format - so a test could be answered within the
+ * hour. The hosted page showed a date picker with the time gone, so the
+ * clock part is not a schedule the gateway keeps. Zero means today, which
+ * is the soonest a calendar here can fire, and is what makes this test
+ * worth running at all.
  */
-function firstChargeStamp(inMinutes: number): string {
-  const due = new Date(Date.now() + inMinutes * 60_000);
-  const parts = new Intl.DateTimeFormat('en-CA', {
+function firstChargeDate(inDays: number): string {
+  const due = new Date(Date.now() + inDays * 86_400_000);
+  return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Tbilisi',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(due);
-  const get = (type: string) =>
-    parts.find((part) => part.type === type)?.value ?? '00';
-  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
+  }).format(due);
 }
 
 export async function openCancellationTest(
   actor: { userId: string },
-  options: { firstChargeInMinutes: number },
+  options: { startInDays: number },
 ): Promise<CancellationTest> {
-  const minutes = options.firstChargeInMinutes;
-  if (!Number.isInteger(minutes) || minutes < 15 || minutes > 1440) {
+  const days = options.startInDays;
+  if (!Number.isInteger(days) || days < 0 || days > 7) {
     throw new AppError(
       ERROR_CODES.VALIDATION_ERROR,
-      'პირველი ჩამოჭრა 15 წუთიდან 24 საათამდე შუალედში უნდა იყოს.',
+      'დაწყება 0-დან 7 დღემდე უნდა იყოს.',
     );
   }
 
   const provider = getPaymentProvider();
   const env = getEnv();
-  const firstChargeAt = firstChargeStamp(minutes);
+  const firstChargeAt = firstChargeDate(days);
 
   const calendars: TestCalendar[] = [];
   for (const role of ['a', 'b'] as const) {

@@ -40,13 +40,13 @@ describe('the live cancellation test', () => {
     }
   });
 
-  it('refuses a first charge outside the window it can supervise', async () => {
-    // Under a quarter hour there is no time to pay both links before the
-    // calendar fires; beyond a day the answer stops being same-day, which is
-    // the entire reason this exists rather than a monthly plan.
-    for (const minutes of [0, 5, 14, 1441, 10080, 1.5, Number.NaN]) {
+  it('refuses a start the gateway cannot be asked for', async () => {
+    // Days, because that is the only unit the gateway schedules in; a past
+    // date is not a schedule, and beyond a week the answer arrives too late
+    // to be the reason this exists rather than a monthly plan.
+    for (const days of [-1, 8, 30, 0.5, Number.NaN]) {
       const error = await refusal(() =>
-        openCancellationTest(ADMIN, { firstChargeInMinutes: minutes }),
+        openCancellationTest(ADMIN, { startInDays: days }),
       );
       expect(error.code).toBe(ERROR_CODES.VALIDATION_ERROR);
     }

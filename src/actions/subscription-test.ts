@@ -33,12 +33,12 @@ export async function openSubscriptionTestAction(
   try {
     const admin = await requireAdmin();
 
-    const minutes = Number(formData.get('firstChargeInMinutes'));
-    if (!Number.isFinite(minutes)) return fail(ERROR_CODES.VALIDATION_ERROR);
+    const days = Number(formData.get('startInDays'));
+    if (!Number.isFinite(days)) return fail(ERROR_CODES.VALIDATION_ERROR);
 
     const test = await openCancellationTest(
       { userId: admin.userId },
-      { firstChargeInMinutes: minutes },
+      { startInDays: days },
     );
 
     revalidatePath(PAGE);
