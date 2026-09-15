@@ -81,8 +81,10 @@ describe('subscription checkout', () => {
       every: 1,
       period: 'month',
       amount: 2900,
-      // Documented format is date and time; a bare date gets midnight.
-      start_time: '2026-09-17 00:00:00',
+      // Documented format is date and time. A bare date gets 04:00, which
+      // is midnight UTC read in Tbilisi time: the UTC date the hosted page
+      // counts from, and never a moment already past.
+      start_time: '2026-09-17 04:00:00',
       // The gateway insists on a bound (quantity or end_time); without one
       // the card is declined with 2008 at payment time. It also declines a
       // bound it disagrees with - 120 monthly charges against a page that had

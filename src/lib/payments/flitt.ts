@@ -578,10 +578,19 @@ async function readFlittBody(request: Request): Promise<FlittBody> {
   return { params, v2: null };
 }
 
-/** "2026-09-17" -> "2026-09-17 00:00:00"; anything already timed passes. */
+/**
+ * "2026-09-17" -> "2026-09-17 04:00:00"; anything already timed passes.
+ *
+ * 04:00, not midnight, because the gateway reads the time in Tbilisi (UTC+4)
+ * while it dates the calendar in UTC. 04:00 Tbilisi is midnight UTC, so the
+ * date stays the UTC one the hosted page counts from, and the moment is never
+ * in the past. With 00:00, a daily plan paid between midnight and 04:00
+ * Tbilisi asked for a first charge four hours earlier in real time, already
+ * gone, and the card was declined with 2008.
+ */
 function withMidnight(date: string | undefined): string | undefined {
   if (!date) return undefined;
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date} 00:00:00` : date;
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date} 04:00:00` : date;
 }
 
 /** The ledger copy of a delivery, with the reusable card token blanked. */
