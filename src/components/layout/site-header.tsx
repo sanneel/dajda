@@ -132,23 +132,32 @@ export async function SiteHeader() {
         </div>
 
         {/*
-         * One drawer below lg, and it is the menu - not the avatar, which on
-         * a phone reads as a link to a profile and opened a second drawer
-         * beside this one. The account entries moved into the menu with it.
-         *
-         * The theme control does not repeat out here: three segments plus the
-         * bell and the menu button crowd the bar off the right edge of a small
-         * phone, so it lives inside the drawer on this breakpoint.
+         * One drawer below lg, behind the menu button. Signed in it is the
+         * same account sheet the desktop avatar opens - the same rows in the
+         * same order, plus the earnings the bar has no room for out here.
+         * Signed out there is no account, so the button opens the plain menu
+         * of pages and the two ways in.
          */}
         <div className="ml-auto flex items-center gap-1 lg:hidden">
+          {/* The account sheet carries no theme control, on either width, so
+              on a phone it belongs out here beside the menu button. */}
+          <ThemeToggle />
           {actor ? <NotificationBell userId={actor.userId} /> : null}
-          <MobileNav
-            isAuthenticated={Boolean(actor)}
-            isAdmin={isAdmin}
-            isAnalyst={isAnalyst}
-            profileHref={workspaceHref}
-            earnings={earningsMinor === null ? null : formatMoney(earningsMinor)}
-          />
+          {actor ? (
+            <AccountMenu
+              trigger="menu"
+              name={actor.name}
+              photoPath={photoPath}
+              analystStatus={actor.analystStatus}
+              isAdmin={isAdmin}
+              profileHref={publicProfileHref}
+              earnings={
+                earningsMinor === null ? null : formatMoney(earningsMinor)
+              }
+            />
+          ) : (
+            <MobileNav />
+          )}
         </div>
       </div>
     </header>

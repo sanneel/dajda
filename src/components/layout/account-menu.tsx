@@ -6,10 +6,12 @@ import { usePathname } from 'next/navigation';
 import {
   ExternalLink,
   LogOut,
+  Menu,
   Rss,
   Settings,
   Ticket,
   User,
+  Wallet,
   X,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
@@ -26,6 +28,10 @@ import { logoutAction } from '@/actions/auth';
  *
  * Right-hand sheet on every width rather than a dropdown, so the same
  * component serves a phone and a desktop and the touch targets stay honest.
+ *
+ * The trigger differs, and only the trigger: the avatar on a desktop, the
+ * menu button on a phone, where an avatar reads as a link to a profile page
+ * and a second drawer beside the menu was one too many.
  */
 export function AccountMenu({
   name,
@@ -33,6 +39,8 @@ export function AccountMenu({
   analystStatus,
   isAdmin = false,
   profileHref = null,
+  earnings = null,
+  trigger = 'avatar',
 }: {
   name: string;
   /** The analyst's photograph, when they have one. */
@@ -41,6 +49,14 @@ export function AccountMenu({
   isAdmin?: boolean;
   /** The analyst's public page, when they have one. */
   profileHref?: string | null;
+  /**
+   * An analyst's earnings, already formatted. The bar prints them beside the
+   * avatar where there is room for it; a phone has none, so the sheet carries
+   * the number instead of hiding it a page deep.
+   */
+  earnings?: string | null;
+  /** What opens the sheet. The panel is the same either way. */
+  trigger?: 'avatar' | 'menu';
 }) {
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -78,11 +94,21 @@ export function AccountMenu({
         onClick={() => setOpenedOn(open ? null : pathname)}
         aria-expanded={open}
         aria-controls="account-panel"
-        aria-label={`ანგარიშის მენიუ — ${name}`}
+        aria-label={
+          trigger === 'menu' ? 'მენიუს გახსნა' : `ანგარიშის მენიუ — ${name}`
+        }
         title={name}
-        className="inline-flex size-11 items-center justify-center rounded-full transition-opacity hover:opacity-80"
+        className={
+          trigger === 'menu'
+            ? 'inline-flex size-11 items-center justify-center rounded-md border border-line text-ink'
+            : 'inline-flex size-11 items-center justify-center rounded-full transition-opacity hover:opacity-80'
+        }
       >
-        <Avatar name={name} src={photoPath} size="sm" />
+        {trigger === 'menu' ? (
+          <Menu className="size-5" aria-hidden="true" />
+        ) : (
+          <Avatar name={name} src={photoPath} size="sm" />
+        )}
       </button>
 
       {open ? (
@@ -181,6 +207,22 @@ export function AccountMenu({
                     </Item>
                   </li>
                 )}
+
+                {earnings !== null ? (
+                  <li>
+                    <Item
+                      href="/analyst/earnings"
+                      icon={<Wallet className="size-4" />}
+                    >
+                      <span className="flex flex-1 items-center justify-between gap-3">
+                        ანაზღაურება
+                        <span className="tabular text-ink-muted">
+                          {earnings}
+                        </span>
+                      </span>
+                    </Item>
+                  </li>
+                ) : null}
 
                 {isAdmin ? (
                   <li>
