@@ -33,19 +33,19 @@ export type RenewalRequest = {
 export const DAILY_TEST_MAX_RENEWALS = 7;
 
 /**
- * The calendar date in Tbilisi, which is the date the gateway schedules on.
+ * The first charge's date, in UTC, because that is the date the gateway counts
+ * from.
  *
- * Read in UTC, a payment made between midnight and 04:00 Tbilisi time falls
- * on the previous day, and a daily calendar would then first charge on the
- * same date as the checkout: the same day paid twice.
+ * Flitt's hosted page takes the payment's UTC date as the calendar's start and
+ * computes the end date from it and `quantity`. The schedule only agrees with
+ * itself when our first charge is exactly one period after that date. It was
+ * once read in Tbilisi time instead: a daily plan paid at 00:30 on the 16th
+ * (still the 15th in UTC) asked for a first charge on the 17th while the page
+ * ended the calendar on the 22nd, and the card was declined with 2008 "Order
+ * parameters are incorrect".
  */
-function tbilisiDate(at: Date): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Tbilisi',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(at);
+function utcDate(at: Date): string {
+  return at.toISOString().slice(0, 10);
 }
 
 export function renewalRequest(
@@ -68,7 +68,7 @@ export function renewalRequest(
        * checkout has already taken today's payment, so a calendar starting
        * any earlier would charge the same period twice.
        */
-      startDate: tbilisiDate(addBillingPeriod(periodStart, billingPeriod)),
+      startDate: utcDate(addBillingPeriod(periodStart, billingPeriod)),
       ...(daily ? { maxRenewals: DAILY_TEST_MAX_RENEWALS } : {}),
     },
     requestCardToken: true,

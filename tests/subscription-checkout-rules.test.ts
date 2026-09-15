@@ -63,15 +63,19 @@ describe('renewal request', () => {
   });
 
   /*
-   * 22:30 UTC on the 15th is already 02:30 on the 16th in Tbilisi, where the
-   * gateway keeps its calendar. Read in UTC, the first daily charge would land
-   * on the 16th: the day that was just paid for, charged twice.
+   * 20:30 UTC on the 15th is already 00:30 on the 16th in Tbilisi. Flitt's
+   * page still starts that calendar on the 15th and, with seven renewals,
+   * ends it on the 22nd. A first charge dated in Tbilisi time (the 17th)
+   * contradicted that end date and was declined live with 2008.
    */
-  it('dates the first charge in Tbilisi time, not UTC', () => {
-    const lateNightTbilisi = new Date('2026-01-15T22:30:00.000Z');
-    expect(
-      renewalRequest(true, 'DAILY', lateNightTbilisi)?.subscription.startDate,
-    ).toBe('2026-01-17');
+  it('dates the first charge in UTC, where the gateway counts from', () => {
+    const afterMidnightTbilisi = new Date('2026-09-15T20:30:00.000Z');
+    const schedule = renewalRequest(
+      true,
+      'DAILY',
+      afterMidnightTbilisi,
+    )?.subscription;
+    expect(schedule?.startDate).toBe('2026-09-16');
   });
 
   it('asks for nothing for a daily plan while renewals are off', () => {

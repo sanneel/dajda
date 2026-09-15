@@ -58,15 +58,13 @@ export type CancellationTest = {
  * clock part is not a schedule the gateway keeps. Zero means today, which
  * is the soonest a calendar here can fire, and is what makes this test
  * worth running at all.
+ *
+ * The date is the UTC one, as in checkout-rules: the hosted page counts the
+ * calendar from the payment's UTC date, and a Tbilisi date sent between
+ * midnight and 04:00 contradicts it and is declined with 2008.
  */
 function firstChargeDate(inDays: number): string {
-  const due = new Date(Date.now() + inDays * 86_400_000);
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Tbilisi',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(due);
+  return new Date(Date.now() + inDays * 86_400_000).toISOString().slice(0, 10);
 }
 
 export async function openCancellationTest(
