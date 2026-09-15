@@ -53,21 +53,22 @@ export function TestControls({ initial }: { initial: CancellationTest[] }) {
               htmlFor="startInDays"
               className="mb-1 block text-xs font-medium text-ink-muted"
             >
-              პირველი ჩამოჭრა (დღეში, 0 = დღეს)
+              პირველი ჩამოჭრა (დღეში, 1 = ხვალ)
             </label>
             <input
               id="startInDays"
               name="startInDays"
               type="number"
-              min={0}
+              min={1}
               max={7}
               step={1}
-              defaultValue={0}
+              defaultValue={1}
               required
               className="tabular min-h-11 w-40 rounded-control border border-line bg-canvas px-3 text-sm text-ink"
             />
             <p className="mt-1 text-xs text-ink-faint">
-              Flitt დღეებით ითვლის — საათი და წუთი მას არ გადაეცემა.
+              Flitt დღეებით ითვლის. გადახდის გვერდზე გრაფიკს ხელი არ ახლო —
+              შეცვლილი პარამეტრი ბარათს 2008-ით აგდებინებს.
             </p>
           </div>
 

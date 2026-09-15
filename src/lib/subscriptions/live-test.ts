@@ -50,18 +50,24 @@ export type CancellationTest = {
 };
 
 /**
- * The gateway counts in days, and only days.
+ * The gateway counts in days, in UTC, and the first one cannot be today.
  *
  * A time was sent at first, on the reading that `start_time` documents a
  * "YYYY-MM-DD HH24:MI:SS" format - so a test could be answered within the
  * hour. The hosted page showed a date picker with the time gone, so the
- * clock part is not a schedule the gateway keeps. Zero means today, which
- * is the soonest a calendar here can fire, and is what makes this test
- * worth running at all.
+ * clock part is not a schedule the gateway keeps.
  *
- * The date is the UTC one, as in checkout-rules: the hosted page counts the
- * calendar from the payment's UTC date, and a Tbilisi date sent between
- * midnight and 04:00 contradicts it and is declined with 2008.
+ * The date is the UTC one, as in checkout-rules: the page counts the calendar
+ * from the payment's UTC date and computes its end from that and `quantity`,
+ * so a Tbilisi date sent between midnight and 04:00 contradicts it and the
+ * card is declined with 2008.
+ *
+ * Today was then tried, as the soonest a day-granular calendar can fire, and
+ * it is the same contradiction from the other side: it asks the gateway to
+ * start the calendar on the date the page already treats as its start, the
+ * day the checkout is taking a payment. The first charge has to be exactly
+ * one period after that date, so the soonest here is tomorrow - which is the
+ * rule the product's own checkout has always followed.
  */
 function firstChargeDate(inDays: number): string {
   return new Date(Date.now() + inDays * 86_400_000).toISOString().slice(0, 10);
@@ -72,10 +78,10 @@ export async function openCancellationTest(
   options: { startInDays: number },
 ): Promise<CancellationTest> {
   const days = options.startInDays;
-  if (!Number.isInteger(days) || days < 0 || days > 7) {
+  if (!Number.isInteger(days) || days < 1 || days > 7) {
     throw new AppError(
       ERROR_CODES.VALIDATION_ERROR,
-      'დაწყება 0-დან 7 დღემდე უნდა იყოს.',
+      'დაწყება 1-დან 7 დღემდე უნდა იყოს: დღევანდელი თარიღი გადაეცემა შუაღამედ, ანუ წარსულში.',
     );
   }
 

@@ -41,10 +41,12 @@ describe('the live cancellation test', () => {
   });
 
   it('refuses a start the gateway cannot be asked for', async () => {
-    // Days, because that is the only unit the gateway schedules in; a past
-    // date is not a schedule, and beyond a week the answer arrives too late
-    // to be the reason this exists rather than a monthly plan.
-    for (const days of [-1, 8, 30, 0.5, Number.NaN]) {
+    // Days, because that is the only unit the gateway schedules in. Today is
+    // refused with the rest: a bare date goes out as midnight, so it asks for
+    // a calendar starting in the past, on the day the checkout is already
+    // charging. Beyond a week the answer arrives too late to be the reason
+    // this exists rather than a monthly plan.
+    for (const days of [0, -1, 8, 30, 0.5, Number.NaN]) {
       const error = await refusal(() =>
         openCancellationTest(ADMIN, { startInDays: days }),
       );
