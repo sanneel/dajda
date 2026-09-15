@@ -67,6 +67,27 @@ describe('an administrator repricing a plan', () => {
     }
   });
 
+  it('keeps a plan monthly unless daily is asked for', () => {
+    const parsed = adminPlanPriceSchema.safeParse(valid);
+    expect(parsed.success && parsed.data.billingPeriod).toBe('MONTHLY');
+  });
+
+  it('takes a daily period for a renewal test', () => {
+    const parsed = adminPlanPriceSchema.safeParse({
+      ...valid,
+      billingPeriod: 'DAILY',
+    });
+    expect(parsed.success && parsed.data.billingPeriod).toBe('DAILY');
+  });
+
+  it('refuses a period nothing sells', () => {
+    for (const billingPeriod of ['QUARTERLY', 'HOURLY', '']) {
+      expect(
+        adminPlanPriceSchema.safeParse({ ...valid, billingPeriod }).success,
+      ).toBe(false);
+    }
+  });
+
   it('refuses an analyst id that is not one', () => {
     expect(
       adminPlanPriceSchema.safeParse({ ...valid, analystProfileId: 'me' })

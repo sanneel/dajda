@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { renewalRequest } from '@/lib/subscriptions/checkout-rules';
+import {
+  DAILY_TEST_MAX_RENEWALS,
+  renewalRequest,
+} from '@/lib/subscriptions/checkout-rules';
 
 /*
  * What SUBSCRIPTION_RECURRING actually changes about a checkout.
@@ -41,6 +44,38 @@ describe('renewal request', () => {
     expect(
       renewalRequest(true, 'QUARTERLY', JANUARY)?.subscription.startDate,
     ).toBe('2026-04-15');
+  });
+
+  it('opens a daily calendar for a daily test plan, starting tomorrow', () => {
+    const request = renewalRequest(true, 'DAILY', JANUARY);
+    expect(request?.subscription.every).toBe(1);
+    expect(request?.subscription.period).toBe('day');
+    expect(request?.subscription.startDate).toBe('2026-01-16');
+  });
+
+  it('bounds a daily calendar for real, not nominally', () => {
+    expect(renewalRequest(true, 'DAILY', JANUARY)?.subscription.maxRenewals).toBe(
+      DAILY_TEST_MAX_RENEWALS,
+    );
+    expect(
+      renewalRequest(true, 'MONTHLY', JANUARY)?.subscription.maxRenewals,
+    ).toBeUndefined();
+  });
+
+  /*
+   * 22:30 UTC on the 15th is already 02:30 on the 16th in Tbilisi, where the
+   * gateway keeps its calendar. Read in UTC, the first daily charge would land
+   * on the 16th: the day that was just paid for, charged twice.
+   */
+  it('dates the first charge in Tbilisi time, not UTC', () => {
+    const lateNightTbilisi = new Date('2026-01-15T22:30:00.000Z');
+    expect(
+      renewalRequest(true, 'DAILY', lateNightTbilisi)?.subscription.startDate,
+    ).toBe('2026-01-17');
+  });
+
+  it('asks for nothing for a daily plan while renewals are off', () => {
+    expect(renewalRequest(false, 'DAILY', JANUARY)).toBeNull();
   });
 
   /*

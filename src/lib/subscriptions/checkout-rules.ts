@@ -22,6 +22,32 @@ export type RenewalRequest = {
   requestCardToken: true;
 };
 
+/**
+ * Renewals a DAILY calendar may take before it ends by itself.
+ *
+ * The product's usual bound is nominal because a subscription runs until it
+ * is canceled. A daily plan exists only to watch a renewal arrive on a live
+ * card, so its bound is a real one: a week of charges at most, even if nobody
+ * remembers to cancel.
+ */
+export const DAILY_TEST_MAX_RENEWALS = 7;
+
+/**
+ * The calendar date in Tbilisi, which is the date the gateway schedules on.
+ *
+ * Read in UTC, a payment made between midnight and 04:00 Tbilisi time falls
+ * on the previous day, and a daily calendar would then first charge on the
+ * same date as the checkout: the same day paid twice.
+ */
+function tbilisiDate(at: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tbilisi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(at);
+}
+
 export function renewalRequest(
   recurring: boolean,
   billingPeriod: BillingPeriod,
@@ -30,19 +56,20 @@ export function renewalRequest(
 ): RenewalRequest | null {
   if (!recurring) return null;
 
+  const daily = billingPeriod === 'DAILY';
+
   return {
     subscription: {
-      // Flitt counts in months; a quarter is three of them.
+      // Flitt counts in days or months; a quarter is three months.
       every: billingPeriod === 'QUARTERLY' ? 3 : 1,
-      period: 'month',
+      period: daily ? 'day' : 'month',
       /*
        * The calendar's first charge is the day this paid period ends. The
        * checkout has already taken today's payment, so a calendar starting
-       * any earlier would charge the same month twice.
+       * any earlier would charge the same period twice.
        */
-      startDate: addBillingPeriod(periodStart, billingPeriod)
-        .toISOString()
-        .slice(0, 10),
+      startDate: tbilisiDate(addBillingPeriod(periodStart, billingPeriod)),
+      ...(daily ? { maxRenewals: DAILY_TEST_MAX_RENEWALS } : {}),
     },
     requestCardToken: true,
   };

@@ -211,20 +211,31 @@ export async function setUserStatusAction(
  * 6.4), and an administrator inventing that declaration would put a promise
  * in the author's name that the author never made.
  *
+ * The same form can put the plan on a DAILY period, so a renewal can be
+ * watched arriving the next day instead of the next month. Subscriptions
+ * bought while it is daily keep their daily calendar at the gateway even if
+ * the plan is set back to monthly; they have to be canceled.
+ *
  * A reason is required and the whole thing is audited: a price below the
  * published tiers is a departure from what the site tells buyers, so it has
  * to be answerable afterwards.
  */
 export async function setAnalystPlanPriceAction(
-  _previous: ActionResult<{ priceMinor: number }> | null,
+  _previous: ActionResult<{
+    priceMinor: number;
+    billingPeriod: 'MONTHLY' | 'DAILY';
+  }> | null,
   formData: FormData,
-): Promise<ActionResult<{ priceMinor: number }>> {
+): Promise<
+  ActionResult<{ priceMinor: number; billingPeriod: 'MONTHLY' | 'DAILY' }>
+> {
   try {
     const admin = await requireAdmin();
 
     const parsed = adminPlanPriceSchema.safeParse({
       analystProfileId: formData.get('analystProfileId'),
       priceGel: formData.get('priceGel'),
+      billingPeriod: formData.get('billingPeriod') ?? undefined,
       reason: formData.get('reason'),
     });
     if (!parsed.success) {
@@ -235,7 +246,12 @@ export async function setAnalystPlanPriceAction(
       );
     }
 
-    const { analystProfileId, priceGel: priceMinor, reason } = parsed.data;
+    const {
+      analystProfileId,
+      priceGel: priceMinor,
+      billingPeriod,
+      reason,
+    } = parsed.data;
 
     const profile = await prisma.analystProfile.findUnique({
       where: { id: analystProfileId },
@@ -245,7 +261,12 @@ export async function setAnalystPlanPriceAction(
 
     const plan = await prisma.subscriptionPlan.findFirst({
       where: { analystProfileId, tier: 'PREMIUM' },
-      select: { id: true, priceMinor: true, isActive: true },
+      select: {
+        id: true,
+        priceMinor: true,
+        billingPeriod: true,
+        isActive: true,
+      },
     });
     if (!plan || !plan.isActive) {
       return fail(
@@ -256,17 +277,23 @@ export async function setAnalystPlanPriceAction(
 
     await prisma.subscriptionPlan.update({
       where: { id: plan.id },
-      data: { priceMinor },
+      data: { priceMinor, billingPeriod },
     });
 
     await writeAuditLog({
       action: AUDIT_ACTIONS.PLAN_REPRICED,
       entityType: 'SubscriptionPlan',
       entityId: plan.id,
-      summary: `ადმინმა შეცვალა ფასი: ${profile.displayName} ${plan.priceMinor / 100} -> ${priceMinor / 100} ლარი (${reason})`,
+      summary: `ადმინმა შეცვალა ფასი: ${profile.displayName} ${plan.priceMinor / 100} ლარი/${plan.billingPeriod} -> ${priceMinor / 100} ლარი/${billingPeriod} (${reason})`,
       actorId: admin.userId,
       actorRole: 'ADMIN',
-      metadata: { from: plan.priceMinor, to: priceMinor, reason },
+      metadata: {
+        from: plan.priceMinor,
+        to: priceMinor,
+        periodFrom: plan.billingPeriod,
+        periodTo: billingPeriod,
+        reason,
+      },
     });
 
     // Every surface that prints the price reads the plan row.
@@ -275,7 +302,7 @@ export async function setAnalystPlanPriceAction(
     revalidatePath('/analysts');
     revalidatePath(`/analysts/${profile.slug}`);
 
-    return ok({ priceMinor });
+    return ok({ priceMinor, billingPeriod });
   } catch (error) {
     return toActionFailure(error);
   }

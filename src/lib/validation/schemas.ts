@@ -458,6 +458,12 @@ export const adminPlanPriceSchema = z.object({
     .min(0.1, 'მინიმუმი 0.10 ლარია.')
     .max(50, 'მაქსიმუმი 50 ლარია.')
     .transform((value) => Math.round(value * 100)),
+  /*
+   * DAILY is for watching a renewal arrive on a live card within a day. It is
+   * offered here and nowhere an author can reach. QUARTERLY is not offered:
+   * nothing sells it.
+   */
+  billingPeriod: z.enum(['MONTHLY', 'DAILY']).default('MONTHLY'),
   reason: z
     .string()
     .trim()

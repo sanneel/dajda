@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth/authorization';
 import { PlanPriceForm } from './plan-price-form';
 import { formatDateKa } from '@/lib/format';
-import { ANALYST_STATUS_KA } from '@/lib/labels';
+import { ANALYST_STATUS_KA, BILLING_PERIOD_KA } from '@/lib/labels';
 import { decideAnalystAction } from '@/actions/admin';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge, DemoBadge } from '@/components/ui/badge';
@@ -44,7 +44,7 @@ export default async function AdminAnalystsPage() {
       plans: {
         where: { tier: 'PREMIUM', isActive: true },
         take: 1,
-        select: { priceMinor: true },
+        select: { priceMinor: true, billingPeriod: true },
       },
     },
   });
@@ -244,13 +244,18 @@ export default async function AdminAnalystsPage() {
                             <div className="mt-1.5">
                               <div className="tabular text-xs text-ink-muted">
                                 {profile.plans[0]
-                                  ? `გამოწერა: ${(profile.plans[0].priceMinor / 100).toFixed(2)} ₾ / თვე`
+                                  ? `გამოწერა: ${(profile.plans[0].priceMinor / 100).toFixed(2)} ₾ ${BILLING_PERIOD_KA[profile.plans[0].billingPeriod]}`
                                   : 'გამოწერა: გააქტიურებული არაა'}
                               </div>
                               <PlanPriceForm
                                 analystProfileId={profile.id}
                                 currentPriceMinor={
                                   profile.plans[0]?.priceMinor ?? null
+                                }
+                                currentBillingPeriod={
+                                  profile.plans[0]?.billingPeriod === 'DAILY'
+                                    ? 'DAILY'
+                                    : 'MONTHLY'
                                 }
                               />
                             </div>

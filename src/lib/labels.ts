@@ -78,6 +78,7 @@ export const PLAN_TIER_KA: Record<PlanTier, string> = {
 export const BILLING_PERIOD_KA: Record<BillingPeriod, string> = {
   MONTHLY: 'თვეში',
   QUARTERLY: 'კვარტალში',
+  DAILY: 'დღეში',
 };
 
 export const BALANCE_KIND_KA: Record<BalanceEntryKind, string> = {

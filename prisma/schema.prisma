@@ -114,6 +114,8 @@ enum PlanTier {
 enum BillingPeriod {
   MONTHLY
   QUARTERLY
+  /// Test only: set by an administrator for a live renewal test, never by an author.
+  DAILY
 }
 
 enum SubscriptionCanceledBy {

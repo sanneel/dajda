@@ -268,6 +268,12 @@ describe('addBillingPeriod', () => {
     ).toBe('2026-02-15');
   });
 
+  it('advances one day for a daily test plan', () => {
+    expect(
+      addBillingPeriod(new Date('2026-01-31T10:00:00Z'), 'DAILY').toISOString(),
+    ).toBe('2026-02-01T10:00:00.000Z');
+  });
+
   it('advances three months for a quarterly plan', () => {
     expect(
       addBillingPeriod(new Date('2026-01-15T00:00:00Z'), 'QUARTERLY')

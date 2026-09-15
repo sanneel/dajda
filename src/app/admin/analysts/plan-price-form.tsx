@@ -16,10 +16,12 @@ import { Button } from '@/components/ui/button';
 export function PlanPriceForm({
   analystProfileId,
   currentPriceMinor,
+  currentBillingPeriod,
 }: {
   analystProfileId: string;
   /** null when the author has not activated a subscription at all. */
   currentPriceMinor: number | null;
+  currentBillingPeriod: 'MONTHLY' | 'DAILY';
 }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(
@@ -59,14 +61,15 @@ export function PlanPriceForm({
 
       {state?.ok ? (
         <Alert tone="success">
-          ფასი შეიცვალა: {(state.data.priceMinor / 100).toFixed(2)} ლარი.
+          შეინახა: {(state.data.priceMinor / 100).toFixed(2)} ლარი{' '}
+          {state.data.billingPeriod === 'DAILY' ? 'დღეში' : 'თვეში'}.
         </Alert>
       ) : null}
       {state && !state.ok && !fieldErrors ? (
         <Alert tone="error">{state.error.message}</Alert>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,8rem)_1fr]">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,8rem)_minmax(0,10rem)_1fr]">
         <div>
           <label
             htmlFor={`price-${analystProfileId}`}
@@ -91,6 +94,24 @@ export function PlanPriceForm({
               {fieldErrors.priceGel[0]}
             </p>
           ) : null}
+        </div>
+
+        <div>
+          <label
+            htmlFor={`period-${analystProfileId}`}
+            className="mb-1 block text-xs font-medium text-ink-muted"
+          >
+            პერიოდი
+          </label>
+          <select
+            id={`period-${analystProfileId}`}
+            name="billingPeriod"
+            defaultValue={currentBillingPeriod}
+            className="min-h-11 w-full rounded-control border border-line bg-surface px-3 text-sm text-ink"
+          >
+            <option value="MONTHLY">თვე</option>
+            <option value="DAILY">დღე (ტესტი)</option>
+          </select>
         </div>
 
         <div>
@@ -121,6 +142,12 @@ export function PlanPriceForm({
         წესების 9.1-ით ავტორი ირჩევს 30, 40 ან 50 ლარს. აქ დაყენებული სხვა
         ფასი ადმინისტრაციის გადაწყვეტილებაა და ჟურნალში იწერება. არსებულ
         გამომწერებს არ ეხება — ისინი იმ ფასით რჩებიან, რითიც იყიდეს.
+      </p>
+
+      <p className="text-xs text-ink-faint">
+        დღიური პერიოდი მხოლოდ ტესტისთვისაა: ბარათი ჩამოიჭრება ყოველ დღე,
+        მაქსიმუმ 7-ჯერ. ამ დროს ნაყიდი გამოწერა დღიური რჩება, თვეზე
+        დაბრუნების შემდეგაც, სანამ არ გაუქმდება.
       </p>
 
       <div className="flex flex-wrap gap-2">

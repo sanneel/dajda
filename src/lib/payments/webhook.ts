@@ -211,6 +211,10 @@ export function canTransition(
 
 export function addBillingPeriod(from: Date, period: BillingPeriod): Date {
   const next = new Date(from.getTime());
+  if (period === 'DAILY') {
+    next.setUTCDate(next.getUTCDate() + 1);
+    return next;
+  }
   next.setUTCMonth(next.getUTCMonth() + (period === 'QUARTERLY' ? 3 : 1));
   return next;
 }
