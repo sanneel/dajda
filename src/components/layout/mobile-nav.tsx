@@ -1,0 +1,193 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { LogOut, Menu, Rss, User, Wallet, X } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { AuthLinks } from '@/components/auth/auth-buttons';
+import { logoutAction } from '@/actions/auth';
+import { NAV_ITEMS } from './nav-items';
+
+/**
+ * Mobile navigation sheet - the ONE drawer on a phone.
+ *
+ * The account sheet behind the avatar is a desktop control: on a phone the
+ * avatar looked like a link to a profile page and opened a second drawer
+ * instead. So what it held that has no tab of its own - the account page, the
+ * feed, the way out - is in here, behind the one button that looks like a
+ * menu.
+ *
+ * Closes on route change and on Escape, and moves focus to the panel when it
+ * opens so keyboard users are not left behind the toggle.
+ */
+export function MobileNav({
+  isAuthenticated,
+  isAdmin,
+  isAnalyst = false,
+  profileHref,
+  earnings = null,
+}: {
+  isAuthenticated: boolean;
+  isAdmin: boolean;
+  isAnalyst?: boolean;
+  /** An analyst's own workspace. The public page is in the account sheet. */
+  profileHref?: string | null;
+  /** An analyst's earnings balance, already formatted; null for everyone else. */
+  earnings?: string | null;
+}) {
+  const pathname = usePathname();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * The sheet is open only while the route it was opened on is still current.
+   * Deriving it this way closes the menu on navigation without an effect that
+   * calls setState - no cascading render, and no stale-open flash.
+   */
+  const [openedOn, setOpenedOn] = useState<string | null>(null);
+  const open = openedOn === pathname;
+  const setOpen = (next: boolean) => setOpenedOn(next ? pathname : null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      // Uses the state setter directly - it is stable, so the effect does not
+      // need to re-subscribe on every render.
+      if (event.key === 'Escape') setOpenedOn(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    panelRef.current?.focus();
+
+    // Prevent the page behind the sheet from scrolling.
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  return (
+    <div className="lg:hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-controls="mobile-nav-panel"
+        aria-label={open ? 'მენიუს დახურვა' : 'მენიუს გახსნა'}
+        className="inline-flex size-11 items-center justify-center rounded-md border border-line text-ink"
+      >
+        {open ? (
+          <X className="size-5" aria-hidden="true" />
+        ) : (
+          <Menu className="size-5" aria-hidden="true" />
+        )}
+      </button>
+
+      {open ? (
+        <div
+          id="mobile-nav-panel"
+          ref={panelRef}
+          tabIndex={-1}
+          className="fixed inset-x-0 bottom-0 top-[4.25rem] z-40 overflow-y-auto border-t border-line bg-surface px-4 py-5 pb-[calc(4.5rem+env(safe-area-inset-bottom))]"
+        >
+          <nav aria-label="მთავარი ნავიგაცია">
+            <ul className="space-y-1">
+              {NAV_ITEMS.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="flex min-h-12 items-center rounded-md px-3 text-base text-ink hover:bg-elevated"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+              {isAnalyst ? (
+                <li>
+                  <Link
+                    href={profileHref ?? '/analyst'}
+                    className="flex min-h-12 items-center rounded-md px-3 text-base text-accent hover:bg-elevated"
+                  >
+                    პროფილი
+                  </Link>
+                </li>
+              ) : null}
+              {earnings !== null ? (
+                <li>
+                  <Link
+                    href="/analyst/earnings"
+                    className="flex min-h-12 items-center justify-between gap-3 rounded-md px-3 text-base text-ink hover:bg-elevated"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Wallet className="size-4 text-ink-faint" aria-hidden="true" />
+                      ანაზღაურება
+                    </span>
+                    <span className="tabular text-sm">{earnings}</span>
+                  </Link>
+                </li>
+              ) : null}
+              {isAuthenticated ? (
+                <>
+                  <li>
+                    <Link
+                      href="/account"
+                      className="flex min-h-12 items-center gap-2 rounded-md px-3 text-base text-ink hover:bg-elevated"
+                    >
+                      <User className="size-4 text-ink-faint" aria-hidden="true" />
+                      ანგარიში
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/feed"
+                      className="flex min-h-12 items-center gap-2 rounded-md px-3 text-base text-ink hover:bg-elevated"
+                    >
+                      <Rss className="size-4 text-ink-faint" aria-hidden="true" />
+                      ფიდი
+                    </Link>
+                  </li>
+                </>
+              ) : null}
+              {isAdmin ? (
+                <li>
+                  <Link
+                    href="/admin"
+                    className="flex min-h-12 items-center rounded-md px-3 text-base text-accent hover:bg-elevated"
+                  >
+                    ადმინი
+                  </Link>
+                </li>
+              ) : null}
+            </ul>
+          </nav>
+
+          <div className="mt-5 flex items-center justify-between gap-4 border-t border-line pt-5">
+            <span className="text-sm text-ink-muted">თემა</span>
+            <ThemeToggle />
+          </div>
+
+          <div className="mt-5 space-y-2 border-t border-line pt-5">
+            {isAuthenticated ? (
+              /* The way out. On a phone this is the only one: the avatar and
+                 the sheet that carried it are desktop-only. */
+              <form action={logoutAction}>
+                <button
+                  type="submit"
+                  className="flex min-h-12 w-full items-center gap-2 rounded-md px-3 text-base text-ink-muted hover:bg-elevated hover:text-loss"
+                >
+                  <LogOut className="size-4 shrink-0" aria-hidden="true" />
+                  გამოსვლა
+                </button>
+              </form>
+            ) : (
+              <AuthLinks />
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}

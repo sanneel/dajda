@@ -24,8 +24,7 @@ import { SignInMethods } from "./sign-in-methods";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { telegramBotConfigured } from "@/lib/auth/telegram";
 import { canChangeOwnName } from "@/lib/account/identity";
-import { Crown, LogOut, Receipt, Rss, Settings, Ticket } from "lucide-react";
-import { logoutAction } from "@/actions/auth";
+import { Crown, Receipt, Ticket } from "lucide-react";
 import { PaymentReturnBanner } from "@/components/payment-return";
 import { paymentReturnStatus } from "@/lib/payments/return-status";
 
@@ -610,52 +609,6 @@ export default async function DashboardPage({
             <CardHeader title="თემა" />
             <CardBody>
               <ThemeToggle />
-            </CardBody>
-          </Card>
-
-          {/*
-           * Phones only. There is no account sheet on a phone, so what it
-           * held that has no tab of its own lives here, above closing the
-           * account: the feed, admin, and the way out.
-           */}
-          <Card className="lg:hidden">
-            <CardBody>
-              <ul className="space-y-1">
-                <li>
-                  <Link
-                    href="/feed"
-                    className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-ink hover:bg-elevated"
-                  >
-                    <Rss className="size-4 text-ink-faint" aria-hidden="true" />
-                    ფიდი
-                  </Link>
-                </li>
-                {actor.role === "ADMIN" ? (
-                  <li>
-                    <Link
-                      href="/admin"
-                      className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-ink hover:bg-elevated"
-                    >
-                      <Settings
-                        className="size-4 text-ink-faint"
-                        aria-hidden="true"
-                      />
-                      ადმინი
-                    </Link>
-                  </li>
-                ) : null}
-                <li>
-                  <form action={logoutAction}>
-                    <button
-                      type="submit"
-                      className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-sm text-ink-muted hover:bg-elevated hover:text-loss"
-                    >
-                      <LogOut className="size-4 shrink-0" aria-hidden="true" />
-                      გამოსვლა
-                    </button>
-                  </form>
-                </li>
-              </ul>
             </CardBody>
           </Card>
 

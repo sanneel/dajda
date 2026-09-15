@@ -10,6 +10,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { AuthButtons } from '@/components/auth/auth-buttons';
 import { SocialSignIn } from '@/components/auth/social-signin';
 import { BottomNav } from './bottom-nav';
+import { MobileNav } from './mobile-nav';
 import { NavLinks } from './nav-links';
 import { NotificationBell } from './notification-bell';
 
@@ -131,14 +132,23 @@ export async function SiteHeader() {
         </div>
 
         {/*
-         * No drawer at all below lg, not even the account sheet: the bottom
-         * tab bar is the navigation on a phone, and its profile tab opens a
-         * page. What the sheet held (feed, admin, sign out) sits at the foot
-         * of /account on this breakpoint instead.
+         * One drawer below lg, and it is the menu - not the avatar, which on
+         * a phone reads as a link to a profile and opened a second drawer
+         * beside this one. The account entries moved into the menu with it.
+         *
+         * The theme control does not repeat out here: three segments plus the
+         * bell and the menu button crowd the bar off the right edge of a small
+         * phone, so it lives inside the drawer on this breakpoint.
          */}
         <div className="ml-auto flex items-center gap-1 lg:hidden">
-          <ThemeToggle />
           {actor ? <NotificationBell userId={actor.userId} /> : null}
+          <MobileNav
+            isAuthenticated={Boolean(actor)}
+            isAdmin={isAdmin}
+            isAnalyst={isAnalyst}
+            profileHref={workspaceHref}
+            earnings={earningsMinor === null ? null : formatMoney(earningsMinor)}
+          />
         </div>
       </div>
     </header>
