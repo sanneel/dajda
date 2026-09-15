@@ -10,7 +10,6 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { AuthButtons } from '@/components/auth/auth-buttons';
 import { SocialSignIn } from '@/components/auth/social-signin';
 import { BottomNav } from './bottom-nav';
-import { MobileNav } from './mobile-nav';
 import { NavLinks } from './nav-links';
 import { NotificationBell } from './notification-bell';
 
@@ -72,7 +71,7 @@ export async function SiteHeader() {
 
         {/*
          * Desktop nav switches in at lg, not md: the Georgian labels plus both
-         * auth buttons overflow a 768px viewport, so tablets keep the drawer.
+         * auth buttons overflow a 768px viewport, so tablets keep the tab bar.
          */}
         <nav aria-label="მთავარი ნავიგაცია" className="hidden lg:block">
           <NavLinks />
@@ -132,35 +131,14 @@ export async function SiteHeader() {
         </div>
 
         {/*
-         * The theme control does NOT repeat here: three 32px segments plus the
-         * menu button crowd the bar off the right edge on a small phone. It
-         * lives inside the drawer on this breakpoint instead.
+         * No drawer at all below lg, not even the account sheet: the bottom
+         * tab bar is the navigation on a phone, and its profile tab opens a
+         * page. What the sheet held (feed, admin, sign out) sits at the foot
+         * of /account on this breakpoint instead.
          */}
         <div className="ml-auto flex items-center gap-1 lg:hidden">
+          <ThemeToggle />
           {actor ? <NotificationBell userId={actor.userId} /> : null}
-          {/*
-           * The account sheet is on EVERY width, not only desktop. While it
-           * was inside the lg-only cluster above, a signed-in phone had no
-           * route to პარამეტრები and no way to sign out at all: the drawer
-           * was invisible, the menu beside it carried neither, and the two
-           * account pages carry no navigation of their own.
-           */}
-          {actor ? (
-            <AccountMenu
-              name={actor.name}
-              photoPath={photoPath}
-              analystStatus={actor.analystStatus}
-              isAdmin={isAdmin}
-              profileHref={publicProfileHref}
-            />
-          ) : null}
-          <MobileNav
-            isAuthenticated={Boolean(actor)}
-            isAdmin={isAdmin}
-            isAnalyst={isAnalyst}
-            profileHref={workspaceHref}
-            earnings={earningsMinor === null ? null : formatMoney(earningsMinor)}
-          />
         </div>
       </div>
     </header>

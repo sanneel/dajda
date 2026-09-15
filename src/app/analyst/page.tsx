@@ -185,6 +185,14 @@ export default async function AnalystPage() {
                     საჯარო გვერდი
                     <ExternalLink className="size-3.5" aria-hidden="true" />
                   </Link>
+                  {/* A phone has no account sheet, and an author's profile
+                      tab lands here, so this is their way to the account. */}
+                  <Link
+                    href="/account"
+                    className="inline-flex min-h-9 items-center text-sm font-medium text-accent hover:underline lg:hidden"
+                  >
+                    ანგარიში
+                  </Link>
                 </div>
               </div>
             </div>

@@ -8,14 +8,13 @@ import { Crown, Home, LogIn, Ticket, User } from 'lucide-react';
  * App-style tab bar, phones and tablets only.
  *
  * The primary way around the product on a small screen: the places a person
- * switches between many times a session, one tap away at the thumb. The
- * drawer behind the header button stays for everything visited once - theme,
- * admin, how-it-works, legal - so the bar never needs more than five tabs.
+ * switches between many times a session, one tap away at the thumb. Account
+ * pages and admin live in the account sheet behind the avatar, so the bar
+ * never needs more than five tabs.
  *
  * The tab set depends on who is looking. A visitor gets an entry point to
  * sign in; a member gets their profile; an analyst also gets their own bets,
- * because for them that is the most-visited screen of all. Admin is not a
- * tab: phone-sized moderation is rare enough to live in the drawer.
+ * because for them that is the most-visited screen of all.
  */
 
 type Tab = {

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import Link from 'next/link';
 import { Modal } from '@/components/ui/modal';
 import { buttonClass } from '@/components/ui/button';
 import { LoginForm } from './login-form';
@@ -90,29 +89,6 @@ export function AuthButtons({
           </button>
         </p>
       </Modal>
-    </>
-  );
-}
-
-/**
- * The same pair for the mobile drawer, where a dialog on top of a drawer is
- * one layer too many. These are plain links to the real routes.
- */
-export function AuthLinks() {
-  return (
-    <>
-      <Link
-        href="/login"
-        className="flex min-h-12 items-center justify-center rounded-md border border-line text-base text-ink"
-      >
-        შესვლა
-      </Link>
-      <Link
-        href="/register"
-        className="flex min-h-12 items-center justify-center rounded-md bg-ink text-base font-semibold text-on-ink"
-      >
-        რეგისტრაცია
-      </Link>
     </>
   );
 }
