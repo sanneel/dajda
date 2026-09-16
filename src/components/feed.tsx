@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { FeedEntry } from '@/lib/queries/feed';
 import { formatDateTimeKa, formatOdds, formatUnitsSigned } from '@/lib/format';
+import { PREDICTION_VISIBILITY_KA } from '@/lib/labels';
 import { Avatar } from './ui/avatar';
 import { StatusBadge } from './ui/badge';
 import { ShowMoreList } from './ui/show-more';
@@ -153,6 +154,12 @@ function BetEntry({
 
           <p className="mt-1 text-xs text-ink-muted">
             {bet.sport.nameKa}
+            {/* Which of the three a row is. A reader scrolling their feed
+                sees free bets, subscription bets and singly sold ones in one
+                column, and only the lock told them apart - and only after
+                the ticket was already closed to them. */}
+            {' · '}
+            {PREDICTION_VISIBILITY_KA[bet.visibility]}
             {' · კოეფ. '}
             <span className="tabular">{formatOdds(bet.oddsMilli)}</span>
             {bet.result ? (
@@ -168,6 +175,15 @@ function BetEntry({
               </>
             ) : null}
           </p>
+
+          {/* While the result is still open, when it starts is the fact the
+              row is being checked for. Settled, it is history the record
+              already carries. */}
+          {bet.status === 'PENDING' && bet.eventAt ? (
+            <p className="tabular mt-1 text-xs text-ink-faint">
+              იწყება: {formatDateTimeKa(bet.eventAt)}
+            </p>
+          ) : null}
         </div>
       </div>
     </li>

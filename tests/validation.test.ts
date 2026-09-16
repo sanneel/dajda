@@ -320,19 +320,48 @@ describe('marking a bet finished', () => {
   const predictionId = '00000000-0000-4000-8000-000000000001';
 
   it('accepts no result screenshot, so a bet can always be closed', () => {
-    expect(markFinishedSchema.safeParse({ predictionId }).success).toBe(true);
+    expect(
+      markFinishedSchema.safeParse({ predictionId, claimedOutcome: 'WON' })
+        .success,
+    ).toBe(true);
+  });
+
+  /*
+   * The author knows how it went and the settling admin does not, so the
+   * handover carries their answer. Without it a bet arrives in the queue
+   * saying only that it is over, which is where this started.
+   */
+  it('demands the author say which way it went', () => {
+    expect(markFinishedSchema.safeParse({ predictionId }).success).toBe(false);
+  });
+
+  it('takes only the two outcomes the author can know', () => {
+    for (const claimedOutcome of ['WON', 'LOST']) {
+      expect(
+        markFinishedSchema.safeParse({ predictionId, claimedOutcome }).success,
+      ).toBe(true);
+    }
+    // A returned stake is the admin's reading of the bookmaker, not a claim
+    // the form offers; PENDING would be a handover that says nothing.
+    for (const claimedOutcome of ['PUSH', 'VOID', 'PENDING', 'won', '']) {
+      expect(
+        markFinishedSchema.safeParse({ predictionId, claimedOutcome }).success,
+      ).toBe(false);
+    }
   });
 
   it('validates the result screenshot path when one is given', () => {
     expect(
       markFinishedSchema.safeParse({
         predictionId,
+        claimedOutcome: 'LOST',
         resultScreenshotPath: '/uploads/0123456789abcdef0123456789abcdef.webp',
       }).success,
     ).toBe(true);
     expect(
       markFinishedSchema.safeParse({
         predictionId,
+        claimedOutcome: 'LOST',
         resultScreenshotPath: '/uploads/../secret.webp',
       }).success,
     ).toBe(false);

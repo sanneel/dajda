@@ -5,8 +5,24 @@ import { markBetFinishedAction } from '@/actions/analyst';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/feedback';
 
+/*
+ * Two outcomes, worded as the settlement form words them, because the admin
+ * is checking the author's answer against the slip and the two should read
+ * the same. A returned stake is not offered: that is a judgement about the
+ * bookmaker's own settlement, and it stays the administrator's.
+ */
+const CLAIMS = [
+  { value: 'WON', label: 'დაჯდა' },
+  { value: 'LOST', label: 'არ დაჯდა' },
+];
+
 /**
  * Hand a finished bet to an admin.
+ *
+ * The author says which way it went. They know and the administrator does
+ * not, so a handover that carried only "it is over" sent somebody to read a
+ * slip cold. It stays a claim: the verdict, the record and the units are all
+ * written by the admin afterwards, against this and the screenshot.
  *
  * The result screenshot is optional and the copy says so, because an author
  * who cannot find their slip should still be able to close the bet rather than
@@ -43,6 +59,32 @@ export function FinishBetForm({ predictionId }: { predictionId: string }) {
       {state && !state.ok ? (
         <Alert tone="error">{state.error.message}</Alert>
       ) : null}
+
+      <fieldset>
+        <legend className="mb-1.5 block text-sm font-medium text-ink">
+          როგორ დამთავრდა?
+        </legend>
+        <div className="flex flex-wrap gap-2">
+          {CLAIMS.map((claim) => (
+            <label
+              key={claim.value}
+              className="relative inline-flex min-h-11 cursor-pointer items-center rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-ink-faint has-[:checked]:border-accent has-[:checked]:bg-accent/10 has-[:checked]:text-accent"
+            >
+              <input
+                type="radio"
+                name="claimedOutcome"
+                value={claim.value}
+                required
+                className="sr-only"
+              />
+              {claim.label}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-ink-faint">
+          საბოლოო შედეგს ადმინი ადასტურებს სკრინშოტის მიხედვით.
+        </p>
+      </fieldset>
 
       <div>
         <label

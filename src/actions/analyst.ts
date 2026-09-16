@@ -293,6 +293,7 @@ export async function markBetFinishedAction(
     const parsed = markFinishedSchema.safeParse({
       predictionId: formData.get('predictionId'),
       resultScreenshotPath,
+      claimedOutcome: formData.get('claimedOutcome'),
     });
 
     if (!parsed.success) {

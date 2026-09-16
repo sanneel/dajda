@@ -328,6 +328,13 @@ export const markFinishedSchema = z.object({
   predictionId: z.uuid(),
   /** Optional: an admin can verify without it, just more slowly. */
   resultScreenshotPath: uploadPathSchema.optional(),
+  /*
+   * What the author says happened. Required, because they know and the admin
+   * does not: a handover that said only "it is over" made the administrator
+   * read the slip cold. Two outcomes only - a returned stake is a judgement
+   * about the bookmaker's own settlement, which is the admin's to make.
+   */
+  claimedOutcome: z.enum(['WON', 'LOST'], 'აირჩიეთ: დაჯდა თუ არ დაჯდა.'),
 });
 
 export const settlePredictionSchema = z.object({

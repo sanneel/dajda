@@ -222,6 +222,7 @@ export async function markPredictionFinished(
       where: { id: prediction.id },
       data: {
         finishedAt: prediction.finishedAt ?? new Date(),
+        claimedOutcome: input.claimedOutcome,
         ...(input.resultScreenshotPath
           ? { resultScreenshotPath: input.resultScreenshotPath }
           : {}),
@@ -233,10 +234,15 @@ export async function markPredictionFinished(
         action: AUDIT_ACTIONS.PREDICTION_FINISHED,
         entityType: 'Prediction',
         entityId: prediction.id,
-        summary: `ავტორმა დაასრულა: ${prediction.titleKa}`,
+        summary: `ავტორმა დაასრულა: ${prediction.titleKa} (${
+          input.claimedOutcome === 'WON' ? 'დაჯდა' : 'არ დაჯდა'
+        })`,
         actorId: actor.userId,
         actorRole: actor.role,
-        metadata: { hasResultScreenshot: Boolean(input.resultScreenshotPath) },
+        metadata: {
+          hasResultScreenshot: Boolean(input.resultScreenshotPath),
+          claimedOutcome: input.claimedOutcome,
+        },
       },
       tx,
     );

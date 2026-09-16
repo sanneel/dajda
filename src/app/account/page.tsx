@@ -21,7 +21,6 @@ import { NotificationForm } from "./notification-form";
 import { TelegramConnect } from "./telegram-connect";
 import { CloseAccountForm } from "./close-account-form";
 import { SignInMethods } from "./sign-in-methods";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { telegramBotConfigured } from "@/lib/auth/telegram";
 import { canChangeOwnName } from "@/lib/account/identity";
 import { Crown, Receipt, Ticket } from "lucide-react";
@@ -379,58 +378,6 @@ export default async function DashboardPage({
       </details>
 
       {/* ---------------------------------------------------------------- */}
-      {/* First steps: only while there is nothing else to show             */}
-      {/* ---------------------------------------------------------------- */}
-      {subscriptions.length === 0 && purchases.length === 0 ? (
-        <Card as="section">
-          <CardBody>
-            <h2 className="font-display text-base text-ink">საიდან დავიწყო?</h2>
-            <ul className="mt-3 divide-y divide-line text-sm">
-              <li>
-                <Link
-                  href="/#rating"
-                  className="flex min-h-11 items-center justify-between gap-3 py-2 text-ink-muted transition-colors hover:text-ink"
-                >
-                  <span>
-                    <span className="font-medium text-ink">
-                      ანალიტიკოსების რეიტინგი
-                    </span>
-                  </span>
-                  <span aria-hidden="true" className="text-accent">→</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/free"
-                  className="flex min-h-11 items-center justify-between gap-3 py-2 text-ink-muted transition-colors hover:text-ink"
-                >
-                  <span>
-                    <span className="font-medium text-ink">
-                      უფასო პროგნოზები
-                    </span>
-                  </span>
-                  <span aria-hidden="true" className="text-accent">→</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/paid"
-                  className="flex min-h-11 items-center justify-between gap-3 py-2 text-ink-muted transition-colors hover:text-ink"
-                >
-                  <span>
-                    <span className="font-medium text-ink">
-                      ფასიანი პროგნოზები
-                    </span>
-                  </span>
-                  <span aria-hidden="true" className="text-accent">→</span>
-                </Link>
-              </li>
-            </ul>
-          </CardBody>
-        </Card>
-      ) : null}
-
-      {/* ---------------------------------------------------------------- */}
       {/* Purchased tickets                                                 */}
       {/* ---------------------------------------------------------------- */}
       {purchases.length > 0 ? (
@@ -602,13 +549,6 @@ export default async function DashboardPage({
                   telegramConnected: account.telegramChatId !== null,
                 }}
               />
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="თემა" />
-            <CardBody>
-              <ThemeToggle />
             </CardBody>
           </Card>
 

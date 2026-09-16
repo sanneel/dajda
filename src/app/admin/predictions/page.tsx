@@ -123,6 +123,7 @@ export default async function AdminPredictionsPage({
           eventAt: true,
           eventEndAt: true,
           finishedAt: true,
+          claimedOutcome: true,
           supersededAt: true,
           sport: { select: { nameKa: true } },
           author: { select: { displayName: true, slug: true } },
@@ -436,6 +437,26 @@ export default async function AdminPredictionsPage({
                     prediction.status === 'PENDING' &&
                     prediction.supersededAt === null ? (
                       <div className="mt-3">
+                        {/* What the author said when they handed it over. It
+                            is a claim, and the point of printing it here is
+                            that the screenshot either agrees with it or does
+                            not. Absent on rows finished before we asked. */}
+                        {prediction.claimedOutcome ? (
+                          <p className="mb-2 text-xs text-ink-muted">
+                            ავტორის თქმით:{' '}
+                            <span
+                              className={
+                                prediction.claimedOutcome === 'WON'
+                                  ? 'font-medium text-win'
+                                  : 'font-medium text-loss'
+                              }
+                            >
+                              {prediction.claimedOutcome === 'WON'
+                                ? 'დაჯდა'
+                                : 'არ დაჯდა'}
+                            </span>
+                          </p>
+                        ) : null}
                         <SettleForm predictionId={prediction.id} />
                       </div>
                     ) : null}

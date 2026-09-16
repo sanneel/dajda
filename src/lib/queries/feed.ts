@@ -37,6 +37,9 @@ const betSelect = {
   status: true,
   visibility: true,
   publishedAt: true,
+  // When the first match starts. A bet waiting for its result is read for
+  // this above everything else, and the feed had it nowhere.
+  eventAt: true,
   // `code` drives the sport glyph a withheld bet shows instead of its slip.
   sport: { select: { code: true, nameKa: true } },
   result: { select: { profitUnitsCenti: true } },

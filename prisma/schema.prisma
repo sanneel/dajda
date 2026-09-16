@@ -581,6 +581,12 @@ model Prediction {
   /// Set by the AUTHOR to hand the bet to an admin for settlement. Never set
   /// by the admin, so "who said it was over" stays answerable.
   finishedAt  DateTime?
+  /// What the AUTHOR said happened when they handed it over: WON or LOST.
+  /// It is a claim, never the verdict - `status` and PredictionResult are
+  /// still written by the settling admin - but it is what the screenshot is
+  /// read against, and it is answerable afterwards if the two disagree.
+  /// Null on rows finished before the author was asked.
+  claimedOutcome PredictionStatus?
   status      PredictionStatus @default(PENDING)
 
   version        Int         @default(1)
