@@ -6,6 +6,10 @@ import { Check } from 'lucide-react';
 import type { PlanTier, BillingPeriod } from '@/generated/prisma/enums';
 import { BILLING_PERIOD_KA } from '@/lib/labels';
 import { formatMoney } from '@/lib/format';
+import {
+  chargeScheduleKa,
+  nextChargeDate,
+} from '@/lib/subscriptions/charge-schedule';
 import { startCheckoutAction } from '@/actions/subscriptions';
 import { Alert } from './ui/feedback';
 import { PaymentMarks } from './payment-marks';
@@ -181,11 +185,25 @@ export function PlanCard({
           <p className="mt-3 text-xs leading-relaxed text-ink-faint">
             {recurring ? (
               <>
+                დღეს:{' '}
                 <span className="tabular text-ink-muted">
                   {formatMoney(plan.priceMinor, plan.currency)}
-                </span>{' '}
-                თვეში. გამოწერა ავტომატურად განახლდება და ბარათიდან იმავე თანხა
-                ჩამოიჭრება ყოველი პერიოდის ბოლოს, სანამ არ გააუქმებთ. გაუქმება
+                </span>
+                . გამოწერა ავტომატურად განახლდება:{' '}
+                {/* Computed from today, like the checkout's calendar. The
+                    server and the browser can straddle midnight UTC, and
+                    then the date differs by a day; the browser's is the
+                    one the buyer is about to act on. */}
+                <span className="text-ink-muted" suppressHydrationWarning>
+                  {chargeScheduleKa({
+                    amountMinor: plan.priceMinor,
+                    currency: plan.currency,
+                    period: plan.billingPeriod,
+                    nextCharge: nextChargeDate(new Date(), plan.billingPeriod),
+                  })}
+                </span>
+                , სანამ არ გააუქმებთ. ყოველ ჩამოჭრის შემდეგ ელფოსტაზე
+                მიიღებთ შემდეგი ჩამოჭრის თარიღსა და თანხას. გაუქმება
                 ნებისმიერ დროს შეგიძლიათ პროფილის გვერდიდან; წვდომა გადახდილი
                 პერიოდის ბოლომდე რჩება.
               </>

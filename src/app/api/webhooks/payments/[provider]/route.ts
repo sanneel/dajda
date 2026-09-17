@@ -2,6 +2,7 @@ import { getPaymentProvider } from '@/lib/payments';
 import { prismaWebhookPort } from '@/lib/payments/prisma-port';
 import { processPaymentWebhook } from '@/lib/payments/webhook';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
+import { sendChargeNotice } from '@/lib/subscriptions/charge-notice';
 
 /**
  * Payment webhook - the single source of truth for activating a subscription.
@@ -71,6 +72,15 @@ export async function POST(
           subscriptionActivated: outcome.subscriptionActivated,
         },
       });
+    }
+
+    // A charge on a renewing subscription announces the next one (MIT annex:
+    // at least four weeks ahead). Only on the delivery that applied it, so a
+    // redelivery sends nothing twice. A renewal resolves through its parent.
+    if (outcome.action === 'APPLIED' && outcome.subscriptionActivated && result.orderId) {
+      await sendChargeNotice(result.orderId);
+    } else if (outcome.action === 'RENEWAL_APPLIED' && result.parentOrderId) {
+      await sendChargeNotice(result.parentOrderId);
     }
 
     // The body is diagnostic only; gateways key off the status code.

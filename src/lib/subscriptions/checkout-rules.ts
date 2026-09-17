@@ -1,6 +1,6 @@
 import type { BillingPeriod } from '@/generated/prisma/enums';
 import type { SubscriptionSchedule } from '@/lib/payments/types';
-import { addBillingPeriod } from '@/lib/payments/webhook';
+import { chargeDateIso, nextChargeDate } from './charge-schedule';
 
 /**
  * The renewal half of a subscription checkout, as a pure rule.
@@ -32,22 +32,6 @@ export type RenewalRequest = {
  */
 export const DAILY_TEST_MAX_RENEWALS = 7;
 
-/**
- * The first charge's date, in UTC, because that is the date the gateway counts
- * from.
- *
- * Flitt's hosted page takes the payment's UTC date as the calendar's start and
- * computes the end date from it and `quantity`. The schedule only agrees with
- * itself when our first charge is exactly one period after that date. It was
- * once read in Tbilisi time instead: a daily plan paid at 00:30 on the 16th
- * (still the 15th in UTC) asked for a first charge on the 17th while the page
- * ended the calendar on the 22nd, and the card was declined with 2008 "Order
- * parameters are incorrect".
- */
-function utcDate(at: Date): string {
-  return at.toISOString().slice(0, 10);
-}
-
 export function renewalRequest(
   recurring: boolean,
   billingPeriod: BillingPeriod,
@@ -68,7 +52,11 @@ export function renewalRequest(
        * checkout has already taken today's payment, so a calendar starting
        * any earlier would charge the same period twice.
        */
-      startDate: utcDate(addBillingPeriod(periodStart, billingPeriod)),
+      // In UTC: Flitt's hosted page takes the payment's UTC date as the
+      // calendar's start and computes the end from it and `quantity`, so the
+      // first charge must be exactly one period after that date. Read in
+      // Tbilisi time, a daily plan paid at 00:30 was declined with 2008.
+      startDate: chargeDateIso(nextChargeDate(periodStart, billingPeriod)),
       ...(daily ? { maxRenewals: DAILY_TEST_MAX_RENEWALS } : {}),
     },
     requestCardToken: true,
