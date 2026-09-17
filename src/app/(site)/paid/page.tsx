@@ -82,8 +82,7 @@ export default async function PaidTicketsPage({
           ფასიანი პროგნოზები
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-muted">
-          აქ განთავსებული ბილეთები არ შედის გამოწერაში: თითოეული მათგანი
-          ცალკე, ერთეული ბილეთის სახით იყიდება.
+          გამოწერაში არ შედის: თითოეული ბილეთი ცალკე იყიდება.
         </p>
       </header>
 

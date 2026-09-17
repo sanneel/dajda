@@ -408,9 +408,7 @@ export default async function TicketPage({
             <Avatar name={author.displayName} src={author.photoPath} size="md" />
             <div>
               <p className="font-medium text-ink">{author.displayName}</p>
-              <p className="text-sm text-ink-muted">
-                ანალიტიკოსი · პროფილისა და ისტორიის ნახვა
-              </p>
+              <p className="text-sm text-ink-muted">ანალიტიკოსი</p>
             </div>
           </Link>
         ) : (

@@ -7,7 +7,11 @@ import { AUDIT_ACTIONS, writeAuditLog } from "@/lib/audit";
 import { getPaymentProvider } from "@/lib/payments";
 import { abandonRefusedCheckout } from "@/lib/payments/abandon";
 import { addBillingPeriod } from "@/lib/payments/webhook";
-import { renewalRequest } from "./checkout-rules";
+import {
+  cancellationFields,
+  cardConsentRequired,
+  renewalRequest,
+} from "./checkout-rules";
 import { recurringBillingEnabled } from "./recurring";
 import { expireLapsedSubscriptions } from "./expiry";
 
@@ -26,6 +30,13 @@ export type CheckoutResult =
 export async function startSubscriptionCheckout(
   planId: string,
   actor: { userId: string; email: string; role: "USER" | "ANALYST" | "ADMIN" },
+  /**
+   * The buyer ticked the box agreeing to have the card saved and charged on
+   * the renewal calendar. Required whenever the checkout opens one: the MIT
+   * annex asks for an explicit, one-time confirmation, and a checkbox the
+   * browser enforces is not one the server can rely on.
+   */
+  options: { cardConsent: boolean } = { cardConsent: false },
 ): Promise<CheckoutResult> {
   const plan = await prisma.subscriptionPlan.findUnique({
     where: { id: planId },
@@ -90,6 +101,14 @@ export async function startSubscriptionCheckout(
     return { kind: "ACTIVATED", subscriptionId: subscription.id };
   }
 
+  const recurring = recurringBillingEnabled();
+  if (cardConsentRequired(recurring, plan.priceMinor) && !options.cardConsent) {
+    throw new AppError(
+      ERROR_CODES.VALIDATION_ERROR,
+      "გამოსაწერად მონიშნეთ თანხმობა ბარათის შენახვაზე და ავტომატურ ჩამოჭრაზე.",
+    );
+  }
+
   const env = getEnv();
   const provider = getPaymentProvider();
   const orderId = `dajda-${randomUUID()}`;
@@ -120,7 +139,13 @@ export async function startSubscriptionCheckout(
         summary: `გადახდა ინიცირებულია: ${plan.nameKa}`,
         actorId: actor.userId,
         actorRole: actor.role,
-        metadata: { planId: plan.id, amountMinor: plan.priceMinor },
+        metadata: {
+          planId: plan.id,
+          amountMinor: plan.priceMinor,
+          // The evidence of consent to saving the card, kept with the order
+          // it was given for.
+          ...(recurring ? { cardConsentAt: new Date().toISOString() } : {}),
+        },
       },
       tx,
     );
@@ -156,7 +181,7 @@ export async function startSubscriptionCheckout(
       callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
       customerEmail: actor.email,
       ...(renewalRequest(
-        recurringBillingEnabled(),
+        recurring,
         plan.billingPeriod,
         new Date(),
       ) ?? {}),
@@ -252,7 +277,7 @@ export async function cancelSubscription(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.userSubscription.update({
       where: { id: subscription.id },
-      data: { cancelAtPeriodEnd: true, canceledAt: new Date(), canceledBy: 'USER' },
+      data: cancellationFields(new Date()),
     });
 
     await writeAuditLog(

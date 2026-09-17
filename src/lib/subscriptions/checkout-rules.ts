@@ -32,6 +32,41 @@ export type RenewalRequest = {
  */
 export const DAILY_TEST_MAX_RENEWALS = 7;
 
+/**
+ * Whether this checkout may not proceed without the buyer's explicit consent
+ * to storing the card.
+ *
+ * True exactly when the checkout would open a renewal calendar: the MIT annex
+ * requires a one-time confirmation before a card is kept and charged again,
+ * and a free plan reaches no card at all. Kept beside the calendar rule
+ * because they are the same condition, and a consent asked for a checkout
+ * that saves nothing trains people to tick boxes.
+ */
+export function cardConsentRequired(
+  recurring: boolean,
+  priceMinor: number,
+): boolean {
+  return recurring && priceMinor > 0;
+}
+
+/**
+ * What canceling writes on the subscription.
+ *
+ * The saved card goes with the calendar it was kept for: canceling is also
+ * how the customer deletes their card, which is what the dashboard promises
+ * and what the terms (11.1) now say. Pure, so the deletion is pinned by a
+ * test rather than by reading the update.
+ */
+export function cancellationFields(now: Date) {
+  return {
+    cancelAtPeriodEnd: true,
+    canceledAt: now,
+    canceledBy: 'USER',
+    cardToken: null,
+    cardTokenLifetime: null,
+  } as const;
+}
+
 export function renewalRequest(
   recurring: boolean,
   billingPeriod: BillingPeriod,

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DAILY_TEST_MAX_RENEWALS,
+  cancellationFields,
+  cardConsentRequired,
   renewalRequest,
 } from '@/lib/subscriptions/checkout-rules';
 
@@ -93,5 +95,27 @@ describe('renewal request', () => {
     expect(renewalRequest(true, 'QUARTERLY', JANUARY)?.requestCardToken).toBe(
       true,
     );
+  });
+});
+
+describe('consent to keeping the card', () => {
+  it('is required exactly when a calendar would be opened', () => {
+    expect(cardConsentRequired(true, 3000)).toBe(true);
+    // A free plan reaches no card, and a one-off sale keeps none.
+    expect(cardConsentRequired(true, 0)).toBe(false);
+    expect(cardConsentRequired(false, 3000)).toBe(false);
+  });
+});
+
+describe('canceling', () => {
+  it('deletes the saved card along with the calendar', () => {
+    const now = new Date('2026-09-18T09:00:00Z');
+    expect(cancellationFields(now)).toEqual({
+      cancelAtPeriodEnd: true,
+      canceledAt: now,
+      canceledBy: 'USER',
+      cardToken: null,
+      cardTokenLifetime: null,
+    });
   });
 });

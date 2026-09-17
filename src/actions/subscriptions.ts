@@ -48,11 +48,11 @@ export async function startCheckoutAction(
       );
     }
 
-    const result = await startSubscriptionCheckout(parsed.data.planId, {
-      userId: actor.userId,
-      email: actor.email,
-      role: actor.role,
-    });
+    const result = await startSubscriptionCheckout(
+      parsed.data.planId,
+      { userId: actor.userId, email: actor.email, role: actor.role },
+      { cardConsent: formData.get('cardConsent') === 'yes' },
+    );
 
     if (result.kind === 'ACTIVATED') {
       revalidatePath('/account');

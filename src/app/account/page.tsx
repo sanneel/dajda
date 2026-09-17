@@ -83,6 +83,14 @@ export default async function DashboardPage({
         // bought with a gateway renewal calendar, and is the only kind that
         // still renews or can be canceled.
         cardToken: true,
+        // The card on file, as the gateway masked it, to show which card a
+        // cancellation deletes.
+        payments: {
+          where: { status: "SUCCEEDED", maskedCard: { not: null } },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { maskedCard: true },
+        },
         plan: {
           select: {
             nameKa: true,
@@ -356,6 +364,18 @@ export default async function DashboardPage({
                       />
                     ) : null}
                   </div>
+
+                  {subscription.status === "ACTIVE" &&
+                  subscription.cardToken !== null &&
+                  !subscription.cancelAtPeriodEnd ? (
+                    <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+                      შენახული ბარათი{" "}
+                      <span className="tabular text-ink-muted">
+                        {subscription.payments[0]?.maskedCard ?? "·"}
+                      </span>{" "}
+                      · წაშლა ღილაკით „გამოწერის გაუქმება და ბარათის წაშლა“.
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -370,7 +390,7 @@ export default async function DashboardPage({
                   subscription.cardToken !== null &&
                   !subscription.cancelAtPeriodEnd,
               )
-                ? "გაუქმების შემდეგ თანხა აღარ ჩამოიჭრება, წვდომა კი პერიოდის ბოლომდე რჩება."
+                ? "გაუქმების შემდეგ ბარათი წაიშლება, წვდომა კი პერიოდის ბოლომდე რჩება."
                 : "ავტომატურად არ განახლდება."}
             </p>
           ) : null}

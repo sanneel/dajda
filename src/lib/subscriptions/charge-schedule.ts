@@ -44,7 +44,7 @@ export function chargeCadenceKa(firstCharge: Date, period: BillingPeriod): strin
   const day = firstCharge.getUTCDate();
   const shortMonths =
     day > 28
-      ? ' (თვეებში, სადაც ეს რიცხვი არ არის, ჩამოჭრის დღე შეიძლება განსხვავდეს)'
+      ? ' (მოკლე თვეში, ბოლო დღეებში)'
       : '';
   return period === 'QUARTERLY'
     ? `ყოველ 3 თვეში, ${day} რიცხვში${shortMonths}`
@@ -52,8 +52,8 @@ export function chargeCadenceKa(firstCharge: Date, period: BillingPeriod): strin
 }
 
 /**
- * The full schedule sentence: amount, first date, cadence.
- * "30.00 ₾ ჩამოიჭრება 17 ოქტ 2026, შემდეგ ყოველი თვის 17 რიცხვში"
+ * The full schedule sentence: amount, cadence, first date.
+ * "30.00 ₾ ყოველი თვის 17 რიცხვში, პირველად 17 ოქტ 2026"
  */
 export function chargeScheduleKa(input: {
   amountMinor: number;
@@ -63,5 +63,5 @@ export function chargeScheduleKa(input: {
 }): string {
   const amount = formatMoney(input.amountMinor, input.currency);
   const cadence = chargeCadenceKa(input.nextCharge, input.period);
-  return `${amount} ჩამოიჭრება ${formatDateKa(input.nextCharge)}, შემდეგ ${cadence}`;
+  return `${amount} ${cadence}, პირველად ${formatDateKa(input.nextCharge)}`;
 }

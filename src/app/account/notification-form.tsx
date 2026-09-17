@@ -103,7 +103,7 @@ export function NotificationForm({
         />
         {!defaults.telegramConnected ? (
           <p className="text-xs text-ink-faint">
-            ჯერ დააკავშირეთ ბოტი ზემოთ, თორემ გასაგზავნი მისამართი არ არსებობს.
+            ჯერ დააკავშირეთ ბოტი.
           </p>
         ) : null}
         <input

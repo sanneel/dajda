@@ -18,7 +18,7 @@ export function CancelSubscriptionButton({
   if (state?.ok) {
     return (
       <Alert tone="success">
-        გამოწერა გაუქმდება მიმდინარე პერიოდის ბოლოს.
+        გამოწერა გაუქმდა, ბარათი წაიშალა. წვდომა პერიოდის ბოლომდე რჩება.
       </Alert>
     );
   }
@@ -34,7 +34,7 @@ export function CancelSubscriptionButton({
       ) : null}
 
       <Button type="submit" variant="danger" size="sm" disabled={pending}>
-        {pending ? 'მუშავდება…' : 'გამოწერის გაუქმება'}
+        {pending ? 'მუშავდება…' : 'გამოწერის გაუქმება და ბარათის წაშლა'}
       </Button>
     </form>
   );

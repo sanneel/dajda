@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check } from 'lucide-react';
 import type { PlanTier, BillingPeriod } from '@/generated/prisma/enums';
@@ -67,7 +67,12 @@ export function PlanCard({
     if (state?.ok) router.refresh();
   }, [state, router]);
 
+  const [cardConsent, setCardConsent] = useState(false);
+
   const isFree = plan.priceMinor === 0;
+  // Buying opens a renewal calendar on a saved card, which the MIT annex
+  // lets happen only on an explicit, one-time confirmation.
+  const needsCardConsent = recurring && !isFree;
   const owned = currentStatus === 'ACTIVE' || Boolean(state?.ok);
 
   return (
@@ -134,9 +139,29 @@ export function PlanCard({
         ) : isAuthenticated ? (
           <form action={action}>
             <input type="hidden" name="planId" value={plan.id} />
+            {needsCardConsent ? (
+              <label className="mb-3 flex cursor-pointer items-start gap-2.5 text-sm text-ink-muted">
+                <input
+                  type="checkbox"
+                  name="cardConsent"
+                  value="yes"
+                  required
+                  checked={cardConsent}
+                  onChange={(event) => setCardConsent(event.target.checked)}
+                  className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+                />
+                <span>
+                  ვეთანხმები ბარათის შენახვას და{' '}
+                  <span className="tabular text-ink">
+                    {formatMoney(plan.priceMinor, plan.currency)}
+                  </span>
+                  -ის ავტომატურ ჩამოჭრას.
+                </span>
+              </label>
+            ) : null}
             <button
               type="submit"
-              disabled={pending}
+              disabled={pending || (needsCardConsent && !cardConsent)}
               className={`min-h-11 w-full rounded-md px-4 text-sm font-semibold transition-colors disabled:opacity-45 ${
                 featured
                   ? 'bg-accent text-accent-ink hover:bg-accent-dim'
@@ -147,7 +172,9 @@ export function PlanCard({
                 ? 'მუშავდება…'
                 : isFree
                   ? 'გააქტიურება'
-                  : 'გამოწერა'}
+                  : needsCardConsent
+                    ? 'ბარათის შენახვა და გამოწერა'
+                    : 'გამოწერა'}
             </button>
           </form>
         ) : (
@@ -174,26 +201,20 @@ export function PlanCard({
 
         {!isFree ? (
           /*
-           * The terms sit on the button, not only in the terms document: what
-           * the payment buys, and what happens to the card afterwards. This is
-           * the last screen before a card is charged, so it is where a person
-           * decides, and a payment provider checks for exactly this disclosure
-           * here. When the charge repeats, the amount, how often, and how to
-           * stop it all have to be on this screen - saying it only in the
-           * terms is what makes a recurring charge a surprise.
+           * The last screen before a card is charged, so the amount, how
+           * often, and how to stop it are said here rather than only in the
+           * terms. A payment provider checks for exactly this.
            */
           <p className="mt-3 text-xs leading-relaxed text-ink-faint">
             {recurring ? (
               <>
-                დღეს:{' '}
+                დღეს{' '}
                 <span className="tabular text-ink-muted">
                   {formatMoney(plan.priceMinor, plan.currency)}
                 </span>
-                . გამოწერა ავტომატურად განახლდება:{' '}
-                {/* Computed from today, like the checkout's calendar. The
-                    server and the browser can straddle midnight UTC, and
-                    then the date differs by a day; the browser's is the
-                    one the buyer is about to act on. */}
+                , შემდეგ{' '}
+                {/* Computed from today, like the checkout's calendar: the
+                    server and the browser can straddle midnight UTC. */}
                 <span className="text-ink-muted" suppressHydrationWarning>
                   {chargeScheduleKa({
                     amountMinor: plan.priceMinor,
@@ -202,20 +223,16 @@ export function PlanCard({
                     nextCharge: nextChargeDate(new Date(), plan.billingPeriod),
                   })}
                 </span>
-                , სანამ არ გააუქმებთ. ყოველ ჩამოჭრის შემდეგ ელფოსტაზე
-                მიიღებთ შემდეგი ჩამოჭრის თარიღსა და თანხას. გაუქმება
-                ნებისმიერ დროს შეგიძლიათ პროფილის გვერდიდან; წვდომა გადახდილი
-                პერიოდის ბოლომდე რჩება.
+                . გაუქმება ნებისმიერ დროს, პროფილიდან: ბარათი წაიშლება,
+                წვდომა პერიოდის ბოლომდე რჩება.
               </>
             ) : (
               <>
-                ერთჯერადი გადახდა:{' '}
+                ერთჯერადი გადახდა{' '}
                 <span className="tabular text-ink-muted">
                   {formatMoney(plan.priceMinor, plan.currency)}
                 </span>{' '}
-                ერთი თვის წვდომისთვის. ავტომატურად არ განახლდება: ბარათიდან
-                თანხა ხელახლა არ ჩამოიჭრება, და გასაგრძელებლად ვადის ბოლოს
-                გადაიხდით ხელახლა.
+                ერთი თვის წვდომისთვის. ავტომატურად არ განახლდება.
               </>
             )}
           </p>

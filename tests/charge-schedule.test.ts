@@ -42,7 +42,7 @@ describe('charge schedule wording', () => {
 
   it('does not promise a day some months lack', () => {
     expect(chargeCadenceKa(new Date('2026-10-30T00:00:00Z'), 'MONTHLY')).toContain(
-      'შეიძლება განსხვავდეს',
+      'მოკლე თვეში',
     );
   });
 
@@ -54,7 +54,7 @@ describe('charge schedule wording', () => {
         period: 'MONTHLY',
         nextCharge: new Date('2026-10-10T00:00:00Z'),
       }),
-    ).toBe('15.00 ₾ ჩამოიჭრება 10 ოქტ 2026, შემდეგ ყოველი თვის 10 რიცხვში');
+    ).toBe('15.00 ₾ ყოველი თვის 10 რიცხვში, პირველად 10 ოქტ 2026');
   });
 });
 
@@ -73,7 +73,7 @@ describe('charge notice email', () => {
     expect(mail.subject).toBe('DAJDA: გამოწერა აქტიურია, შემდეგი ჩამოჭრა 17 ოქტ 2026');
     expect(mail.text).toContain('ჩამოიჭრა 30.00 ₾');
     expect(mail.text).toContain(
-      'შემდეგი ჩამოჭრა: 30.00 ₾ ჩამოიჭრება 17 ოქტ 2026, შემდეგ ყოველი თვის 17 რიცხვში',
+      'შემდეგი ჩამოჭრა: 30.00 ₾ ყოველი თვის 17 რიცხვში, პირველად 17 ოქტ 2026',
     );
     expect(mail.text).toContain('გაუქმება ნებისმიერ დროს');
     expect(mail.text).toContain('https://dajda.ge/account');
