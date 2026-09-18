@@ -37,11 +37,11 @@
     "@techstark/opencv-js": "^5.0.0-release.1",
     "dotenv": "^17.4.2",
     "lucide-react": "^1.31.0",
-    "next": "^16.3.0",
+    "next": "^16.3.5",
     "pg": "^8.23.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
