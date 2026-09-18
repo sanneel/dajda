@@ -13,6 +13,7 @@ import {
   AppError,
   ERROR_CODES,
   fail,
+  invalid,
   ok,
   toActionFailure,
   type ActionResult,
@@ -40,12 +41,6 @@ import {
  * regardless of what the client sent.
  */
 
-function fieldErrorsFrom(error: {
-  flatten: () => { fieldErrors: Record<string, string[] | undefined> };
-}) {
-  return error.flatten().fieldErrors as Record<string, string[]>;
-}
-
 // ---------------------------------------------------------------------------
 // Analyst moderation
 // ---------------------------------------------------------------------------
@@ -63,7 +58,7 @@ export async function decideAnalystAction(
       reason: formData.get('reason') || undefined,
     });
     if (!parsed.success) {
-      return fail(ERROR_CODES.VALIDATION_ERROR, undefined, fieldErrorsFrom(parsed.error));
+      return invalid(parsed.error);
     }
 
     const { analystProfileId, decision, reason } = parsed.data;
@@ -239,11 +234,7 @@ export async function setAnalystPlanPriceAction(
       reason: formData.get('reason'),
     });
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const {
@@ -335,11 +326,7 @@ export async function createPredictionAction(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        fieldErrorsFrom(parsed.error),
-      );
+      return invalid(parsed.error);
     }
 
     const prediction = await createPrediction(parsed.data, analystProfileId, {
@@ -370,11 +357,7 @@ export async function settlePredictionAction(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        fieldErrorsFrom(parsed.error),
-      );
+      return invalid(parsed.error);
     }
 
     const settled = await settlePrediction(parsed.data, {
@@ -436,11 +419,7 @@ export async function correctPredictionAction(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        fieldErrorsFrom(parsed.error),
-      );
+      return invalid(parsed.error);
     }
 
     const correction = await correctPrediction(parsed.data, {

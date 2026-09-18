@@ -28,7 +28,7 @@ import {
   toActionFailure,
   type ActionResult,
 } from '@/lib/errors';
-import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
+import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit-store';
 
 /**
  * Telegram sign-in.
@@ -69,9 +69,11 @@ export async function telegramAuthAction(
     };
 
     if (
-      !rateLimiter.check(
-        `login:ip:${context.ipAddress ?? 'unknown'}`,
-        RATE_LIMITS.login,
+      !(
+        await rateLimiter.check(
+          `login:ip:${context.ipAddress ?? 'unknown'}`,
+          RATE_LIMITS.login,
+        )
       ).allowed
     ) {
       return fail(ERROR_CODES.RATE_LIMITED);

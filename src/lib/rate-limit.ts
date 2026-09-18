@@ -1,10 +1,11 @@
 /**
- * Fixed-window rate limiting.
+ * Fixed-window rate limiting: the rules, the window arithmetic, and an
+ * in-process counter.
  *
- * SCOPE: this is an in-process counter. It protects a single server instance
- * and is intentionally simple - behind multiple instances the effective limit
- * multiplies by the instance count. The `RateLimiter` interface exists so a
- * Redis-backed implementation can be dropped in without touching call sites.
+ * The counter the app actually uses is the database one in
+ * ./rate-limit-store, because the app runs as many instances and an
+ * in-process counter is one counter per instance. The in-memory one stays as
+ * that store's fallback when the database cannot be reached, and for tests.
  */
 
 export type RateLimitResult = {
@@ -80,6 +81,12 @@ export const RATE_LIMITS = {
   login: { limit: 8, windowMs: 15 * 60 * 1000 },
   register: { limit: 5, windowMs: 60 * 60 * 1000 },
   passwordReset: { limit: 5, windowMs: 60 * 60 * 1000 },
+  /**
+   * Redeeming a reset or verification link. The tokens are 256 random bits,
+   * so this is not what makes them unguessable; it stops one address from
+   * hammering the lookup.
+   */
+  tokenRedeem: { limit: 20, windowMs: 15 * 60 * 1000 },
   /** Each resend is an outbound email on the platform's reputation. */
   resendVerification: { limit: 3, windowMs: 15 * 60 * 1000 },
   /**
@@ -101,4 +108,34 @@ export const RATE_LIMITS = {
   feedPost: { limit: 120, windowMs: 60 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
-export const rateLimiter: RateLimiter = new InMemoryRateLimiter();
+/**
+ * The window a moment falls in, for a fixed-window rule. Every instance
+ * computes the same start for the same moment, which is what lets them share
+ * one counter (see ./rate-limit-store).
+ */
+export function fixedWindow(
+  now: Date,
+  windowMs: number,
+): { startMs: number; expiresAtMs: number } {
+  const startMs = Math.floor(now.getTime() / windowMs) * windowMs;
+  return { startMs, expiresAtMs: startMs + windowMs };
+}
+
+/** What a counter reading means for the caller. */
+export function verdictFor(
+  count: number,
+  rule: RateLimitRule,
+  expiresAtMs: number,
+): RateLimitResult {
+  return {
+    allowed: count <= rule.limit,
+    remaining: Math.max(0, rule.limit - count),
+    resetAt: new Date(expiresAtMs),
+  };
+}
+
+/** A limiter whose counter lives somewhere other than this process. */
+export interface SharedRateLimiter {
+  check(key: string, rule: RateLimitRule, now?: Date): Promise<RateLimitResult>;
+  reset(key: string): Promise<void>;
+}

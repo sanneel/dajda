@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { getEnv } from '@/lib/env';
 import { sweepStaleCheckouts } from '@/lib/payments/sweep';
 import { expireLapsedSubscriptions } from '@/lib/subscriptions/expiry';
+import { sweepExpiredRateLimits } from '@/lib/rate-limit-store';
 
 /**
  * The stale checkout sweep: see lib/payments/sweep.ts.
@@ -49,9 +50,15 @@ async function handle(request: Request) {
   // subscription, and the expiry pass then sees the final state.
   const report = await sweepStaleCheckouts();
   const subscriptions = await expireLapsedSubscriptions();
+  // Closed rate limit windows; housekeeping, never worth failing the run.
+  const rateLimitRows = await sweepExpiredRateLimits().catch(() => 0);
   return Response.json({
     ok: true,
-    data: { ...report, expiredSubscriptions: subscriptions.expired },
+    data: {
+      ...report,
+      expiredSubscriptions: subscriptions.expired,
+      expiredRateLimitWindows: rateLimitRows,
+    },
   });
 }
 

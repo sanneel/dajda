@@ -27,6 +27,18 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  images: {
+    /*
+     * No image optimizer. Every image the site shows is already one we made:
+     * uploads are re-encoded to WebP at a capped size (lib/uploads.ts) and
+     * the rest are static. The optimizer added nothing but a second decoder
+     * in front of the public, which is where GHSA-2xp9-vwfh-vxw4 (remote
+     * code execution on an AVIF) lived. It also fetched /uploads without the
+     * viewer's cookie, so a slip gated per viewer could not pass through it.
+     */
+    unoptimized: true,
+  },
+
   experimental: {
     /*
      * Both upload surfaces - a bet slip and an analyst's identity document -

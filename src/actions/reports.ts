@@ -8,12 +8,12 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import {
   AppError,
   ERROR_CODES,
-  fail,
+  invalid,
   ok,
   toActionFailure,
   type ActionResult,
 } from '@/lib/errors';
-import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
+import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit-store';
 import { reportSchema } from '@/lib/validation/schemas';
 
 /**
@@ -30,7 +30,7 @@ export async function submitReport(
   try {
     const actor = await requireUser();
 
-    const limit = rateLimiter.check(
+    const limit = await rateLimiter.check(
       `report:${actor.userId}`,
       RATE_LIMITS.report,
     );
@@ -44,11 +44,7 @@ export async function submitReport(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const input = parsed.data;

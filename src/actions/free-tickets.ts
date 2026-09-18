@@ -7,11 +7,12 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import {
   ERROR_CODES,
   fail,
+  invalid,
   ok,
   toActionFailure,
   type ActionResult,
 } from '@/lib/errors';
-import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
+import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit-store';
 import { storeScreenshot } from '@/lib/uploads';
 import {
   brandingRefusalMessage,
@@ -40,7 +41,7 @@ export async function postFreeTicketAction(
   try {
     const actor = await requireApprovedAnalyst();
 
-    const limit = rateLimiter.check(
+    const limit = await rateLimiter.check(
       `free:${actor.userId}`,
       RATE_LIMITS.postBet,
     );
@@ -79,11 +80,7 @@ export async function postFreeTicketAction(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const sport = await prisma.sport.findUnique({

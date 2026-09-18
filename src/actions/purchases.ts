@@ -11,7 +11,7 @@ import {
   toActionFailure,
   type ActionResult,
 } from '@/lib/errors';
-import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
+import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit-store';
 import { startTicketPurchase } from '@/lib/tickets/purchase';
 
 /**
@@ -30,7 +30,7 @@ export async function purchaseTicketAction(
   try {
     const actor = await requireUser();
 
-    const limit = rateLimiter.check(
+    const limit = await rateLimiter.check(
       `checkout:${actor.userId}`,
       RATE_LIMITS.checkout,
     );

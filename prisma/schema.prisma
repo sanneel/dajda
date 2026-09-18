@@ -1344,3 +1344,24 @@ model Screenshot {
   @@index([createdAt])
 }
 
+
+// ---------------------------------------------------------------------------
+// Rate limiting
+// ---------------------------------------------------------------------------
+
+/// Fixed-window counters behind lib/rate-limit-store.ts. One row per key and
+/// window. Kept in the database because the app runs as many short-lived
+/// instances: a counter in process memory was one counter per instance, so a
+/// limit of eight login attempts was eight per instance, which is no limit.
+/// Times are epoch milliseconds so the window is the same number however the
+/// driver serialises dates. Rows past expiresAtMs are dead; the payments cron
+/// deletes them.
+model RateLimitBucket {
+  key           String
+  windowStartMs BigInt
+  count         Int    @default(0)
+  expiresAtMs   BigInt
+
+  @@id([key, windowStartMs])
+  @@index([expiresAtMs])
+}

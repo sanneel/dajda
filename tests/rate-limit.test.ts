@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
+import {
+  InMemoryRateLimiter,
+  RATE_LIMITS,
+  fixedWindow,
+  verdictFor,
+} from '@/lib/rate-limit';
 
 describe('rate limiting', () => {
   const rule = { limit: 3, windowMs: 60_000 };
@@ -70,5 +75,22 @@ describe('rate limiting', () => {
     expect(RATE_LIMITS.login.limit).toBeLessThanOrEqual(10);
     expect(RATE_LIMITS.login.windowMs).toBeGreaterThanOrEqual(60_000);
     expect(RATE_LIMITS.passwordReset.limit).toBeLessThanOrEqual(10);
+  });
+});
+
+describe('the shared fixed window', () => {
+  it('puts every instance in the same window for the same moment', () => {
+    const rule = RATE_LIMITS.login;
+    const a = fixedWindow(new Date('2026-09-18T10:01:00Z'), rule.windowMs);
+    const b = fixedWindow(new Date('2026-09-18T10:14:59Z'), rule.windowMs);
+    const c = fixedWindow(new Date('2026-09-18T10:15:00Z'), rule.windowMs);
+    expect(a).toEqual(b);
+    expect(c.startMs).toBe(a.expiresAtMs);
+  });
+
+  it('allows up to the limit and refuses past it', () => {
+    const rule = { limit: 3, windowMs: 60_000 };
+    expect(verdictFor(3, rule, 0)).toMatchObject({ allowed: true, remaining: 0 });
+    expect(verdictFor(4, rule, 0)).toMatchObject({ allowed: false, remaining: 0 });
   });
 });

@@ -32,11 +32,12 @@ import {
 import {
   ERROR_CODES,
   fail,
+  invalid,
   ok,
   toActionFailure,
   type ActionResult,
 } from '@/lib/errors';
-import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit';
+import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit-store';
 import {
   forgotPasswordSchema,
   loginSchema,
@@ -79,7 +80,7 @@ export async function registerAction(
   try {
     const context = await requestContext();
 
-    const limit = rateLimiter.check(
+    const limit = await rateLimiter.check(
       `register:${context.ipAddress ?? 'unknown'}`,
       RATE_LIMITS.register,
     );
@@ -94,11 +95,7 @@ export async function registerAction(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const input = parsed.data;
@@ -207,7 +204,7 @@ export async function resendVerificationAction(
       return fail(ERROR_CODES.CONFLICT, 'ელფოსტა უკვე დადასტურებულია.');
     }
 
-    const limit = rateLimiter.check(
+    const limit = await rateLimiter.check(
       `verify-resend:${actor.userId}`,
       RATE_LIMITS.resendVerification,
     );
@@ -300,7 +297,7 @@ export async function loginAction(
       `login:ip:${context.ipAddress ?? 'unknown'}`,
       `login:email:${input.email}`,
     ]) {
-      if (!rateLimiter.check(key, RATE_LIMITS.login).allowed) {
+      if (!(await rateLimiter.check(key, RATE_LIMITS.login)).allowed) {
         return fail(ERROR_CODES.RATE_LIMITED);
       }
     }
@@ -325,7 +322,7 @@ export async function loginAction(
       );
     }
 
-    rateLimiter.reset(`login:email:${input.email}`);
+    await rateLimiter.reset(`login:email:${input.email}`);
 
     const session = await createSession(user.id, context);
     await setSessionCookie(session.token, session.expiresAt);
@@ -380,7 +377,7 @@ export async function forgotPasswordAction(
   try {
     const context = await requestContext();
 
-    const limit = rateLimiter.check(
+    const limit = await rateLimiter.check(
       `reset:${context.ipAddress ?? 'unknown'}`,
       RATE_LIMITS.passwordReset,
     );
@@ -432,6 +429,13 @@ export async function verifyEmailAction(
   formData: FormData,
 ): Promise<ActionResult<{ verified: true }>> {
   try {
+    const context = await requestContext();
+    const limit = await rateLimiter.check(
+      `token:ip:${context.ipAddress ?? 'unknown'}`,
+      RATE_LIMITS.tokenRedeem,
+    );
+    if (!limit.allowed) return fail(ERROR_CODES.RATE_LIMITED);
+
     const token = String(formData.get('token') ?? '');
     if (token.length < 10) {
       return fail(ERROR_CODES.VALIDATION_ERROR, 'ბმული არასწორია.');
@@ -502,7 +506,7 @@ export async function verifyEmailCodeAction(
       return fail(ERROR_CODES.VALIDATION_ERROR, 'კოდი 6 ციფრისგან შედგება.');
     }
 
-    const limit = rateLimiter.check(
+    const limit = await rateLimiter.check(
       `verify-code:${actor.userId}`,
       RATE_LIMITS.verifyEmailCode,
     );
@@ -548,16 +552,19 @@ export async function resetPasswordAction(
   formData: FormData,
 ): Promise<ActionResult<{ reset: true }>> {
   try {
+    const context = await requestContext();
+    const limit = await rateLimiter.check(
+      `token:ip:${context.ipAddress ?? 'unknown'}`,
+      RATE_LIMITS.tokenRedeem,
+    );
+    if (!limit.allowed) return fail(ERROR_CODES.RATE_LIMITED);
+
     const parsed = resetPasswordSchema.safeParse({
       token: formData.get('token'),
       password: formData.get('password'),
     });
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const record = await prisma.authToken.findUnique({
