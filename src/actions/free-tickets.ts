@@ -7,7 +7,6 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import {
   ERROR_CODES,
   fail,
-  invalid,
   ok,
   toActionFailure,
   type ActionResult,
@@ -80,7 +79,11 @@ export async function postFreeTicketAction(
     });
 
     if (!parsed.success) {
-      return invalid(parsed.error);
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      );
     }
 
     const sport = await prisma.sport.findUnique({

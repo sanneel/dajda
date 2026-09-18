@@ -10,7 +10,6 @@ import { randomBytes } from 'node:crypto';
 import {
   ERROR_CODES,
   fail,
-  invalid,
   ok,
   toActionFailure,
   type ActionResult,
@@ -48,6 +47,12 @@ import {
  * always taken from that profile, never from a form field, so posting as
  * somebody else is not expressible.
  */
+
+function fieldErrorsFrom(error: {
+  flatten: () => { fieldErrors: Record<string, string[] | undefined> };
+}) {
+  return error.flatten().fieldErrors as Record<string, string[]>;
+}
 
 /**
  * Post a bet.
@@ -208,7 +213,11 @@ export async function postBetAction(
     });
 
     if (!parsed.success) {
-      return invalid(parsed.error);
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        fieldErrorsFrom(parsed.error),
+      );
     }
 
     const prediction = await createPrediction(
@@ -288,7 +297,11 @@ export async function markBetFinishedAction(
     });
 
     if (!parsed.success) {
-      return invalid(parsed.error);
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        fieldErrorsFrom(parsed.error),
+      );
     }
 
     await markPredictionFinished(parsed.data, analyst.analystProfileId, {
@@ -358,7 +371,11 @@ export async function applyAsAnalystAction(
       acceptTerms: formData.get('acceptTerms') === 'on',
     });
     if (!parsed.success) {
-      return invalid(parsed.error);
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        fieldErrorsFrom(parsed.error),
+      );
     }
 
     const input = parsed.data;
@@ -784,7 +801,11 @@ export async function updateAnalystDisplayNameAction(
       displayName: formData.get('displayName'),
     });
     if (!parsed.success) {
-      return invalid(parsed.error);
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      );
     }
 
     const limit = await rateLimiter.check(

@@ -8,7 +8,7 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import {
   AppError,
   ERROR_CODES,
-  invalid,
+  fail,
   ok,
   toActionFailure,
   type ActionResult,
@@ -44,7 +44,11 @@ export async function submitReport(
     });
 
     if (!parsed.success) {
-      return invalid(parsed.error);
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      );
     }
 
     const input = parsed.data;

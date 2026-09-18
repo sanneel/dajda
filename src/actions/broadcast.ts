@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { requireApprovedAnalyst } from '@/lib/auth/authorization';
 import {
-  invalid,
+  ERROR_CODES,
+  fail,
   ok,
   toActionFailure,
   type ActionResult,
@@ -31,7 +32,11 @@ export async function sendBroadcastAction(
       bodyKa: formData.get('bodyKa'),
     });
     if (!parsed.success) {
-      return invalid(parsed.error);
+      return fail(
+        ERROR_CODES.VALIDATION_ERROR,
+        undefined,
+        parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      );
     }
 
     const profile = await prisma.analystProfile.findUniqueOrThrow({
