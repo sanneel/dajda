@@ -21,6 +21,16 @@ import type { NotificationChannel } from '@/generated/prisma/enums';
 /** After this many failed attempts a row is left alone as FAILED. */
 const MAX_ATTEMPTS = 3;
 
+/**
+ * A queued message older than this is expired, not sent. Everything that goes
+ * through the outbox is about the moment: a bet going live, a bet settled, an
+ * author's broadcast, an admin alert. Delivered days late it is noise, and a
+ * backlog released at once (as the first sweep after an outage would) is a
+ * burst of announcements for matches long over. Charge notices do not use the
+ * outbox and are unaffected.
+ */
+export const MAX_QUEUE_AGE_MS = 48 * 60 * 60 * 1000;
+
 export type DeliveryResult =
   | { ok: true }
   | {
@@ -76,13 +86,23 @@ export async function drainOutbox({
   broadcastId,
   ids,
   predictionId,
-}: DrainOptions): Promise<{ sent: number; failed: number }> {
+}: DrainOptions): Promise<{ sent: number; failed: number; expired: number }> {
+  const cutoff = new Date(Date.now() - MAX_QUEUE_AGE_MS);
+  const { count: expired } = await prisma.notification.updateMany({
+    where: { channel, status: 'PENDING', createdAt: { lt: cutoff } },
+    data: {
+      status: 'FAILED',
+      failureReason: 'expired: queued too long to still be worth sending',
+    },
+  });
+
   const rows = await prisma.notification.findMany({
     where: {
       channel,
       status: 'PENDING',
       destination: { not: null },
       attempts: { lt: MAX_ATTEMPTS },
+      createdAt: { gte: cutoff },
       ...(broadcastId ? { broadcastId } : {}),
       ...(ids ? { id: { in: ids } } : {}),
       ...(predictionId ? { predictionId } : {}),
@@ -139,5 +159,5 @@ export async function drainOutbox({
     failed += 1;
   }
 
-  return { sent, failed };
+  return { sent, failed, expired };
 }
