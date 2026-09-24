@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { refreshAnalystList } from '@/lib/queries/analysts';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth/authorization';
 import { revokeAllSessionsForUser } from '@/lib/auth/session';
@@ -103,6 +104,7 @@ export async function decideAnalystAction(
     revalidatePath('/admin', 'layout');
     revalidatePath('/');
     revalidatePath('/analysts', 'layout');
+    refreshAnalystList();
     return ok({ status: decision });
   } catch (error) {
     return toActionFailure(error);
@@ -285,6 +287,7 @@ export async function setAnalystPlanPriceAction(
     revalidatePath('/');
     revalidatePath('/analysts');
     revalidatePath(`/analysts/${profile.slug}`);
+    refreshAnalystList();
 
     return ok({ priceMinor, billingPeriod });
   } catch (error) {
@@ -346,6 +349,7 @@ export async function settlePredictionAction(
 
     revalidatePath('/admin', 'layout');
     revalidatePath('/free');
+    refreshAnalystList();
     return ok({ settled: true });
   } catch (error) {
     return toActionFailure(error);

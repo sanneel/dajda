@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { unstable_cache, updateTag } from 'next/cache';
 import { isTicketStillActive } from '@/lib/tickets/active';
 import { prisma } from '@/lib/db';
 import {
@@ -52,6 +53,36 @@ function toRecords(
   }));
 }
 
+/** The tag on the cached ranking. See refreshAnalystList. */
+const ANALYST_LIST_TAG = 'analyst-list';
+
+/**
+ * The ranking is the most expensive read on the site: every subscription
+ * ticket every listed author has published, summarised in memory. It ran on
+ * every visit to the home page, so its cost grew with the whole history.
+ *
+ * It is now built once per period and shared across requests. The name
+ * search, the sport filter and the sort run per request on the cached rows,
+ * so four entries cover every combination a reader can pick.
+ *
+ * A write that changes what the list shows expires it through
+ * refreshAnalystList. The 60 second lifetime covers what changes with the
+ * clock alone: a period window sliding forward, a ticket whose event has
+ * started dropping out of the active count.
+ */
+const rankedAnalysts = unstable_cache(buildAnalystList, ['analyst-list'], {
+  tags: [ANALYST_LIST_TAG],
+  revalidate: 60,
+});
+
+/**
+ * Expire the cached ranking. Call it from every Server Action that changes
+ * an author's status, name, photo, plan price, or subscription tickets.
+ */
+export function refreshAnalystList(): void {
+  updateTag(ANALYST_LIST_TAG);
+}
+
 export async function listAnalysts(options?: {
   sportCode?: string;
   sort?: AnalystSort;
@@ -60,6 +91,21 @@ export async function listAnalysts(options?: {
   /** Case-insensitive name search, from the list's search box. */
   query?: string;
 }): Promise<AnalystListItem[]> {
+  const sportCode = options?.sportCode;
+  const query = options?.query?.trim().toLowerCase();
+
+  const items = (await rankedAnalysts(options?.period ?? 'all')).filter(
+    (item) =>
+      (!sportCode || item.sports.some((sport) => sport.code === sportCode)) &&
+      (!query || item.displayName.toLowerCase().includes(query)),
+  );
+
+  return sortAnalysts(items, options?.sort ?? 'profit');
+}
+
+async function buildAnalystList(
+  period: AnalystPeriod,
+): Promise<AnalystListItem[]> {
   /*
    * The analyst list is a list of SUBSCRIPTIONS for sale, so it is built from
    * subscription tickets alone, decided 2026-09-11.
@@ -75,17 +121,6 @@ export async function listAnalysts(options?: {
     where: {
       status: 'APPROVED',
       predictions: { some: { visibility: 'VIP', ...PUBLISHED } },
-      ...(options?.sportCode
-        ? { sports: { some: { sport: { code: options.sportCode } } } }
-        : {}),
-      ...(options?.query?.trim()
-        ? {
-            displayName: {
-              contains: options.query.trim(),
-              mode: 'insensitive',
-            },
-          }
-        : {}),
     },
     select: {
       id: true,
@@ -143,7 +178,6 @@ export async function listAnalysts(options?: {
     byAuthor.set(prediction.authorId, bucket);
   }
 
-  const period = options?.period ?? 'all';
   const periodDays = period === 'all' ? null : PERIOD_DAYS[period];
   const now = Date.now();
   const nowDate = new Date(now);
@@ -200,7 +234,7 @@ export async function listAnalysts(options?: {
     };
   });
 
-  return sortAnalysts(items, options?.sort ?? 'profit');
+  return items;
 }
 
 
