@@ -595,6 +595,17 @@ export async function resetPasswordAction(
         where: { id: record.id },
         data: { consumedAt: new Date() },
       });
+      // Every other reset link for this account dies with this one. They were
+      // sent to the same mailbox, but a link that outlives the reset it was
+      // for is one more way in if an older mail is ever read by someone else.
+      await tx.authToken.updateMany({
+        where: {
+          userId: record.userId,
+          purpose: 'PASSWORD_RESET',
+          consumedAt: null,
+        },
+        data: { consumedAt: new Date() },
+      });
       await writeAuditLog(
         {
           action: AUDIT_ACTIONS.USER_PASSWORD_CHANGED,
