@@ -1,10 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { canonicalRedirect } from '@/lib/canonical-host';
+import { earlyGate } from '@/lib/proxy-gates';
+import { SESSION_COOKIE } from '@/lib/auth/session-cookie';
 
 /**
- * Two jobs, in order: send the `www.` twin of the public host to the one
- * host the session cookie lives on, then stamp a per-request
- * Content-Security-Policy with a fresh nonce.
+ * Three jobs, in order: send the `www.` twin of the public host to the one
+ * host the session cookie lives on; answer the few requests whose status a
+ * streaming page could no longer set (a signed-out visitor on a signed-in
+ * area, the dev checkout in production; see lib/proxy-gates.ts); then stamp
+ * a per-request Content-Security-Policy with a fresh nonce.
  *
  * Next reads the nonce from the incoming `x-nonce` header and stamps it onto
  * the scripts it injects, so `strict-dynamic` can be used without allowing
@@ -36,6 +40,19 @@ export function proxy(request: NextRequest) {
     appUrl: process.env.APP_URL ?? '',
   });
   if (target) return NextResponse.redirect(target, 308);
+
+  // A real status code for two answers a streaming page cannot give once it
+  // has started: see lib/proxy-gates.ts. Still no access control.
+  const gate = earlyGate(request.nextUrl.pathname, {
+    hasSessionCookie: request.cookies.has(SESSION_COOKIE),
+    paymentProvider: process.env.PAYMENT_PROVIDER,
+  });
+  if (gate && 'notFound' in gate) {
+    return new NextResponse('Not found', { status: 404 });
+  }
+  if (gate) {
+    return NextResponse.redirect(new URL(gate.redirect, request.url), 307);
+  }
 
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const isDev = process.env.NODE_ENV === 'development';

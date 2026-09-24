@@ -52,7 +52,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const data = await getAnalystPage(slug);
-  if (!data) return { title: 'ანალიტიკოსი ვერ მოიძებნა' };
+  // notFound() here, not a stand-in title. The page streams, so a missing
+  // profile still answers 200; raised from the metadata, the not-found at least
+  // carries robots noindex, which keeps it out of search results.
+  if (!data) notFound();
 
   return {
     title: data.profile.displayName,

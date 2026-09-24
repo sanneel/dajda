@@ -43,7 +43,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const ticket = await getTicketById(id);
-  if (!ticket) return { title: 'პროგნოზი ვერ მოიძებნა' };
+  // notFound() here, not a stand-in title. The page streams, so a missing
+  // ticket still answers 200; raised from the metadata, the not-found at least
+  // carries robots noindex, which keeps it out of search results.
+  if (!ticket) notFound();
 
   /*
    * A ticket's title IS the pick, and metadata is viewer-independent: it goes

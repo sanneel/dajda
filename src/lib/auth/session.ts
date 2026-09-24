@@ -7,8 +7,7 @@ import {
   generateToken,
   hashToken,
 } from './tokens';
-
-const SESSION_COOKIE = 'dajda_session';
+import { SESSION_COOKIE } from './session-cookie';
 
 /** Only refresh `lastUsedAt` this often, to avoid a write on every request. */
 const LAST_USED_THROTTLE_MS = 5 * 60 * 1000;

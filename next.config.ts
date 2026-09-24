@@ -97,6 +97,10 @@ const nextConfig: NextConfig = {
     return [
       // The analyst ranking moved to the root; old links keep working.
       { source: '/analysts', destination: '/', permanent: true },
+      // The dashboard and its settings became the account page. A redirect
+      // here, not in a page: a page streams, and could only answer 200 with
+      // an in-page redirect.
+      { source: '/dashboard/:path*', destination: '/account', permanent: true },
     ];
   },
 
