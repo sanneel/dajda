@@ -300,8 +300,8 @@ export type PlanGrant = { tier: PlanTier; analystProfileId: string | null };
 
 /**
  * The viewer's currently-active plan grants, fetched once per page rather than
- * once per ticket. Mirrors the subscription conditions in `canViewPrediction`
- * so a list and a detail page can never disagree about who is entitled.
+ * once per ticket, and handed to `isTicketLocked` so a list and a detail page
+ * can never disagree about who is entitled.
  */
 export async function activePlanGrants(
   userId: string | undefined,
@@ -346,8 +346,8 @@ export async function listSports() {
 
 /**
  * The ids of paid tickets this viewer has bought outright. Fetched once per
- * page and subtracted from the locked set, mirroring the purchase check in
- * `canViewPrediction` so a list and a detail page cannot disagree.
+ * page and subtracted from the locked set, so a list and a detail page
+ * cannot disagree.
  */
 export async function purchasedTicketIds(
   userId: string | undefined,

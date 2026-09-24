@@ -74,29 +74,3 @@ export function Alert({
     </div>
   );
 }
-
-export function Skeleton({ className }: { className?: string }) {
-  return (
-    <div
-      className={`animate-pulse rounded bg-elevated ${className ?? ""}`}
-      aria-hidden="true"
-    />
-  );
-}
-
-/** Loading placeholder matching the ticket card's shape: image, then text. */
-export function TicketCardSkeleton() {
-  return (
-    <div className="overflow-hidden rounded-card border border-line bg-surface">
-      <Skeleton className="aspect-[4/3] w-full rounded-none" />
-      <div className="p-4">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="mt-2 h-5 w-3/4" />
-        <div className="mt-4 flex items-end justify-between gap-3">
-          <Skeleton className="h-8 w-24" />
-          <Skeleton className="h-6 w-14" />
-        </div>
-      </div>
-    </div>
-  );
-}

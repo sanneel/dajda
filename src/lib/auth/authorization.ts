@@ -1,9 +1,6 @@
 import { cache } from 'react';
 import { AppError, ERROR_CODES } from '@/lib/errors';
-import { prisma } from '@/lib/db';
-import type { PredictionVisibility } from '@/generated/prisma/enums';
 import { readSession, type SessionActor } from './session';
-import { holdsSubscriptionTo } from './entitlements';
 
 /**
  * Authorization helpers.
@@ -52,104 +49,4 @@ export async function requireApprovedAnalyst(): Promise<
     );
   }
   return actor as SessionActor & { analystProfileId: string };
-}
-
-/**
- * Ownership check for analyst-scoped writes. An admin may act on any profile;
- * an analyst only on their own. Prevents IDOR via a supplied profile id.
- */
-export async function requireAnalystOwnership(
-  analystProfileId: string,
-): Promise<SessionActor> {
-  const actor = await requireUser();
-  if (actor.role === 'ADMIN') return actor;
-  if (actor.analystProfileId !== analystProfileId) {
-    throw new AppError(ERROR_CODES.FORBIDDEN);
-  }
-  return actor;
-}
-
-// The pure rule lives in ./entitlements so it is testable without Prisma.
-export { holdsSubscriptionTo, applicableTiers, isTicketLocked } from './entitlements';
-
-/**
- * Does `actor` hold an active subscription good enough for `visibility` on
- * `analystProfileId`?
- *
- * A platform-wide plan (analystProfileId = null on the plan) grants the tier
- * across all analysts; an analyst-scoped plan grants it for that analyst only.
- */
-export async function canViewPrediction(
-  actor: SessionActor | null,
-  prediction: {
-    id?: string;
-    visibility: PredictionVisibility;
-    authorId: string | null;
-  },
-): Promise<boolean> {
-  // A community free ticket has no author and is public by construction.
-  if (prediction.visibility === 'PUBLIC' || prediction.authorId === null) {
-    return true;
-  }
-  if (!actor) return false;
-
-  // Admins need to read everything to moderate it; the analyst owns their own.
-  if (actor.role === 'ADMIN') return true;
-  if (actor.analystProfileId === prediction.authorId) return true;
-
-  /*
-   * ფასიანი opens on the purchase of this exact ticket and on nothing else -
-   * not on a subscription to the author, however dear. Without an id there
-   * is no purchase to look for, so the answer is no: a paywall that opens
-   * when the caller forgot to say which ticket is not a paywall.
-   */
-  if (prediction.visibility === 'PREMIUM') {
-    if (!prediction.id) return false;
-    const purchase = await prisma.predictionPurchase.findFirst({
-      where: {
-        userId: actor.userId,
-        predictionId: prediction.id,
-        revokedAt: null,
-      },
-      select: { id: true },
-    });
-    return purchase !== null;
-  }
-
-  // გამოწერა opens on an active subscription that covers this author.
-  const subscriptions = await prisma.userSubscription.findMany({
-    where: {
-      userId: actor.userId,
-      status: 'ACTIVE',
-      OR: [
-        { currentPeriodEnd: null },
-        { currentPeriodEnd: { gt: new Date() } },
-      ],
-      plan: {
-        isActive: true,
-        OR: [
-          { analystProfileId: null },
-          { analystProfileId: prediction.authorId },
-        ],
-      },
-    },
-    select: { plan: { select: { tier: true, analystProfileId: true } } },
-  });
-
-  return holdsSubscriptionTo(
-    subscriptions.map((subscription) => subscription.plan),
-    prediction.authorId,
-  );
-}
-
-export async function assertCanViewPrediction(
-  prediction: { visibility: PredictionVisibility; authorId: string | null },
-): Promise<void> {
-  const actor = await getCurrentUser();
-  if (!(await canViewPrediction(actor, prediction))) {
-    throw new AppError(
-      ERROR_CODES.FORBIDDEN,
-      'ამ ანალიზის სანახავად საჭიროა ბილეთის შეძენა ან შესაბამისი გამოწერა.',
-    );
-  }
 }
