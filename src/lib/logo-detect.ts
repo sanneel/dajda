@@ -83,6 +83,29 @@ async function toGray(input: Buffer, width: number): Promise<GrayImage> {
   return { width: info.width, height: info.height, data: Buffer.from(data) };
 }
 
+/*
+ * Resized templates, kept for the life of the process. Almost every slip is
+ * reduced to the same SLIP_WIDTH, so the same few dozen sizes come up on
+ * every check; building them once saves sharp a resize per size per slip.
+ */
+const sizedTemplates = new WeakMap<LogoTemplate, Map<number, Promise<GrayImage | null>>>();
+
+function sizedTemplate(template: LogoTemplate, width: number): Promise<GrayImage | null> {
+  let byWidth = sizedTemplates.get(template);
+  if (!byWidth) {
+    byWidth = new Map();
+    sizedTemplates.set(template, byWidth);
+  }
+  let sized = byWidth.get(width);
+  if (!sized) {
+    sized = resizeTemplate(template, width);
+    // A failed resize is not remembered, so the next slip tries again.
+    sized.catch(() => byWidth.delete(width));
+    byWidth.set(width, sized);
+  }
+  return sized;
+}
+
 async function resizeTemplate(template: LogoTemplate, width: number): Promise<GrayImage | null> {
   const height = Math.round((template.height * width) / template.width);
   if (width < 12 || height < 8) return null;
@@ -108,15 +131,24 @@ function matFromGray(cv: CV, image: GrayImage) {
 }
 
 /**
- * Best correlation of one template over one slip image, across the scale
- * ladder. Returns null when the template never fits.
+ * Best correlation of one template over the slip, across the scale ladder,
+ * both as the slip is and inverted. Returns null when the template never
+ * fits.
+ *
+ * The inverted slip needs no pass of its own. TM_CCOEFF_NORMED subtracts
+ * each window's mean, and inverting (255 - p) negates every pixel's distance
+ * from that mean while leaving the normalising term alone, so the inverted
+ * slip's score at every position is exactly the negative of the straight
+ * one. The straight match is the peak of one result, the inverted match is
+ * its trough, sign flipped. That halves the most expensive work in a check.
  */
 function bestMatch(
   cv: CV,
   slipMat: InstanceType<CV['Mat']>,
   sized: GrayImage[],
 ): Omit<LogoMatch, 'brand'> | null {
-  let best: Omit<LogoMatch, 'brand'> | null = null;
+  let straight: Omit<LogoMatch, 'brand'> | null = null;
+  let flipped: Omit<LogoMatch, 'brand'> | null = null;
   for (const image of sized) {
     if (image.width >= slipMat.cols || image.height >= slipMat.rows) continue;
     const tmpl = matFromGray(cv, image);
@@ -124,15 +156,13 @@ function bestMatch(
     const noMask = new cv.Mat();
     try {
       cv.matchTemplate(slipMat, tmpl, result, cv.TM_CCOEFF_NORMED);
-      const { maxVal, maxLoc } = cv.minMaxLoc(result, noMask);
-      if (!best || maxVal > best.score) {
-        best = {
-          score: maxVal,
-          x: maxLoc.x,
-          y: maxLoc.y,
-          width: image.width,
-          height: image.height,
-        };
+      const { maxVal, maxLoc, minVal, minLoc } = cv.minMaxLoc(result, noMask);
+      const size = { width: image.width, height: image.height };
+      if (!straight || maxVal > straight.score) {
+        straight = { score: maxVal, x: maxLoc.x, y: maxLoc.y, ...size };
+      }
+      if (!flipped || -minVal > flipped.score) {
+        flipped = { score: -minVal, x: minLoc.x, y: minLoc.y, ...size };
       }
     } finally {
       tmpl.delete();
@@ -140,7 +170,7 @@ function bestMatch(
       noMask.delete();
     }
   }
-  return best;
+  return straight && (!flipped || straight.score >= flipped.score) ? straight : flipped;
 }
 
 /**
@@ -154,8 +184,6 @@ export async function scoreBookmakerLogos(
   const cv = await loadCv();
   const slip = await toGray(input, SLIP_WIDTH);
   const slipMat = matFromGray(cv, slip);
-  const inverted = new cv.Mat();
-  cv.bitwise_not(slipMat, inverted);
 
   const matches: LogoMatch[] = [];
   try {
@@ -163,20 +191,16 @@ export async function scoreBookmakerLogos(
       const sized = (
         await Promise.all(
           SCALE_LADDER.map((fraction) =>
-            resizeTemplate(template, Math.round(slip.width * fraction)),
+            sizedTemplate(template, Math.round(slip.width * fraction)),
           ),
         )
       ).filter((image): image is GrayImage => image !== null);
 
-      const straight = bestMatch(cv, slipMat, sized);
-      const flipped = bestMatch(cv, inverted, sized);
-      const best =
-        straight && (!flipped || straight.score >= flipped.score) ? straight : flipped;
+      const best = bestMatch(cv, slipMat, sized);
       if (best) matches.push({ brand: template.brand, ...best });
     }
   } finally {
     slipMat.delete();
-    inverted.delete();
   }
 
   return matches.sort((a, b) => b.score - a.score);
