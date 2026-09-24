@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import { after } from 'next/server';
 import { Check, Lock } from 'lucide-react';
 import {
   activePlanGrants,
@@ -95,13 +96,14 @@ export default async function TicketPage({
 
   if (!ticket) notFound();
 
-  const [returnStatus, grants, purchased] = await Promise.all([
-    // Coming back from the payment page: say what is happening to the money.
-    paymentReturnStatus(order, actor?.userId),
-    activePlanGrants(actor?.userId),
-    purchasedTicketIds(actor?.userId),
-    // Record the view for the dashboard's "recently viewed" list.
-    actor &&
+  /*
+   * Record the view for the dashboard's "recently viewed" list and the
+   * bell's "not yet opened" filter. After the response, not beside the
+   * reads: the reader is not waiting on it, and a failed write is logged
+   * instead of turning the ticket into an error page.
+   */
+  if (actor) {
+    after(() =>
       prisma.predictionView.upsert({
         where: {
           userId_predictionId: { userId: actor.userId, predictionId: id },
@@ -109,6 +111,14 @@ export default async function TicketPage({
         create: { userId: actor.userId, predictionId: id },
         update: { viewedAt: new Date() },
       }),
+    );
+  }
+
+  const [returnStatus, grants, purchased] = await Promise.all([
+    // Coming back from the payment page: say what is happening to the money.
+    paymentReturnStatus(order, actor?.userId),
+    activePlanGrants(actor?.userId),
+    purchasedTicketIds(actor?.userId),
   ]);
 
   const { author, result } = ticket;
