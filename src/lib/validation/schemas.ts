@@ -339,19 +339,6 @@ export const settlePredictionSchema = z.object({
   note: z.string().trim().max(1000).optional(),
 });
 
-export const correctPredictionSchema = z.object({
-  predictionId: z.uuid(),
-  reason: z
-    .string()
-    .trim()
-    .min(10, 'შესწორების მიზეზი სავალდებულოა.')
-    .max(500),
-  odds: oddsSchema.optional(),
-  titleKa: z.string().trim().min(6).max(160).optional(),
-  descriptionKa: z.string().trim().max(4000).optional(),
-  screenshotPath: uploadPathSchema.optional(),
-});
-
 // ---------------------------------------------------------------------------
 // Subscriptions, moderation, account
 // ---------------------------------------------------------------------------

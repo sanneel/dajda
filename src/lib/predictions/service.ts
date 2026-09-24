@@ -1,15 +1,12 @@
 import type { z } from 'zod';
 import { prisma } from '@/lib/db';
-import type { Prisma } from '@/generated/prisma/client';
 import { AppError, ERROR_CODES } from '@/lib/errors';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import type {
   createPredictionSchema,
   settlePredictionSchema,
-  correctPredictionSchema,
   markFinishedSchema,
 } from '@/lib/validation/schemas';
-import { FROZEN_FIELDS } from './immutability';
 import { computeProfitUnitsCenti, type TerminalOutcome } from './settlement';
 import { slipTitle } from './slip';
 import {
@@ -29,7 +26,6 @@ type Actor = { userId: string; role: 'USER' | 'ANALYST' | 'ADMIN' };
 
 export type CreatePredictionInput = z.output<typeof createPredictionSchema>;
 export type SettlePredictionInput = z.output<typeof settlePredictionSchema>;
-export type CorrectPredictionInput = z.output<typeof correctPredictionSchema>;
 export type MarkFinishedInput = z.output<typeof markFinishedSchema>;
 
 /**
@@ -257,116 +253,6 @@ export async function markPredictionFinished(
   });
 }
 
-/**
- * Issue a correction.
- *
- * The original row is never mutated. It is superseded and stays publicly
- * readable, and a new version links back to it, so a reader can always see
- * what was originally claimed.
- */
-export async function correctPrediction(
-  input: CorrectPredictionInput,
-  actor: Actor & { role: 'ADMIN' },
-) {
-  return prisma.$transaction(async (tx) => {
-    const original = await tx.prediction.findUnique({
-      where: { id: input.predictionId },
-      select: {
-        id: true,
-        authorId: true,
-        sportId: true,
-        postedById: true,
-        screenshotPath: true,
-        resultScreenshotPath: true,
-        titleKa: true,
-        descriptionKa: true,
-        oddsMilli: true,
-        stakeUnitsCenti: true,
-        confidence: true,
-        visibility: true,
-        publishedAt: true,
-        eventAt: true,
-        finishedAt: true,
-        version: true,
-        supersededAt: true,
-        isDemo: true,
-        selections: {
-          orderBy: { position: 'asc' },
-          select: { position: true, eventKa: true, pickKa: true, oddsMilli: true },
-        },
-      },
-    });
-    if (!original) throw new AppError(ERROR_CODES.NOT_FOUND);
-    if (!original.publishedAt) {
-      throw new AppError(
-        ERROR_CODES.CONFLICT,
-        'მონახაზს შესწორება არ სჭირდება: უბრალოდ დაარედაქტირეთ.',
-      );
-    }
-    if (original.supersededAt) {
-      throw new AppError(ERROR_CODES.CONFLICT, 'უკვე შესწორებულია.');
-    }
-
-    const correction = await tx.prediction.create({
-      data: {
-        authorId: original.authorId,
-        postedById: original.postedById,
-        sportId: original.sportId,
-        screenshotPath: input.screenshotPath ?? original.screenshotPath,
-        resultScreenshotPath: original.resultScreenshotPath,
-        titleKa: input.titleKa ?? original.titleKa,
-        descriptionKa: input.descriptionKa ?? original.descriptionKa,
-        oddsMilli: input.odds ?? original.oddsMilli,
-        stakeUnitsCenti: original.stakeUnitsCenti,
-        confidence: original.confidence,
-        visibility: original.visibility,
-        publishedAt: new Date(),
-        eventAt: original.eventAt,
-        finishedAt: original.finishedAt,
-        version: original.version + 1,
-        correctionOfId: original.id,
-        isDemo: original.isDemo,
-        // The legs travel with the claim: the new version shows the same
-        // ticket, and the original keeps its own copy.
-        selections: { create: original.selections },
-      },
-    });
-
-    await tx.prediction.update({
-      where: { id: original.id },
-      data: { supersededAt: new Date() },
-    });
-
-    await tx.predictionEdit.create({
-      data: {
-        predictionId: original.id,
-        actorId: actor.userId,
-        outcome: 'APPLIED_AS_CORRECTION',
-        reason: input.reason,
-        changedFields: Object.keys(input).filter(
-          (k) => k !== 'predictionId' && k !== 'reason',
-        ),
-        previousValue: pick(original, FROZEN_FIELDS),
-        attemptedValue: input as Prisma.InputJsonValue,
-      },
-    });
-
-    await writeAuditLog(
-      {
-        action: AUDIT_ACTIONS.PREDICTION_CORRECTED,
-        entityType: 'Prediction',
-        entityId: correction.id,
-        summary: `ფსონი შესწორდა (v${original.version} -> v${correction.version}): ${input.reason}`,
-        actorId: actor.userId,
-        actorRole: 'ADMIN',
-      },
-      tx,
-    );
-
-    return correction;
-  });
-}
-
 /** Record the outcome. Admin only, and only once. */
 export async function settlePrediction(
   input: SettlePredictionInput,
@@ -439,16 +325,4 @@ export async function settlePrediction(
 
     return updated;
   });
-}
-
-/** Snapshot a subset of fields for the edit ledger's before/after columns. */
-function pick<T extends object, K extends readonly (keyof T)[]>(
-  source: T,
-  keys: K,
-): Prisma.InputJsonValue {
-  const result: Record<string, unknown> = {};
-  for (const key of keys) {
-    if (key in source) result[String(key)] = source[key];
-  }
-  return result as Prisma.InputJsonValue;
 }

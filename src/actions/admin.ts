@@ -8,7 +8,6 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { enqueueForAnalystAudience } from '@/lib/notifications/outbox';
 import { formatUnitsSigned } from '@/lib/format';
 import { PREDICTION_STATUS_KA } from '@/lib/labels';
-import { selectionsFromFormData } from '@/lib/predictions/slip';
 import {
   AppError,
   ERROR_CODES,
@@ -21,17 +20,11 @@ import {
 import {
   adminPlanPriceSchema,
   analystDecisionSchema,
-  correctPredictionSchema,
-  createPredictionSchema,
   resolveReportSchema,
   settlePredictionSchema,
   userStatusSchema,
 } from '@/lib/validation/schemas';
-import {
-  correctPrediction,
-  createPrediction,
-  settlePrediction,
-} from '@/lib/predictions/service';
+import { settlePrediction } from '@/lib/predictions/service';
 
 /**
  * Administrative actions.
@@ -299,50 +292,6 @@ export async function setAnalystPlanPriceAction(
   }
 }
 
-export async function createPredictionAction(
-  _previous: ActionResult<{ predictionId: string }> | null,
-  formData: FormData,
-): Promise<ActionResult<{ predictionId: string }>> {
-  try {
-    const admin = await requireAdmin();
-
-    const analystProfileId = String(formData.get('analystProfileId') ?? '');
-    if (!analystProfileId) {
-      return fail(ERROR_CODES.VALIDATION_ERROR, 'აირჩიეთ ავტორი.');
-    }
-
-    const parsed = createPredictionSchema.safeParse({
-      sportId: formData.get('sportId'),
-      screenshotPath: formData.get('screenshotPath'),
-      selections: selectionsFromFormData(formData),
-      titleKa: formData.get('titleKa') || undefined,
-      descriptionKa: formData.get('descriptionKa') || undefined,
-      odds: formData.get('odds'),
-      stakeUnits: formData.get('stakeUnits') || 1,
-      confidence: formData.get('confidence') || 'MEDIUM',
-      visibility: formData.get('visibility') || 'PUBLIC',
-      eventAt: formData.get('eventAt') || undefined,
-      publishNow: formData.get('publishNow') === 'on',
-    });
-
-    if (!parsed.success) {
-      return invalid(parsed.error);
-    }
-
-    const prediction = await createPrediction(parsed.data, analystProfileId, {
-      userId: admin.userId,
-      role: 'ADMIN',
-    });
-
-    revalidatePath('/admin', 'layout');
-    revalidatePath('/free');
-
-    return ok({ predictionId: prediction.id });
-  } catch (error) {
-    return toActionFailure(error);
-  }
-}
-
 export async function settlePredictionAction(
   _previous: ActionResult<{ settled: true }> | null,
   formData: FormData,
@@ -398,38 +347,6 @@ export async function settlePredictionAction(
     revalidatePath('/admin', 'layout');
     revalidatePath('/free');
     return ok({ settled: true });
-  } catch (error) {
-    return toActionFailure(error);
-  }
-}
-
-export async function correctPredictionAction(
-  _previous: ActionResult<{ correctionId: string }> | null,
-  formData: FormData,
-): Promise<ActionResult<{ correctionId: string }>> {
-  try {
-    const admin = await requireAdmin();
-
-    const parsed = correctPredictionSchema.safeParse({
-      predictionId: formData.get('predictionId'),
-      reason: formData.get('reason'),
-      odds: formData.get('odds') || undefined,
-      line: formData.get('line') || undefined,
-      selection: formData.get('selection') || undefined,
-    });
-
-    if (!parsed.success) {
-      return invalid(parsed.error);
-    }
-
-    const correction = await correctPrediction(parsed.data, {
-      userId: admin.userId,
-      role: 'ADMIN',
-    });
-
-    revalidatePath('/admin', 'layout');
-    revalidatePath('/free');
-    return ok({ correctionId: correction.id });
   } catch (error) {
     return toActionFailure(error);
   }
