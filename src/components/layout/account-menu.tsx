@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
+import { LinkPending } from './link-pending';
 import { logoutAction } from '@/actions/auth';
 
 /**
@@ -264,12 +265,13 @@ function Item({
   return (
     <Link
       href={href}
-      className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm text-ink transition-colors hover:bg-elevated"
+      className="relative flex min-h-12 items-center gap-3 rounded-md px-3 text-sm text-ink transition-colors hover:bg-elevated"
     >
       <span className="shrink-0 text-ink-faint" aria-hidden="true">
         {icon}
       </span>
       {children}
+      <LinkPending className="inset-y-2 left-0 w-0.5 rounded-full bg-accent" />
     </Link>
   );
 }
