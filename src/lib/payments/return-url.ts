@@ -32,10 +32,20 @@ export function buildReturnUrl(
  * an absolute URL, a protocol-relative `//host`, a backslash trick - falls
  * back to the dashboard, so the return hop can never become an open
  * redirect.
+ *
+ * Control characters are refused too. The URL parser deletes tabs and line
+ * breaks before it reads a URL, so `/<tab>/evil.example` passed the `//`
+ * check and then parsed as `//evil.example`: a dajda.ge link that landed on
+ * somebody else's site.
  */
 export function safeDestination(raw: string | null | undefined): string {
   if (typeof raw !== 'string') return '/account';
-  if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) {
+  if (
+    !raw.startsWith('/') ||
+    raw.startsWith('//') ||
+    raw.includes('\\') ||
+    /[\u0000-\u001f\u007f]/.test(raw)
+  ) {
     return '/account';
   }
   return raw;
@@ -54,7 +64,11 @@ export function resolveReturnRedirect(
 ): string {
   const incoming = new URL(requestUrl);
   const order = incoming.searchParams.get('order') ?? postedOrderId;
-  const target = new URL(safeDestination(incoming.searchParams.get('to')), appUrl);
+  const home = new URL(appUrl);
+  let target = new URL(safeDestination(incoming.searchParams.get('to')), home);
+  // The backstop for whatever parser trick the string checks above miss:
+  // judge the URL the browser will actually follow, not the text it came from.
+  if (target.origin !== home.origin) target = new URL('/account', home);
   if (order && ORDER_ID.test(order)) target.searchParams.set('order', order);
   return target.toString();
 }

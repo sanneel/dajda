@@ -59,4 +59,20 @@ describe('payment return hop', () => {
     expect(to.startsWith(APP)).toBe(true);
     expect(to).not.toContain('evil.example');
   });
+
+  it('refuses a tab or line break that would turn the path into //host', () => {
+    // The URL parser strips these before reading, so "/<tab>/evil.example"
+    // used to become "//evil.example" and leave the site.
+    for (const sneaky of ['%09', '%0A', '%0D']) {
+      const to = resolveReturnRedirect(
+        APP,
+        `${APP}/api/payments/return?order=dajda-1&to=/${sneaky}/evil.example`,
+        null,
+      );
+      expect(new URL(to).origin).toBe(new URL(APP).origin);
+      expect(to).not.toContain('evil.example');
+    }
+    expect(safeDestination('/\t/evil.example')).toBe('/account');
+    expect(safeDestination('/free/\nabc')).toBe('/account');
+  });
 });
