@@ -174,8 +174,9 @@ export async function postBetAction(
     }
 
     // A bookmaker's logo or name on a slip is against the author agreement
-    // (clause 3.6). Checked before anything is stored, so a refused image
-    // leaves nothing behind and the author fixes it while the form is open.
+    // (clause 3.6(დ), docs/legal/agreement.md) and the terms (clause 7.5).
+    // Checked before anything is stored, so a refused image leaves nothing
+    // behind and the author fixes it while the form is open.
     for (const file of slips) {
       const screening = await screenSlipForBookmakerBranding(file);
       if (screening.checked && screening.flagged) {
