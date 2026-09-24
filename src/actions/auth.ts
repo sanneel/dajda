@@ -25,10 +25,16 @@ import {
 } from '@/lib/auth/tokens';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import {
+  sendAccountExistsEmail,
   sendPasswordResetEmail,
+  sendSignupConfirmEmail,
   sendVerificationEmail,
+  signupConfirmUrl,
   verificationLinkWhenUnsent,
 } from '@/lib/auth/mail';
+import { openSignup, sealSignup } from '@/lib/auth/signup-token';
+import { getEnv } from '@/lib/env';
+import { isUniqueViolation } from '@/lib/db-errors';
 import {
   ERROR_CODES,
   fail,
@@ -71,12 +77,33 @@ const DUMMY_DIGEST =
   'scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA$' +
   'x'.repeat(86);
 
-export async function registerAction(
-  _previous: ActionResult<{ userId: string }> | null,
-  formData: FormData,
-): Promise<ActionResult<{ userId: string }>> {
-  let success = false;
+/**
+ * What the sign-up form answers, whatever happened behind it.
+ *
+ * `link` is set only where nothing sends mail (EMAIL_PROVIDER=log, refused
+ * on a live site unless it is a labelled demo), so the person testing the
+ * deployment can follow it instead of reading the server console.
+ */
+export type RegisterResult = { sent: true; link: string | null };
 
+/**
+ * Start a sign-up. Answers "check your email" in every case, so the form
+ * cannot be used to learn whether an address has an account (for a
+ * betting-analysis site, being identifiable as a customer is itself
+ * sensitive):
+ *
+ *   - a free address gets a link that carries the sign-up, encrypted, and
+ *     creates the account only when it is opened (lib/auth/signup-token.ts
+ *     explains why nothing is written before then);
+ *   - an address with an account gets a note saying so, with links to sign
+ *     in or reset the password.
+ *
+ * The password is hashed in both cases, so the two paths cost the same.
+ */
+export async function registerAction(
+  _previous: ActionResult<RegisterResult> | null,
+  formData: FormData,
+): Promise<ActionResult<RegisterResult>> {
   try {
     const context = await requestContext();
 
@@ -99,87 +126,110 @@ export async function registerAction(
     }
 
     const input = parsed.data;
+    const passwordDigest = await hashPassword(input.password);
+    const env = getEnv();
+    const unsent = env.EMAIL_PROVIDER === 'log';
+
+    // Over the per-address limit: the same answer, and no mail.
+    const mailAllowed = (
+      await rateLimiter.check(`register:email:${input.email}`, RATE_LIMITS.registerEmail)
+    ).allowed;
 
     const existing = await prisma.user.findUnique({
       where: { email: input.email },
       select: { id: true },
     });
+
     if (existing) {
-      return fail(ERROR_CODES.CONFLICT, undefined, {
-        email: ['ამ ელფოსტით ანგარიში უკვე არსებობს.'],
-      });
+      if (mailAllowed) await sendAccountExistsEmail(input.email);
+      return ok({ sent: true, link: unsent ? `${env.APP_URL}/login` : null });
     }
 
-    const password = await hashPassword(input.password);
+    const token = sealSignup(
+      { name: input.name, email: input.email, passwordDigest },
+      env.AUTH_SECRET,
+    );
+    if (mailAllowed) await sendSignupConfirmEmail(input.email, token);
+    return ok({ sent: true, link: unsent ? signupConfirmUrl(token) : null });
+  } catch (error) {
+    return toActionFailure(error);
+  }
+}
 
-    // The raw token exists only in this request and in the email; the
-    // database keeps its hash. The code is the same promise in six typable
-    // digits - see generateVerificationCode for why that is safe.
-    const verificationToken = generateToken();
-    const verificationCode = generateVerificationCode();
+/**
+ * Finish a sign-up from its emailed link: create the account, verified from
+ * the first second (the link reached the mailbox), and sign in.
+ *
+ * Behind a button on /register/confirm rather than on page load, for the
+ * same reason as verifyEmailAction: a mail scanner or a link preview that
+ * follows the URL must not create an account as a side effect of a GET.
+ */
+export async function completeSignupAction(
+  _previous: ActionResult<{ created: true }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ created: true }>> {
+  let created = false;
+  try {
+    const context = await requestContext();
+    const limit = await rateLimiter.check(
+      `token:ip:${context.ipAddress ?? 'unknown'}`,
+      RATE_LIMITS.tokenRedeem,
+    );
+    if (!limit.allowed) return fail(ERROR_CODES.RATE_LIMITED);
 
-    const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: {
-          name: input.name,
-          email: input.email,
-          password,
-          ageConfirmedAt: new Date(),
-        },
-        select: { id: true, role: true },
+    const expired = fail(
+      ERROR_CODES.VALIDATION_ERROR,
+      'ბმული აღარ მოქმედებს. დარეგისტრირდით თავიდან, ან, თუ ანგარიში უკვე გაქვთ, შედით.',
+    );
+
+    const pending = openSignup(String(formData.get('token') ?? ''), getEnv().AUTH_SECRET);
+    if (!pending) return expired;
+
+    let user: { id: string; role: 'USER' | 'ANALYST' | 'ADMIN' };
+    try {
+      user = await prisma.$transaction(async (tx) => {
+        const row = await tx.user.create({
+          data: {
+            name: pending.name,
+            email: pending.email,
+            password: pending.passwordDigest,
+            emailVerifiedAt: new Date(),
+            ageConfirmedAt: new Date(),
+            notificationPrefs: { create: {} },
+          },
+          select: { id: true, role: true },
+        });
+        await writeAuditLog(
+          {
+            action: AUDIT_ACTIONS.USER_REGISTERED,
+            entityType: 'User',
+            entityId: row.id,
+            summary: `ახალი მომხმარებელი: ${pending.email}`,
+            actorId: row.id,
+            actorRole: row.role,
+            ipAddress: context.ipAddress,
+            userAgent: context.userAgent,
+          },
+          tx,
+        );
+        return row;
       });
-
-      await tx.notificationPreference.create({
-        data: { userId: created.id },
-      });
-
-      await tx.authToken.create({
-        data: {
-          userId: created.id,
-          purpose: 'EMAIL_VERIFICATION',
-          tokenHash: hashToken(verificationToken),
-          expiresAt: expiryFrom(new Date(), EMAIL_VERIFICATION_TTL_MS),
-        },
-      });
-
-      await tx.authToken.create({
-        data: {
-          userId: created.id,
-          purpose: 'EMAIL_VERIFICATION_CODE',
-          tokenHash: hashCodeForUser(created.id, verificationCode),
-          expiresAt: expiryFrom(new Date(), EMAIL_VERIFICATION_TTL_MS),
-        },
-      });
-
-      await writeAuditLog(
-        {
-          action: AUDIT_ACTIONS.USER_REGISTERED,
-          entityType: 'User',
-          entityId: created.id,
-          summary: `ახალი მომხმარებელი: ${input.email}`,
-          actorId: created.id,
-          actorRole: created.role,
-          ipAddress: context.ipAddress,
-          userAgent: context.userAgent,
-        },
-        tx,
-      );
-
-      return created;
-    });
-
-    // Outside the transaction: network I/O must not hold a database lock,
-    // and a failed delivery must not roll the account back.
-    await sendVerificationEmail(input.email, verificationToken, verificationCode);
+    } catch (error) {
+      // The address was taken since the link was sent (or the link is being
+      // used twice): the account exists, so this link has nothing left to do.
+      if (isUniqueViolation(error)) return expired;
+      throw error;
+    }
 
     const session = await createSession(user.id, context);
     await setSessionCookie(session.token, session.expiresAt);
-    success = true;
+    created = true;
   } catch (error) {
     return toActionFailure(error);
   }
 
-  if (success) redirect('/account');
+  // redirect() throws by design; it must live outside the try.
+  if (created) redirect('/account');
   return fail(ERROR_CODES.INTERNAL);
 }
 

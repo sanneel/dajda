@@ -3,7 +3,9 @@ import { renderEmailHtml } from '@/lib/notifications/email/template';
 import { getEnv } from '@/lib/env';
 
 /**
- * The two transactional mails the auth flow sends.
+ * The transactional mails the auth flow sends: finishing a sign-up (or, for
+ * an address that already has an account, saying so), verifying an address,
+ * and resetting a password.
  *
  * Sent directly through the configured provider rather than through the
  * notification outbox on purpose: a verification link is the answer to a
@@ -95,6 +97,57 @@ export function passwordResetEmail(link: string): AuthMailContent {
   };
 }
 
+/** The link that finishes a sign-up; the account is created when it is used. */
+export function signupConfirmEmail(link: string): AuthMailContent {
+  const opening =
+    'ამ მისამართით DAJDA-ზე რეგისტრაცია დაიწყო. ანგარიშის შესაქმნელად დააჭირეთ ღილაკს:';
+  const expiry =
+    'ბმული მოქმედებს 24 საათი. თუ რეგისტრაცია თქვენ არ დაგიწყიათ, წერილი უგულებელყავით: ანგარიში არ შეიქმნება.';
+  return {
+    subject: 'DAJDA: რეგისტრაციის დასრულება',
+    text: ['გამარჯობა,', '', opening, '', link, '', expiry, '', SIGNATURE].join('\n'),
+    html: renderEmailHtml({
+      heading: 'რეგისტრაციის დასრულება',
+      paragraphs: [opening],
+      cta: { label: 'ანგარიშის შექმნა', url: link },
+      footerLines: [expiry],
+    }),
+  };
+}
+
+/**
+ * What a registration on an address that already has an account sends,
+ * instead of an error on the form. The form says the same thing either way;
+ * only the owner of the mailbox learns which case it was.
+ */
+export function accountExistsEmail(loginLink: string, resetLink: string): AuthMailContent {
+  const opening =
+    'ამ მისამართით DAJDA-ზე ახალი ანგარიშის შექმნა სცადეს, მაგრამ ანგარიში უკვე გაქვთ. შედით ძველი პაროლით, ან, თუ ის არ გახსოვთ, აღადგინეთ:';
+  const note =
+    'თუ რეგისტრაცია თქვენ არ გიცდიათ, წერილი უგულებელყავით: თქვენს ანგარიშში არაფერი შეცვლილა.';
+  return {
+    subject: 'DAJDA: ამ მისამართით ანგარიში უკვე გაქვთ',
+    text: [
+      'გამარჯობა,',
+      '',
+      opening,
+      '',
+      `შესვლა: ${loginLink}`,
+      `პაროლის აღდგენა: ${resetLink}`,
+      '',
+      note,
+      '',
+      SIGNATURE,
+    ].join('\n'),
+    html: renderEmailHtml({
+      heading: 'ანგარიში უკვე გაქვთ',
+      paragraphs: [opening, `პაროლის აღდგენა: ${resetLink}`],
+      cta: { label: 'შესვლა', url: loginLink },
+      footerLines: [note],
+    }),
+  };
+}
+
 /**
  * Deliver the verification link. Failure is logged, never thrown: an account
  * must not fail to exist because a mail provider hiccuped - the dashboard
@@ -169,4 +222,30 @@ export async function sendPasswordResetEmail(
   if (!outcome.ok) {
     console.error(`[dajda] password reset email failed: ${outcome.reason}`);
   }
+}
+
+/** The URL that finishes a sign-up, for the mail and for the dev fallback. */
+export function signupConfirmUrl(token: string): string {
+  return `${getEnv().APP_URL}/register/confirm?token=${token}`;
+}
+
+/**
+ * Registration's two mails. Same never-throw contract as the others, and the
+ * outcome is deliberately NOT returned: the form must answer identically
+ * whichever one was sent, so nothing about the send may reach it.
+ */
+export async function sendSignupConfirmEmail(email: string, token: string): Promise<void> {
+  const content = signupConfirmEmail(signupConfirmUrl(token));
+  const outcome = await getEmailProvider().send({ to: email, ...content });
+  if (!outcome.ok) console.error(`[dajda] sign-up email failed: ${outcome.reason}`);
+}
+
+export async function sendAccountExistsEmail(email: string): Promise<void> {
+  const env = getEnv();
+  const content = accountExistsEmail(
+    `${env.APP_URL}/login`,
+    `${env.APP_URL}/forgot-password`,
+  );
+  const outcome = await getEmailProvider().send({ to: email, ...content });
+  if (!outcome.ok) console.error(`[dajda] account-exists email failed: ${outcome.reason}`);
 }

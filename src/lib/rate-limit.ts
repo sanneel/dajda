@@ -80,6 +80,13 @@ export class InMemoryRateLimiter implements RateLimiter {
 export const RATE_LIMITS = {
   login: { limit: 8, windowMs: 15 * 60 * 1000 },
   register: { limit: 5, windowMs: 60 * 60 * 1000 },
+  /**
+   * Registration mails per ADDRESS. Every submit sends one (a confirmation or
+   * an "account exists" note), so without this the form could fill a
+   * stranger's inbox from many IPs. Over the limit the form answers exactly
+   * as it would have and simply sends nothing.
+   */
+  registerEmail: { limit: 3, windowMs: 60 * 60 * 1000 },
   passwordReset: { limit: 5, windowMs: 60 * 60 * 1000 },
   /**
    * Redeeming a reset or verification link. The tokens are 256 random bits,

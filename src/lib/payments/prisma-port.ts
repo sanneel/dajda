@@ -9,16 +9,7 @@ import { getEnv } from '@/lib/env';
 import { formatMoney } from '@/lib/format';
 import type { PaymentSnapshot, WebhookPort } from './webhook';
 import { cardTokenKey, sealCardToken } from './card-token';
-
-/** Prisma unique-constraint violation. */
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === 'P2002'
-  );
-}
+import { isUniqueViolation } from '@/lib/db-errors';
 
 /**
  * Production WebhookPort.

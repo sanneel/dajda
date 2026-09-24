@@ -27,6 +27,30 @@ export function RegisterForm({ recurring }: { recurring: boolean }) {
 
   const errorFor = (field: string) => fieldErrors?.[field]?.[0];
 
+  /*
+   * One answer for every address. A new one gets a link that creates the
+   * account; one that already has an account gets a note saying so. Which
+   * of the two was sent is for the mailbox's owner to see, not this page, so
+   * the wording names neither.
+   */
+  if (state?.ok) {
+    return (
+      <Alert tone="success" title="შეამოწმეთ ელფოსტა">
+        <span className="break-words">{email}</span>-ზე გამოვგზავნეთ წერილი
+        შემდეგი ნაბიჯით. ბმული მოქმედებს 24 საათი. თუ წერილი არ ჩანს, შეამოწმეთ
+        სპამის საქაღალდე.
+        {state.data.link ? (
+          <span className="mt-2 block text-xs">
+            ფოსტის სერვისი არ არის დაკავშირებული, ამიტომ ბმული აქაა:{' '}
+            <a href={state.data.link} className="text-accent underline break-all">
+              {state.data.link}
+            </a>
+          </span>
+        ) : null}
+      </Alert>
+    );
+  }
+
   return (
     <form
       action={action}
