@@ -14,7 +14,6 @@ import {
   type PerformanceRecord,
 } from '@/lib/stats/performance';
 
-export { sortAnalysts, PERIOD_DAYS };
 export type { AnalystListItem, AnalystPeriod, AnalystSort };
 
 /**

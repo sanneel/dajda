@@ -19,7 +19,7 @@ import type { NotificationChannel } from '@/generated/prisma/enums';
  */
 
 /** After this many failed attempts a row is left alone as FAILED. */
-export const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 3;
 
 export type DeliveryResult =
   | { ok: true }

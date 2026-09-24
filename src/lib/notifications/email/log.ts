@@ -1,6 +1,6 @@
 import type { EmailMessage, EmailProvider, EmailSendResult } from './types';
 
-export const LOG_PROVIDER_CODE = 'log';
+const LOG_PROVIDER_CODE = 'log';
 
 /**
  * The development provider: prints instead of sending.

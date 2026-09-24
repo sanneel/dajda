@@ -38,7 +38,7 @@ export type LogoMatch = {
 };
 
 /** Correlation at or above this counts as the logo being there. */
-export const LOGO_MATCH_THRESHOLD = 0.72;
+const LOGO_MATCH_THRESHOLD = 0.72;
 
 /** The slip is reduced to this width before matching; bigger buys nothing. */
 const SLIP_WIDTH = 900;

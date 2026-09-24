@@ -5,9 +5,6 @@ import { ResendEmailProvider } from './resend';
 import type { EmailProvider } from './types';
 
 export * from './types';
-export { LOG_PROVIDER_CODE } from './log';
-export { RESEND_PROVIDER_CODE } from './resend';
-export { BREVO_PROVIDER_CODE } from './brevo';
 
 let cached: EmailProvider | null = null;
 

@@ -18,7 +18,7 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
  */
 
 /** Long enough to switch apps and press a button, short enough to be useless if leaked. */
-export const TELEGRAM_LINK_TTL_MS = 30 * 60 * 1000;
+const TELEGRAM_LINK_TTL_MS = 30 * 60 * 1000;
 
 /**
  * Issue a fresh link. Any earlier unused token for this account is consumed

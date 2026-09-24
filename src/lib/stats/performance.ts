@@ -46,7 +46,7 @@ export type PerformanceSummary = {
 };
 
 /** Below this many decided predictions, a rate is not yet meaningful. */
-export const MIN_SAMPLE_FOR_RANKING = 20;
+const MIN_SAMPLE_FOR_RANKING = 20;
 
 const EMPTY_SUMMARY: PerformanceSummary = {
   total: 0,
@@ -143,7 +143,7 @@ export function summarizePerformance(
  * Streaks run over decided predictions only; VOID/PUSH are transparent and
  * neither extend nor break a run.
  */
-export function computeStreaks(records: readonly PerformanceRecord[]): {
+function computeStreaks(records: readonly PerformanceRecord[]): {
   currentStreak: Streak;
   bestWinStreak: number;
   worstLossStreak: number;

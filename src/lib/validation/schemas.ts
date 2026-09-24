@@ -33,12 +33,12 @@ function wallClockSchema(message: string) {
 // Authentication
 // ---------------------------------------------------------------------------
 
-export const emailSchema = z
+const emailSchema = z
   .email('შეიყვანეთ სწორი ელფოსტა.')
   .max(254)
   .transform((value) => value.trim().toLowerCase());
 
-export const passwordSchema = z
+const passwordSchema = z
   .string()
   .min(10, 'პაროლი უნდა შეიცავდეს მინიმუმ 10 სიმბოლოს.')
   .max(200, 'პაროლი ძალიან გრძელია.')
@@ -165,7 +165,7 @@ export const uploadPathSchema = z
   );
 
 /** One leg of a slip, as typed from the screenshot. */
-export const selectionSchema = z.object({
+const selectionSchema = z.object({
   eventKa: z
     .string()
     .trim()

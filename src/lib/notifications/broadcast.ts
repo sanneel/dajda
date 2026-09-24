@@ -25,7 +25,7 @@ import {
  * without Prisma so the promised rule is testable on its own.
  */
 
-export { BROADCASTS_PER_DAY, startOfUtcDay };
+export { BROADCASTS_PER_DAY };
 export type { BroadcastAllowance };
 
 export type BroadcastInput = { subjectKa: string; bodyKa: string };

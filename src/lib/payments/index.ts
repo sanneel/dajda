@@ -4,7 +4,6 @@ import { MockPaymentProvider } from './mock';
 import type { PaymentProvider } from './types';
 
 export * from './types';
-export { MOCK_PROVIDER_CODE } from './mock';
 export { FLITT_PROVIDER_CODE } from './flitt';
 
 let cached: PaymentProvider | null = null;

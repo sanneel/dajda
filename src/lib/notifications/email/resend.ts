@@ -5,7 +5,7 @@ import {
   type EmailSendResult,
 } from './types';
 
-export const RESEND_PROVIDER_CODE = 'resend';
+const RESEND_PROVIDER_CODE = 'resend';
 
 /**
  * Resend, over its HTTP API.

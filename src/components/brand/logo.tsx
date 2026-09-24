@@ -12,7 +12,7 @@ type LogoProps = {
  * a slip that landed. Deliberately no coin, note, currency glyph, dice, chip
  * or card suit: DAJDA sells analysis, and the mark should not imply a casino.
  */
-export function DajdaMark({ size = 28 }: { size?: number }) {
+function DajdaMark({ size = 28 }: { size?: number }) {
   return (
     <svg
       width={size}

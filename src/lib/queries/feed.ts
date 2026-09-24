@@ -112,7 +112,7 @@ export async function analystFeed(
  * and a reader who wants to keep seeing an author after the money stops can
  * follow them.
  */
-export async function personalFeedSources(userId: string): Promise<string[]> {
+async function personalFeedSources(userId: string): Promise<string[]> {
   const [subscriptions, saved] = await Promise.all([
     prisma.userSubscription.findMany({
       where: { userId, status: 'ACTIVE', plan: { analystProfileId: { not: null } } },

@@ -22,7 +22,7 @@ import type { TicketFilter } from '@/lib/validation/schemas';
  * one field that is always present.
  */
 
-export const TICKET_PAGE_SIZE = 12;
+const TICKET_PAGE_SIZE = 12;
 
 const publicTicketSelect = {
   id: true,

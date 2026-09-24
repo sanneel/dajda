@@ -16,7 +16,7 @@ const GEORGIAN_TO_LATIN: Record<string, string> = {
   ჯ: 'j', ჰ: 'h',
 };
 
-export function transliterate(input: string): string {
+function transliterate(input: string): string {
   return [...input]
     .map((character) => GEORGIAN_TO_LATIN[character] ?? character)
     .join('');

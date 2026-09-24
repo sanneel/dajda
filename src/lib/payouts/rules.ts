@@ -14,7 +14,7 @@ import { TBILISI_UTC_OFFSET_MINUTES, tbilisiParts } from '@/lib/time';
  * last day and leave it open until 04:00 on the 1st, which is a different
  * promise from the one signed. Re-exported so the rules read as one module.
  */
-export { TBILISI_UTC_OFFSET_MINUTES, tbilisiParts } from '@/lib/time';
+export { tbilisiParts } from '@/lib/time';
 
 /** The instant a Tbilisi wall-clock midnight corresponds to. */
 function tbilisiMidnight(year: number, month: number, day: number): Date {

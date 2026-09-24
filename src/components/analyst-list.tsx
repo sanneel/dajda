@@ -22,7 +22,7 @@ import { Avatar } from './ui/avatar';
  * The row therefore draws no outer border and no background of its own. The
  * separator between rows belongs to the list, not to the row.
  */
-export function AnalystRow({
+function AnalystRow({
   analyst,
   subscribed = false,
 }: {

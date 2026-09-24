@@ -21,7 +21,7 @@ export type SelectionDraft = {
 };
 
 /** Field names the post form uses for its repeated rows. */
-export const SELECTION_FIELDS = {
+const SELECTION_FIELDS = {
   event: 'selectionEvent',
   pick: 'selectionPick',
   odds: 'selectionOdds',

@@ -35,7 +35,7 @@ const FONT =
   "-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Noto Sans Georgian',sans-serif";
 
 /** Minimal escaping - everything interpolated below passes through this. */
-export function escapeHtml(value: string): string {
+function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')

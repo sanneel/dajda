@@ -38,7 +38,7 @@ export function googleConfigured(): boolean {
   return true;
 }
 
-export function googleRedirectUri(): string {
+function googleRedirectUri(): string {
   return `${getEnv().APP_URL}/api/auth/google/callback`;
 }
 

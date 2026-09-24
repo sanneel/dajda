@@ -116,7 +116,7 @@ export function flittSignatureV2(data: string, secretKey: string): string {
 export type FlittV2Envelope = { version: '2.0'; data: string; signature: string };
 
 /** Wrap an order for a protocol 2.0 request. */
-export function encodeV2Order(
+function encodeV2Order(
   order: FlittParams,
   secretKey: string,
 ): FlittV2Envelope {

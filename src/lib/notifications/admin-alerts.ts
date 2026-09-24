@@ -26,15 +26,6 @@ import { flushTelegramOutbox } from './telegram-sender';
  * shows what happened either way.
  */
 
-export {
-  PAYOUT_QUEUE_PATH,
-  renderBetFinishedAlert,
-  renderPayoutRequestedAlert,
-  SETTLEMENT_QUEUE_PATH,
-  type BetFinishedAlertInput,
-  type PayoutRequestedAlertInput,
-} from './admin-alert-text';
-
 type AlertOutcome = { sent: number; failed: number; skipped: number };
 
 const NONE: AlertOutcome = { sent: 0, failed: 0, skipped: 0 };

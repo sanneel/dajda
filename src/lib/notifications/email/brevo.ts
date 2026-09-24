@@ -5,7 +5,7 @@ import {
   type EmailSendResult,
 } from './types';
 
-export const BREVO_PROVIDER_CODE = 'brevo';
+const BREVO_PROVIDER_CODE = 'brevo';
 
 /**
  * Brevo, over its transactional API.

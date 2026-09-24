@@ -24,7 +24,7 @@ import type {
  * the untrusted-redirect path is exercised in development too.
  */
 
-export const MOCK_PROVIDER_CODE = 'mock';
+const MOCK_PROVIDER_CODE = 'mock';
 
 export const MOCK_SIGNATURE_HEADER = 'x-mock-signature';
 export const MOCK_TIMESTAMP_HEADER = 'x-mock-timestamp';
