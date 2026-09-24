@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { refreshAnalystList } from '@/lib/queries/analysts';
+import { refreshAnalysts } from '@/lib/queries/analysts';
 import { requireApprovedAnalyst, requireUser } from '@/lib/auth/authorization';
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@/generated/prisma/client';
@@ -226,7 +226,7 @@ export async function postBetAction(
     revalidatePath('/free');
     revalidatePath('/');
     revalidatePath('/analysts', 'layout');
-    refreshAnalystList();
+    refreshAnalysts();
 
     return ok({
       predictionId: prediction.id,
@@ -257,7 +257,7 @@ export async function publishBetAction(
 
     revalidatePath('/analyst');
     revalidatePath('/free');
-    refreshAnalystList();
+    refreshAnalysts();
     return ok({ published: true });
   } catch (error) {
     return toActionFailure(error);
@@ -307,7 +307,7 @@ export async function markBetFinishedAction(
 
     revalidatePath('/analyst');
     revalidatePath('/admin/predictions');
-    refreshAnalystList();
+    refreshAnalysts();
     return ok({ finished: true });
   } catch (error) {
     return toActionFailure(error);
@@ -542,7 +542,7 @@ export async function updateAnalystPhotoAction(
     revalidatePath('/analyst');
     revalidatePath('/analysts');
     revalidatePath(`/analysts/${profile.slug}`);
-    refreshAnalystList();
+    refreshAnalysts();
 
     return ok({ photoPath: urlPath });
   } catch (error) {
@@ -663,7 +663,7 @@ export async function setPlanPriceAction(
     revalidatePath('/analyst');
     revalidatePath('/');
     revalidatePath('/analysts', 'layout');
-    refreshAnalystList();
+    refreshAnalysts();
     return ok({ priceMinor });
   } catch (error) {
     return toActionFailure(error);
@@ -754,7 +754,7 @@ export async function updateAnalystDisplayNameAction(
     revalidatePath('/analyst');
     revalidatePath('/analysts');
     revalidatePath(`/analysts/${profile.slug}`);
-    refreshAnalystList();
+    refreshAnalysts();
 
     return ok({ displayName: profile.displayName });
   } catch (error) {

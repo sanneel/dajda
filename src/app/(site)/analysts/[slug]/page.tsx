@@ -2,7 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { SlidersHorizontal } from 'lucide-react';
-import { getAnalystBySlug } from '@/lib/queries/analysts';
+import {
+  countPublishedBetween,
+  getAnalystPage,
+  listOpenTickets,
+} from '@/lib/queries/analysts';
 import {
   activePlanGrants,
   listSports,
@@ -13,10 +17,6 @@ import { payoutPeriod } from '@/lib/payouts/rules';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { isTicketLocked } from '@/lib/auth/entitlements';
 import { prisma } from '@/lib/db';
-import {
-  monthlyPerformance,
-  oddsBucketPerformance,
-} from '@/lib/stats/performance';
 import {
   formatMoney,
 } from '@/lib/format';
@@ -51,7 +51,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const data = await getAnalystBySlug(slug);
+  const data = await getAnalystPage(slug);
   if (!data) return { title: 'ანალიტიკოსი ვერ მოიძებნა' };
 
   return {
@@ -85,24 +85,31 @@ export default async function AnalystProfilePage({
   // A "გამოწერა" link from elsewhere on the site: open the plan dialog at once.
   const wantsSubscribe = query.subscribe === '1';
   const [data, actor] = await Promise.all([
-    getAnalystBySlug(slug),
+    getAnalystPage(slug),
     getCurrentUser(),
   ]);
 
   if (!data) notFound();
 
-  const {
-    profile,
-    predictions,
-    freeAllTime,
-    paidAllTime,
-    subscriptionAllTime,
-  } = data;
+  const { profile, free, paid, subscription } = data;
 
   /** The author, looking at their own page. */
   const isOwner = actor?.analystProfileId === profile.id;
 
-  const [saved, subscriptions, grants, purchased, sports] = await Promise.all([
+  const now = new Date();
+  // This Tbilisi calendar month: the same period a payout is judged on, and
+  // the same rows (a corrected ticket counts once).
+  const month = payoutPeriod(now);
+
+  const [
+    saved,
+    subscriptions,
+    grants,
+    purchased,
+    sports,
+    openTickets,
+    publishedThisMonth,
+  ] = await Promise.all([
     actor
       ? prisma.savedAnalyst.count({
           where: { userId: actor.userId, analystProfileId: profile.id },
@@ -122,6 +129,8 @@ export default async function AnalystProfilePage({
     purchasedTicketIds(actor?.userId),
     // Only the owner is offered the post form, so only they need the list.
     isOwner ? listSports() : Promise.resolve([]),
+    listOpenTickets(profile.id),
+    countPublishedBetween(profile.id, month.start, month.end),
   ]);
 
   const statusByPlan = new Map(
@@ -149,19 +158,8 @@ export default async function AnalystProfilePage({
   const lowestPriceMinor = Math.min(
     ...profile.plans.filter((plan) => plan.priceMinor > 0).map((plan) => plan.priceMinor),
   );
-  const now = new Date();
-  // This Tbilisi calendar month: the same period a payout is judged on, and
-  // the same rows (a corrected ticket counts once).
-  const month = payoutPeriod(now);
-  const publishedThisMonth = predictions.filter(
-    (prediction) =>
-      prediction.publishedAt !== null &&
-      prediction.supersededAt === null &&
-      prediction.publishedAt >= month.start &&
-      prediction.publishedAt < month.end,
-  ).length;
   const lockedBetIds = new Set(
-    predictions
+    openTickets
       .filter((prediction) =>
         isTicketLocked(
           {
@@ -176,34 +174,6 @@ export default async function AnalystProfilePage({
       )
       .map((prediction) => prediction.id),
   );
-
-  /*
-   * Chart inputs per slice, from the same rows the summaries use. The free
-   * tab charts the free record and the paid tab the paid one - a reader
-   * switching the panel switches the whole story, not just five numbers.
-   */
-  const chartsFor = (
-    visibility: (value: (typeof predictions)[number]['visibility']) => boolean,
-  ) => {
-    const slice = predictions
-      .filter((prediction) => visibility(prediction.visibility))
-      .map((prediction) => ({
-        status: prediction.status,
-        oddsMilli: prediction.oddsMilli,
-        stakeUnitsCenti: prediction.stakeUnitsCenti,
-        profitUnitsCenti: prediction.result?.profitUnitsCenti ?? null,
-        publishedAt: prediction.publishedAt as Date,
-      }));
-    return {
-      monthly: monthlyPerformance(slice),
-      oddsBuckets: oddsBucketPerformance(slice),
-    };
-  };
-  const freeCharts = chartsFor((visibility) => visibility === 'PUBLIC');
-  // Three products, three slices. PREMIUM and VIP shared one until
-  // 2026-09-10, which made the paid and subscription panels identical.
-  const paidCharts = chartsFor((visibility) => visibility === 'PREMIUM');
-  const subscriptionCharts = chartsFor((visibility) => visibility === 'VIP');
 
   return (
     <div className="mx-auto max-w-page px-4 py-10 sm:px-6">
@@ -341,12 +311,12 @@ export default async function AnalystProfilePage({
       {/* ------------------------------------------------------------- */}
       <section className="mt-8" aria-labelledby="plans-heading">
         <RecordTabs
-          free={freeAllTime}
-          paid={paidAllTime}
-          subscription={subscriptionAllTime}
-          freeCharts={freeCharts}
-          paidCharts={paidCharts}
-          subscriptionCharts={subscriptionCharts}
+          free={free.summary}
+          paid={paid.summary}
+          subscription={subscription.summary}
+          freeCharts={free.charts}
+          paidCharts={paid.charts}
+          subscriptionCharts={subscription.charts}
           plans={profile.plans.map((plan) => ({
             ...plan,
             currentStatus: statusByPlan.get(plan.id),
@@ -397,20 +367,16 @@ export default async function AnalystProfilePage({
 
         <div className="mt-5">
           <AnalystHistory
-            entries={predictions
-              .filter(
-                (prediction) =>
-                  prediction.publishedAt !== null &&
-                  prediction.supersededAt === null &&
-                  prediction.status === 'PENDING' &&
-                  isTicketStillActive(
-                    prediction,
-                    // Only a sold ticket has a holder. A free one is open to
-                    // every signed-in reader, which is not holding it.
-                    prediction.visibility !== 'PUBLIC' &&
-                      !lockedBetIds.has(prediction.id),
-                    now,
-                  ),
+            entries={openTickets
+              .filter((prediction) =>
+                isTicketStillActive(
+                  prediction,
+                  // Only a sold ticket has a holder. A free one is open to
+                  // every signed-in reader, which is not holding it.
+                  prediction.visibility !== 'PUBLIC' &&
+                    !lockedBetIds.has(prediction.id),
+                  now,
+                ),
               )
               .map((prediction) => ({
                 id: prediction.id,

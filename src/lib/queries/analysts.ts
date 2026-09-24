@@ -10,6 +10,8 @@ import {
   type AnalystSort,
 } from '@/lib/stats/ranking';
 import {
+  monthlyPerformance,
+  oddsBucketPerformance,
   summarizePerformance,
   withinDays,
   type PerformanceRecord,
@@ -53,8 +55,8 @@ function toRecords(
   }));
 }
 
-/** The tag on the cached ranking. See refreshAnalystList. */
-const ANALYST_LIST_TAG = 'analyst-list';
+/** The tag on every cached analyst read. See refreshAnalysts. */
+const ANALYSTS_TAG = 'analysts';
 
 /**
  * The ranking is the most expensive read on the site: every subscription
@@ -66,21 +68,22 @@ const ANALYST_LIST_TAG = 'analyst-list';
  * so four entries cover every combination a reader can pick.
  *
  * A write that changes what the list shows expires it through
- * refreshAnalystList. The 60 second lifetime covers what changes with the
+ * refreshAnalysts. The 60 second lifetime covers what changes with the
  * clock alone: a period window sliding forward, a ticket whose event has
  * started dropping out of the active count.
  */
 const rankedAnalysts = unstable_cache(buildAnalystList, ['analyst-list'], {
-  tags: [ANALYST_LIST_TAG],
+  tags: [ANALYSTS_TAG],
   revalidate: 60,
 });
 
 /**
- * Expire the cached ranking. Call it from every Server Action that changes
- * an author's status, name, photo, plan price, or subscription tickets.
+ * Expire the cached ranking and every cached profile record. Call it from
+ * every Server Action that changes an author's status, name, photo, plans,
+ * or published tickets.
  */
-export function refreshAnalystList(): void {
-  updateTag(ANALYST_LIST_TAG);
+export function refreshAnalysts(): void {
+  updateTag(ANALYSTS_TAG);
 }
 
 export async function listAnalysts(options?: {
@@ -238,31 +241,49 @@ async function buildAnalystList(
 }
 
 
-export type AnalystProfileDetail = NonNullable<
-  Awaited<ReturnType<typeof getAnalystBySlug>>
->;
+/**
+ * An analyst's public page, split by what each part costs.
+ *
+ * The record (totals and charts for each of the three products) is built from
+ * every ticket the author has published, so it grows with their history. It
+ * changes only when something is written, so it is cached per author and
+ * expired through refreshAnalysts, like the ranking.
+ *
+ * What depends on the viewer or on the clock stays per request and reads
+ * only what it needs: the open tickets (listOpenTickets) and this month's
+ * count (countPublishedBetween).
+ *
+ * The slug is resolved outside the cache, so a made-up slug costs one
+ * indexed lookup and never adds a cache entry. Memoized per request: the
+ * page's metadata and body both read it.
+ */
+export const getAnalystPage = cache(async (slug: string) => {
+  const found = await prisma.analystProfile.findUnique({
+    where: { slug },
+    select: { id: true, status: true },
+  });
+  if (!found || found.status !== 'APPROVED') return null;
 
-/** Memoized per request: the profile page's metadata and body both read it. */
-export const getAnalystBySlug = cache(async (slug: string) => {
-  /*
-   * Both reads in one round trip. The prediction read keys on the slug
-   * through the relation rather than waiting for the profile's id, and
-   * repeats the APPROVED condition so it returns nothing the page would
-   * then have to throw away.
-   */
+  return analystRecord(found.id);
+});
+
+const analystRecord = unstable_cache(buildAnalystRecord, ['analyst-record'], {
+  tags: [ANALYSTS_TAG],
+  revalidate: 60,
+});
+
+async function buildAnalystRecord(profileId: string) {
   const [profile, predictions] = await Promise.all([
     prisma.analystProfile.findUnique({
-      where: { slug },
+      where: { id: profileId },
       select: {
         id: true,
         slug: true,
         displayName: true,
         photoPath: true,
         headline: true,
-        status: true,
         isDemo: true,
         monthlyMinimum: true,
-        createdAt: true,
         sports: { select: { sport: { select: { code: true, nameKa: true } } } },
         plans: {
           where: { isActive: true },
@@ -281,34 +302,132 @@ export const getAnalystBySlug = cache(async (slug: string) => {
       },
     }),
     prisma.prediction.findMany({
+      where: { authorId: profileId, ...PUBLISHED },
+      select: {
+        visibility: true,
+        status: true,
+        oddsMilli: true,
+        stakeUnitsCenti: true,
+        publishedAt: true,
+        result: { select: { profitUnitsCenti: true } },
+      },
+    }),
+  ]);
+
+  if (!profile) return null;
+
+  /*
+   * One slice per product. A singly-sold ticket and a subscription ticket
+   * are two different sales, so folding them into one "paid" figure
+   * answered neither question. Each slice's charts come from the same rows
+   * as its totals, so a number and its picture can never disagree.
+   */
+  const slice = (visibility: (typeof predictions)[number]['visibility']) => {
+    const records = toRecords(
+      predictions.filter((prediction) => prediction.visibility === visibility),
+    );
+    return {
+      summary: summarizePerformance(records),
+      charts: {
+        monthly: monthlyPerformance(records),
+        oddsBuckets: oddsBucketPerformance(records),
+      },
+    };
+  };
+
+  return {
+    profile,
+    free: slice('PUBLIC'),
+    paid: slice('PREMIUM'),
+    subscription: slice('VIP'),
+  };
+}
+
+/**
+ * The author's published tickets that are still unsettled: the page's
+ * "active tickets" list. Per request, because whether a ticket is still
+ * active depends on the clock and whether its pick shows depends on the
+ * viewer. Only PENDING rows, so it stays small however long the history.
+ */
+export function listOpenTickets(authorId: string) {
+  return prisma.prediction.findMany({
+    where: { authorId, status: 'PENDING', ...PUBLISHED },
+    orderBy: { publishedAt: 'desc' },
+    select: {
+      id: true,
+      titleKa: true,
+      visibility: true,
+      priceMinor: true,
+      oddsMilli: true,
+      status: true,
+      publishedAt: true,
+      eventAt: true,
+      eventEndAt: true,
+      sport: { select: { nameKa: true } },
+    },
+  });
+}
+
+/** Tickets the author published in [start, end), a correction counted once. */
+export function countPublishedBetween(
+  authorId: string,
+  start: Date,
+  end: Date,
+): Promise<number> {
+  return prisma.prediction.count({
+    where: {
+      authorId,
+      supersededAt: null,
+      publishedAt: { gte: start, lt: end },
+    },
+  });
+}
+
+/**
+ * The full published record, for the public profile API, which returns
+ * every ticket. The profile page reads getAnalystPage instead.
+ */
+export async function getAnalystBySlug(slug: string) {
+  const [profile, predictions] = await Promise.all([
+    prisma.analystProfile.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        displayName: true,
+        headline: true,
+        status: true,
+        isDemo: true,
+        sports: { select: { sport: { select: { code: true } } } },
+        plans: {
+          where: { isActive: true },
+          orderBy: { priceMinor: 'asc' },
+          select: {
+            id: true,
+            tier: true,
+            nameKa: true,
+            priceMinor: true,
+            currency: true,
+            billingPeriod: true,
+          },
+        },
+      },
+    }),
+    prisma.prediction.findMany({
       where: { author: { slug, status: 'APPROVED' }, ...PUBLISHED },
       orderBy: { publishedAt: 'desc' },
       select: {
         id: true,
         titleKa: true,
-        descriptionKa: true,
         screenshotPath: true,
-        resultScreenshotPath: true,
         status: true,
         visibility: true,
-        // The per-ticket price, for the history list's ფასიანი column.
-        priceMinor: true,
         oddsMilli: true,
         stakeUnitsCenti: true,
-        confidence: true,
         publishedAt: true,
         eventAt: true,
-        eventEndAt: true,
-        finishedAt: true,
-        // A superseded row is a corrected draft, not part of the record.
-        supersededAt: true,
-        pinnedAt: true,
-        version: true,
-        correctionOfId: true,
-        sport: { select: { code: true, nameKa: true } },
-        result: {
-          select: { profitUnitsCenti: true, settledAt: true },
-        },
+        sport: { select: { code: true } },
+        result: { select: { profitUnitsCenti: true } },
       },
     }),
   ]);
@@ -322,27 +441,6 @@ export const getAnalystBySlug = cache(async (slug: string) => {
     predictions,
     allTime: summarizePerformance(records),
     last30Days: summarizePerformance(withinDays(records, 30)),
-    /*
-     * The same record cut the way a buyer reads it: what the free tickets
-     * returned versus what the subscription ones did. Derived from the same
-     * rows as `allTime`, so the three figures can never disagree.
-     */
-    freeAllTime: summarizePerformance(
-      toRecords(predictions.filter((p) => p.visibility === 'PUBLIC')),
-    ),
-    /*
-     * One summary per product. A singly-sold ticket and a subscription
-     * ticket are two different sales, so folding them into one "paid"
-     * figure answered neither question - and made the two panels on the
-     * profile show the same numbers.
-     */
-    paidAllTime: summarizePerformance(
-      toRecords(predictions.filter((p) => p.visibility === 'PREMIUM')),
-    ),
-    subscriptionAllTime: summarizePerformance(
-      toRecords(predictions.filter((p) => p.visibility === 'VIP')),
-    ),
     records,
   };
-});
-
+}
