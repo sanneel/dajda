@@ -40,8 +40,14 @@ export type LogoMatch = {
 /** Correlation at or above this counts as the logo being there. */
 const LOGO_MATCH_THRESHOLD = 0.72;
 
-/** The slip is reduced to this width before matching; bigger buys nothing. */
-const SLIP_WIDTH = 900;
+/**
+ * The slip is reduced to this width before matching. The cost of a check
+ * grows with the slip's area, and at 900 a phone screenshot took about 3.4 s.
+ * 600 takes about 40% less and still flagged every logo the 900 run did on
+ * the test slips; at 450 the bet365 icon fell below the threshold, so this
+ * is close to the floor.
+ */
+const SLIP_WIDTH = 600;
 
 /**
  * Template widths to try, as a fraction of the slip width. A bookmaker's
