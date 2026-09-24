@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { LinkPending } from './link-pending';
 import { NAV_ITEMS } from './nav-items';
 
 /**
@@ -25,13 +26,14 @@ export function NavLinks() {
             <Link
               href={item.href}
               aria-current={active ? 'page' : undefined}
-              className={`inline-flex min-h-[4.25rem] items-center border-b-2 text-sm transition-colors ${
+              className={`relative inline-flex min-h-[4.25rem] items-center border-b-2 text-sm transition-colors ${
                 active
                   ? 'border-ink font-semibold text-ink'
                   : 'border-transparent text-ink-muted hover:text-ink'
               }`}
             >
               {item.label}
+              <LinkPending className="inset-x-0 -bottom-0.5 h-0.5 bg-ink" />
             </Link>
           </li>
         );

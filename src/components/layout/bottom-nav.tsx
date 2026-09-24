@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { LinkPending } from './link-pending';
 import { usePathname } from 'next/navigation';
 import { Crown, Home, LogIn, Ticket, User } from 'lucide-react';
 
@@ -84,7 +85,7 @@ export function BottomNav({
               <Link
                 href={tab.href}
                 aria-current={active ? 'page' : undefined}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 px-0.5 transition-colors ${
+                className={`relative flex min-h-14 flex-col items-center justify-center gap-1 px-0.5 transition-colors ${
                   active ? 'text-accent' : 'text-ink-faint hover:text-ink'
                 }`}
               >
@@ -96,6 +97,7 @@ export function BottomNav({
                 <span className="w-full truncate text-center text-[10px] leading-none">
                   {tab.label}
                 </span>
+                <LinkPending className="inset-x-3 top-0 h-0.5 bg-accent" />
               </Link>
             </li>
           );
