@@ -32,6 +32,7 @@ import {
 import {
   ERROR_CODES,
   fail,
+  invalid,
   ok,
   toActionFailure,
   type ActionResult,
@@ -94,11 +95,7 @@ export async function registerAction(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const input = parsed.data;
@@ -567,11 +564,7 @@ export async function resetPasswordAction(
       password: formData.get('password'),
     });
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const record = await prisma.authToken.findUnique({

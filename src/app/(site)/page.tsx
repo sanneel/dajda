@@ -67,32 +67,25 @@ export default async function HomePage({
       ? raw.q.trim()
       : undefined;
 
-  const [analysts, sports, actor] = await Promise.all([
+  const actorPromise = getCurrentUser();
+  const [analysts, sports, actor, subscribedIds] = await Promise.all([
     listAnalysts({ sort, period, sportCode: sportParam, query: queryParam }),
     listSports(),
-    getCurrentUser(),
+    actorPromise,
+    // Authors the viewer already pays: their rows say so instead of selling.
+    actorPromise.then(async (viewer) =>
+      viewer
+        ? (
+            await prisma.userSubscription.findMany({
+              where: { userId: viewer.userId, status: 'ACTIVE' },
+              select: { plan: { select: { analystProfileId: true } } },
+            })
+          )
+            .map((row) => row.plan.analystProfileId)
+            .filter((id): id is string => id !== null)
+        : [],
+    ),
   ]);
-
-  // Authors the viewer already pays: their rows say so instead of selling.
-  const subscribedIds = actor
-    ? (
-        await prisma.userSubscription.findMany({
-          where: { userId: actor.userId, status: 'ACTIVE' },
-          select: { plan: { select: { analystProfileId: true } } },
-        })
-      )
-        .map((row) => row.plan.analystProfileId)
-        .filter((id): id is string => id !== null)
-    : [];
-
-  const selectClass =
-    'min-h-10 w-full appearance-none rounded-control border border-on-band/20 bg-on-band/10 py-2 pl-3 pr-9 text-sm text-on-band ' +
-    'transition-colors hover:border-on-band/35 focus:border-on-band/60 focus:outline-none ' +
-    // The options themselves render in the OS palette, so they need an
-    // explicit light ground or they inherit white-on-white in some browsers.
-    '[&>option]:bg-surface [&>option]:text-ink';
-
-  const labelClass = 'rule-label mb-1.5 block text-on-band/60';
 
   return (
     <div className="mx-auto max-w-page px-4 py-6 sm:px-8 sm:py-10">
@@ -150,87 +143,30 @@ export default async function HomePage({
          * Search lives behind the icon until tapped (order-first when open).
          */}
         <div className="flex flex-wrap items-end gap-x-2 gap-y-3 sm:gap-x-3">
-          <div className="min-w-0 flex-1 basis-[7.5rem]">
-            <label
-              htmlFor="filter-sort"
-              className={labelClass}
-            >
-              დალაგება
-            </label>
-            <div className="relative">
-              <select
-                id="filter-sort"
-                name="sort"
-                defaultValue={sort}
-                className={selectClass}
-              >
-                {SORTS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-on-band/55"
-                aria-hidden="true"
-              />
-            </div>
-          </div>
-
-          <div className="min-w-0 flex-1 basis-[7.5rem]">
-            <label
-              htmlFor="filter-period"
-              className={labelClass}
-            >
-              პერიოდი
-            </label>
-            <div className="relative">
-              <select
-                id="filter-period"
-                name="period"
-                defaultValue={period}
-                className={selectClass}
-              >
-                {PERIODS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-on-band/55"
-                aria-hidden="true"
-              />
-            </div>
-          </div>
-
-          <div className="min-w-0 flex-1 basis-[7.5rem]">
-            <label
-              htmlFor="filter-sport"
-              className={labelClass}
-            >
-              სპორტი
-            </label>
-            <div className="relative">
-              <select
-                id="filter-sport"
-                name="sport"
-                defaultValue={sportParam ?? ''}
-                className={selectClass}
-              >
-                <option value="">ყველა სპორტი</option>
-                {sports.map((sport) => (
-                  <option key={sport.code} value={sport.code}>
-                    {sport.nameKa}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-on-band/55"
-                aria-hidden="true"
-              />
-            </div>
-          </div>
+          <BandSelect
+            name="sort"
+            label="დალაგება"
+            defaultValue={sort}
+            options={SORTS}
+          />
+          <BandSelect
+            name="period"
+            label="პერიოდი"
+            defaultValue={period}
+            options={PERIODS}
+          />
+          <BandSelect
+            name="sport"
+            label="სპორტი"
+            defaultValue={sportParam ?? ''}
+            options={[
+              { value: '', label: 'ყველა სპორტი' },
+              ...sports.map((sport) => ({
+                value: sport.code,
+                label: sport.nameKa,
+              })),
+            ]}
+          />
 
           {/*
            * Search and submit close the row, in the order they are reached
@@ -274,6 +210,52 @@ export default async function HomePage({
 
       <div className="mt-12">
         <ResponsibleUseNotice />
+      </div>
+    </div>
+  );
+}
+
+/** One labelled select in the dark filter band. */
+function BandSelect({
+  name,
+  label,
+  defaultValue,
+  options,
+}: {
+  name: string;
+  label: string;
+  defaultValue: string;
+  options: { value: string; label: string }[];
+}) {
+  const id = `filter-${name}`;
+  return (
+    <div className="min-w-0 flex-1 basis-[7.5rem]">
+      <label htmlFor={id} className="rule-label mb-1.5 block text-on-band/60">
+        {label}
+      </label>
+      <div className="relative">
+        <select
+          id={id}
+          name={name}
+          defaultValue={defaultValue}
+          className={
+            'min-h-10 w-full appearance-none rounded-control border border-on-band/20 bg-on-band/10 py-2 pl-3 pr-9 text-sm text-on-band ' +
+            'transition-colors hover:border-on-band/35 focus:border-on-band/60 focus:outline-none ' +
+            // The options themselves render in the OS palette, so they need an
+            // explicit light ground or they inherit white-on-white in some browsers.
+            '[&>option]:bg-surface [&>option]:text-ink'
+          }
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-on-band/55"
+          aria-hidden="true"
+        />
       </div>
     </div>
   );

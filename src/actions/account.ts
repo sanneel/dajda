@@ -13,6 +13,7 @@ import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import {
   ERROR_CODES,
   fail,
+  invalid,
   ok,
   toActionFailure,
   type ActionResult,
@@ -45,11 +46,7 @@ export async function updateProfileAction(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     await prisma.user.update({
@@ -81,11 +78,7 @@ export async function updateNotificationPreferencesAction(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const input = parsed.data;

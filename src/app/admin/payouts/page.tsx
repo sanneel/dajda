@@ -38,53 +38,54 @@ export default async function AdminPayoutsPage() {
    * asked yet - which is the whole point of the control. Ordered by what is
    * unusual first: an override is a state somebody has to remember to undo.
    */
-  const analysts = await prisma.analystProfile.findMany({
-    where: { status: 'APPROVED' },
-    orderBy: [{ payoutWindow: 'desc' }, { displayName: 'asc' }],
-    select: {
-      id: true,
-      displayName: true,
-      slug: true,
-      payoutWindow: true,
-      payoutWindowNote: true,
-      payoutWindowSetAt: true,
-      user: { select: { email: true, earningsMinor: true } },
-    },
-  });
-
-  const payouts = await prisma.analystPayout.findMany({
-    orderBy: [{ status: 'asc' }, { requestedAt: 'desc' }],
-    take: 100,
-    select: {
-      id: true,
-      amountMinor: true,
-      currency: true,
-      status: true,
-      maskedAccount: true,
-      // Opened on the server for open requests only, so the administrator can
-      // make the transfer; it never reaches the page for a decided one.
-      accountCipher: true,
-      periodStart: true,
-      periodEnd: true,
-      publicationsInPeriod: true,
-      weeksInPeriod: true,
-      weeksMeetingMinimum: true,
-      activityCheckPassed: true,
-      declaredMonthlyMinimum: true,
-      failureReason: true,
-      // The provider's own words. Admin-only: this is the page where somebody
-      // decides whether releasing the request again could possibly work.
-      failureDetail: true,
-      paymentReference: true,
-      rawStatus: true,
-      requestedAt: true,
-      decidedAt: true,
-      analystProfile: {
-        select: { displayName: true, slug: true, firstName: true, lastName: true },
+  const [analysts, payouts] = await Promise.all([
+    prisma.analystProfile.findMany({
+      where: { status: 'APPROVED' },
+      orderBy: [{ payoutWindow: 'desc' }, { displayName: 'asc' }],
+      select: {
+        id: true,
+        displayName: true,
+        slug: true,
+        payoutWindow: true,
+        payoutWindowNote: true,
+        payoutWindowSetAt: true,
+        user: { select: { email: true, earningsMinor: true } },
       },
-      user: { select: { email: true, earningsMinor: true } },
-    },
-  });
+    }),
+      prisma.analystPayout.findMany({
+      orderBy: [{ status: 'asc' }, { requestedAt: 'desc' }],
+      take: 100,
+      select: {
+        id: true,
+        amountMinor: true,
+        currency: true,
+        status: true,
+        maskedAccount: true,
+        // Opened on the server for open requests only, so the administrator can
+        // make the transfer; it never reaches the page for a decided one.
+        accountCipher: true,
+        periodStart: true,
+        periodEnd: true,
+        publicationsInPeriod: true,
+        weeksInPeriod: true,
+        weeksMeetingMinimum: true,
+        activityCheckPassed: true,
+        declaredMonthlyMinimum: true,
+        failureReason: true,
+        // The provider's own words. Admin-only: this is the page where somebody
+        // decides whether releasing the request again could possibly work.
+        failureDetail: true,
+        paymentReference: true,
+        rawStatus: true,
+        requestedAt: true,
+        decidedAt: true,
+        analystProfile: {
+          select: { displayName: true, slug: true, firstName: true, lastName: true },
+        },
+        user: { select: { email: true, earningsMinor: true } },
+      },
+    }),
+  ]);
 
   const open = payouts.filter((payout) => payout.status === 'REQUESTED');
   const rest = payouts.filter((payout) => payout.status !== 'REQUESTED');

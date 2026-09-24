@@ -116,6 +116,17 @@ export function fail(
   };
 }
 
+/** A failed schema parse, reported field by field. */
+export function invalid(error: {
+  flatten: () => { fieldErrors: Record<string, string[] | undefined> };
+}): ActionFailure {
+  return fail(
+    ERROR_CODES.VALIDATION_ERROR,
+    undefined,
+    error.flatten().fieldErrors as FieldErrors,
+  );
+}
+
 /**
  * Convert any thrown value into a client-safe failure. Unknown errors are
  * flattened to INTERNAL so that stack traces and driver messages never escape.

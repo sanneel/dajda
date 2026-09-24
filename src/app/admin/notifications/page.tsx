@@ -8,6 +8,7 @@ import { formatDateTimeKa } from '@/lib/format';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, EmptyState } from '@/components/ui/feedback';
+import { Pager } from '@/components/ui/pager';
 
 export const dynamic = 'force-dynamic';
 
@@ -196,36 +197,12 @@ export default async function AdminNotificationsPage({
             </ul>
           )}
 
-          {pageCount > 1 ? (
-            <nav
-              className="mt-5 flex items-center justify-between gap-4 border-t border-line pt-4 text-sm"
-              aria-label="გვერდები"
-            >
-              {page > 1 ? (
-                <Link
-                  href={hrefFor({ page: String(page - 1) })}
-                  className="text-ink hover:text-accent"
-                >
-                  წინა
-                </Link>
-              ) : (
-                <span className="text-ink-faint">წინა</span>
-              )}
-              <span className="tabular text-ink-muted">
-                {page} / {pageCount}
-              </span>
-              {page < pageCount ? (
-                <Link
-                  href={hrefFor({ page: String(page + 1) })}
-                  className="text-ink hover:text-accent"
-                >
-                  შემდეგი
-                </Link>
-              ) : (
-                <span className="text-ink-faint">შემდეგი</span>
-              )}
-            </nav>
-          ) : null}
+          <Pager
+            page={page}
+            pageCount={pageCount}
+            hrefFor={(to) => hrefFor({ page: String(to) })}
+            className="mt-5 flex items-center justify-between gap-4 border-t border-line pt-4 text-sm"
+          />
         </CardBody>
       </Card>
     </div>

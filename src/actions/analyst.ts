@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 import {
   ERROR_CODES,
   fail,
+  invalid,
   ok,
   toActionFailure,
   type ActionResult,
@@ -47,12 +48,6 @@ import {
  * always taken from that profile, never from a form field, so posting as
  * somebody else is not expressible.
  */
-
-function fieldErrorsFrom(error: {
-  flatten: () => { fieldErrors: Record<string, string[] | undefined> };
-}) {
-  return error.flatten().fieldErrors as Record<string, string[]>;
-}
 
 /**
  * Post a bet.
@@ -213,11 +208,7 @@ export async function postBetAction(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        fieldErrorsFrom(parsed.error),
-      );
+      return invalid(parsed.error);
     }
 
     const prediction = await createPrediction(
@@ -254,10 +245,11 @@ export async function publishBetAction(
     const predictionId = String(formData.get('predictionId') ?? '');
     if (!predictionId) return fail(ERROR_CODES.VALIDATION_ERROR);
 
-    const published = await publishPrediction(predictionId, {
-      userId: analyst.userId,
-      role: analyst.role,
-    });
+    const published = await publishPrediction(
+      predictionId,
+      analyst.analystProfileId,
+      { userId: analyst.userId, role: analyst.role },
+    );
 
     await notifyNewBet(analyst.analystProfileId, published);
 
@@ -297,11 +289,7 @@ export async function markBetFinishedAction(
     });
 
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        fieldErrorsFrom(parsed.error),
-      );
+      return invalid(parsed.error);
     }
 
     await markPredictionFinished(parsed.data, analyst.analystProfileId, {
@@ -371,11 +359,7 @@ export async function applyAsAnalystAction(
       acceptTerms: formData.get('acceptTerms') === 'on',
     });
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        fieldErrorsFrom(parsed.error),
-      );
+      return invalid(parsed.error);
     }
 
     const input = parsed.data;
@@ -801,11 +785,7 @@ export async function updateAnalystDisplayNameAction(
       displayName: formData.get('displayName'),
     });
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const limit = await rateLimiter.check(

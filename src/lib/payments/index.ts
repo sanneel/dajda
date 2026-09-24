@@ -36,8 +36,3 @@ export function getPaymentProvider(): PaymentProvider {
 
   return cached;
 }
-
-/** Test/dev helper - forget the memoised provider after changing env. */
-export function resetPaymentProviderCache(): void {
-  cached = null;
-}

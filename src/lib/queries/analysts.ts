@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { isTicketStillActive } from '@/lib/tickets/active';
 import { prisma } from '@/lib/db';
 import {
@@ -146,9 +147,11 @@ export async function listAnalysts(options?: {
   const period = options?.period ?? 'all';
   const periodDays = period === 'all' ? null : PERIOD_DAYS[period];
   const now = Date.now();
+  const nowDate = new Date(now);
 
   const items: AnalystListItem[] = profiles.map((profile) => {
-    const allRecords = toRecords(byAuthor.get(profile.id) ?? []);
+    const bets = byAuthor.get(profile.id) ?? [];
+    const allRecords = toRecords(bets);
     const records =
       periodDays === null ? allRecords : withinDays(allRecords, periodDays);
     const stats = summarizePerformance(records);
@@ -158,9 +161,10 @@ export async function listAnalysts(options?: {
      * denominator runs from the analyst's first published bet, so a veteran
      * and a newcomer are both measured against their own active span.
      */
-    const firstAt = allRecords.length
-      ? Math.min(...allRecords.map((record) => record.publishedAt.getTime()))
-      : now;
+    const firstAt = allRecords.reduce(
+      (earliest, record) => Math.min(earliest, record.publishedAt.getTime()),
+      now,
+    );
     const spanDays =
       periodDays ?? Math.max(7, (now - firstAt) / (24 * 60 * 60 * 1000));
     const avgPerWeek = stats.total / (spanDays / 7);
@@ -183,14 +187,14 @@ export async function listAnalysts(options?: {
        * viewer, so it uses the public rule of isTicketStillActive. It is what a buyer is actually getting access to right now,
        * which is why the reference layout puts it next to the name.
        */
-      activeBets: (byAuthor.get(profile.id) ?? []).filter(
+      activeBets: bets.filter(
         (bet) =>
           bet.status === 'PENDING' &&
           bet.finishedAt === null &&
           isTicketStillActive(
             { eventAt: bet.eventAt, eventEndAt: null },
             false,
-            new Date(now),
+            nowDate,
           ),
       ).length,
       cheapestPlan: profile.plans[0] ?? null,
@@ -205,70 +209,78 @@ export type AnalystProfileDetail = NonNullable<
   Awaited<ReturnType<typeof getAnalystBySlug>>
 >;
 
-export async function getAnalystBySlug(slug: string) {
-  const profile = await prisma.analystProfile.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      slug: true,
-      displayName: true,
-      photoPath: true,
-      headline: true,
-      status: true,
-      isDemo: true,
-      monthlyMinimum: true,
-      createdAt: true,
-      sports: { select: { sport: { select: { code: true, nameKa: true } } } },
-      plans: {
-        where: { isActive: true },
-        orderBy: { priceMinor: 'asc' },
-        select: {
-          id: true,
-          tier: true,
-          nameKa: true,
-          descriptionKa: true,
-          featuresKa: true,
-          priceMinor: true,
-          currency: true,
-          billingPeriod: true,
+/** Memoized per request: the profile page's metadata and body both read it. */
+export const getAnalystBySlug = cache(async (slug: string) => {
+  /*
+   * Both reads in one round trip. The prediction read keys on the slug
+   * through the relation rather than waiting for the profile's id, and
+   * repeats the APPROVED condition so it returns nothing the page would
+   * then have to throw away.
+   */
+  const [profile, predictions] = await Promise.all([
+    prisma.analystProfile.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        displayName: true,
+        photoPath: true,
+        headline: true,
+        status: true,
+        isDemo: true,
+        monthlyMinimum: true,
+        createdAt: true,
+        sports: { select: { sport: { select: { code: true, nameKa: true } } } },
+        plans: {
+          where: { isActive: true },
+          orderBy: { priceMinor: 'asc' },
+          select: {
+            id: true,
+            tier: true,
+            nameKa: true,
+            descriptionKa: true,
+            featuresKa: true,
+            priceMinor: true,
+            currency: true,
+            billingPeriod: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.prediction.findMany({
+      where: { author: { slug, status: 'APPROVED' }, ...PUBLISHED },
+      orderBy: { publishedAt: 'desc' },
+      select: {
+        id: true,
+        titleKa: true,
+        descriptionKa: true,
+        screenshotPath: true,
+        resultScreenshotPath: true,
+        status: true,
+        visibility: true,
+        // The per-ticket price, for the history list's ფასიანი column.
+        priceMinor: true,
+        oddsMilli: true,
+        stakeUnitsCenti: true,
+        confidence: true,
+        publishedAt: true,
+        eventAt: true,
+        eventEndAt: true,
+        finishedAt: true,
+        // A superseded row is a corrected draft, not part of the record.
+        supersededAt: true,
+        pinnedAt: true,
+        version: true,
+        correctionOfId: true,
+        sport: { select: { code: true, nameKa: true } },
+        result: {
+          select: { profitUnitsCenti: true, settledAt: true },
+        },
+      },
+    }),
+  ]);
 
   if (!profile || profile.status !== 'APPROVED') return null;
-
-  const predictions = await prisma.prediction.findMany({
-    where: { authorId: profile.id, ...PUBLISHED },
-    orderBy: { publishedAt: 'desc' },
-    select: {
-      id: true,
-      titleKa: true,
-      descriptionKa: true,
-      screenshotPath: true,
-      resultScreenshotPath: true,
-      status: true,
-      visibility: true,
-      // The per-ticket price, for the history list's ფასიანი column.
-      priceMinor: true,
-      oddsMilli: true,
-      stakeUnitsCenti: true,
-      confidence: true,
-      publishedAt: true,
-      eventAt: true,
-      eventEndAt: true,
-      finishedAt: true,
-      // A superseded row is a corrected draft, not part of the record.
-      supersededAt: true,
-      pinnedAt: true,
-      version: true,
-      correctionOfId: true,
-      sport: { select: { code: true, nameKa: true } },
-      result: {
-        select: { profitUnitsCenti: true, settledAt: true },
-      },
-    },
-  });
 
   const records = toRecords(predictions);
 
@@ -299,5 +311,5 @@ export async function getAnalystBySlug(slug: string) {
     ),
     records,
   };
-}
+});
 

@@ -56,25 +56,22 @@ export type FeedEntry =
   | { type: 'post'; at: Date; post: FeedPost }
   | { type: 'bet'; at: Date; bet: FeedBet };
 
-export async function analystFeed(
-  analystProfileId: string,
-  limit = 30,
+/** The newest `limit` posts and bets by these authors, merged by time. */
+async function mergedFeed(
+  authorId: string | { in: string[] },
+  limit: number,
 ): Promise<FeedEntry[]> {
   const [posts, bets] = await Promise.all([
     prisma.analystPost.findMany({
       // Top-level only. Live sessions are gone, but their replies are still
       // rows and must not surface as loose posts.
-      where: { authorId: analystProfileId, parentId: null },
+      where: { authorId, parentId: null },
       orderBy: { createdAt: 'desc' },
       take: limit,
       select: postSelect,
     }),
     prisma.prediction.findMany({
-      where: {
-        authorId: analystProfileId,
-        publishedAt: { not: null },
-        supersededAt: null,
-      },
+      where: { authorId, publishedAt: { not: null }, supersededAt: null },
       orderBy: { publishedAt: 'desc' },
       take: limit,
       select: betSelect,
@@ -85,7 +82,7 @@ export async function analystFeed(
     ...posts.map(
       (post): FeedEntry => ({ type: 'post', at: post.createdAt, post }),
     ),
-    // PUBLISHED guarantees a non-null publishedAt.
+    // The query guarantees a non-null publishedAt.
     ...bets.map(
       (bet): FeedEntry => ({ type: 'bet', at: bet.publishedAt as Date, bet }),
     ),
@@ -93,6 +90,13 @@ export async function analystFeed(
 
   entries.sort((a, b) => b.at.getTime() - a.at.getTime());
   return entries.slice(0, limit);
+}
+
+export async function analystFeed(
+  analystProfileId: string,
+  limit = 30,
+): Promise<FeedEntry[]> {
+  return mergedFeed(analystProfileId, limit);
 }
 
 /**
@@ -138,35 +142,5 @@ export async function personalFeed(
 ): Promise<FeedEntry[]> {
   const authorIds = await personalFeedSources(userId);
   if (authorIds.length === 0) return [];
-
-  const [posts, bets] = await Promise.all([
-    prisma.analystPost.findMany({
-      where: { authorId: { in: authorIds }, parentId: null },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      select: postSelect,
-    }),
-    prisma.prediction.findMany({
-      where: {
-        authorId: { in: authorIds },
-        publishedAt: { not: null },
-        supersededAt: null,
-      },
-      orderBy: { publishedAt: 'desc' },
-      take: limit,
-      select: betSelect,
-    }),
-  ]);
-
-  const entries: FeedEntry[] = [
-    ...posts.map(
-      (post): FeedEntry => ({ type: 'post', at: post.createdAt, post }),
-    ),
-    ...bets.map(
-      (bet): FeedEntry => ({ type: 'bet', at: bet.publishedAt as Date, bet }),
-    ),
-  ];
-
-  entries.sort((a, b) => b.at.getTime() - a.at.getTime());
-  return entries.slice(0, limit);
+  return mergedFeed({ in: authorIds }, limit);
 }

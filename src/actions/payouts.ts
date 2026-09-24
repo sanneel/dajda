@@ -5,7 +5,7 @@ import { requireAdmin, requireUser } from '@/lib/auth/authorization';
 import {
   AppError,
   ERROR_CODES,
-  fail,
+  invalid,
   ok,
   toActionFailure,
   type ActionResult,
@@ -51,11 +51,7 @@ export async function requestWithdrawalAction(
       iban: formData.get('iban'),
     });
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const result = await requestWithdrawal(
@@ -92,11 +88,7 @@ export async function decidePayoutAction(
       reason: formData.get('reason') || undefined,
     });
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const input = parsed.data;
@@ -151,11 +143,7 @@ export async function setPayoutWindowAction(
       note: formData.get('note') || undefined,
     });
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const { analystProfileId, window, note } = parsed.data;

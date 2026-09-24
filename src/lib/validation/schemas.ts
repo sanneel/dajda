@@ -263,15 +263,6 @@ export const createPredictionSchema = z.object({
   }
 });
 
-/** Only presentation fields - the frozen set is not even accepted as input. */
-export const editPublishedPredictionSchema = z.object({
-  predictionId: z.uuid(),
-  titleKa: z.string().trim().min(6).max(160),
-  descriptionKa: z.string().trim().max(4000).optional(),
-  confidence: z.enum(ConfidenceLevel),
-  visibility: z.enum(PredictionVisibility),
-});
-
 /**
  * A community free ticket.
  *

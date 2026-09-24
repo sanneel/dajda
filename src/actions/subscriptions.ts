@@ -3,7 +3,15 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUser } from '@/lib/auth/authorization';
-import { AppError, ERROR_CODES, fail, ok, toActionFailure, type ActionResult } from '@/lib/errors';
+import {
+  AppError,
+  ERROR_CODES,
+  fail,
+  invalid,
+  ok,
+  toActionFailure,
+  type ActionResult,
+} from '@/lib/errors';
 import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit-store';
 import {
   cancelSubscriptionSchema,
@@ -41,11 +49,7 @@ export async function startCheckoutAction(
       planId: formData.get('planId'),
     });
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        parsed.error.flatten().fieldErrors as Record<string, string[]>,
-      );
+      return invalid(parsed.error);
     }
 
     const result = await startSubscriptionCheckout(

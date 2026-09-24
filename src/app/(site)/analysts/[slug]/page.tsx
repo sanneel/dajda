@@ -3,7 +3,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { SlidersHorizontal } from 'lucide-react';
 import { getAnalystBySlug } from '@/lib/queries/analysts';
-import { activePlanGrants, purchasedTicketIds } from '@/lib/queries/tickets';
+import {
+  activePlanGrants,
+  listSports,
+  purchasedTicketIds,
+} from '@/lib/queries/tickets';
 import { isTicketStillActive } from '@/lib/tickets/active';
 import { payoutPeriod } from '@/lib/payouts/rules';
 import { getCurrentUser } from '@/lib/auth/authorization';
@@ -80,7 +84,10 @@ export default async function AnalystProfilePage({
   const requestedTab = TAB_BY_PARAM[String(query.tab ?? '')];
   // A "გამოწერა" link from elsewhere on the site: open the plan dialog at once.
   const wantsSubscribe = query.subscribe === '1';
-  const data = await getAnalystBySlug(slug);
+  const [data, actor] = await Promise.all([
+    getAnalystBySlug(slug),
+    getCurrentUser(),
+  ]);
 
   if (!data) notFound();
 
@@ -91,9 +98,9 @@ export default async function AnalystProfilePage({
     paidAllTime,
     subscriptionAllTime,
   } = data;
-  const actor = await getCurrentUser();
 
-  const isOwnerEarly = actor?.analystProfileId === profile.id;
+  /** The author, looking at their own page. */
+  const isOwner = actor?.analystProfileId === profile.id;
 
   const [saved, subscriptions, grants, purchased, sports] = await Promise.all([
     actor
@@ -114,13 +121,7 @@ export default async function AnalystProfilePage({
     activePlanGrants(actor?.userId),
     purchasedTicketIds(actor?.userId),
     // Only the owner is offered the post form, so only they need the list.
-    isOwnerEarly
-      ? prisma.sport.findMany({
-          where: { isActive: true },
-          orderBy: { nameKa: 'asc' },
-          select: { id: true, nameKa: true },
-        })
-      : Promise.resolve([]),
+    isOwner ? listSports() : Promise.resolve([]),
   ]);
 
   const statusByPlan = new Map(
@@ -141,8 +142,6 @@ export default async function AnalystProfilePage({
     ? { role: actor.role, analystProfileId: actor.analystProfileId }
     : null;
 
-  /** The author, looking at their own page. */
-  const isOwner = actor?.analystProfileId === profile.id;
   // The header's subscribe button: only when something is for sale, and
   // worded differently for a reader who already pays.
   const sellsSubscription = profile.plans.some((plan) => plan.priceMinor > 0);

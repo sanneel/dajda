@@ -6,6 +6,7 @@ import { requireApprovedAnalyst } from '@/lib/auth/authorization';
 import {
   ERROR_CODES,
   fail,
+  invalid,
   ok,
   toActionFailure,
   type ActionResult,
@@ -22,12 +23,6 @@ import { createNote, deletePost } from '@/lib/posts/service';
  * profile and never from a form field, so posting as somebody else is not
  * expressible.
  */
-
-function fieldErrorsFrom(error: {
-  flatten: () => { fieldErrors: Record<string, string[] | undefined> };
-}) {
-  return error.flatten().fieldErrors as Record<string, string[]>;
-}
 
 function revalidateFeed(slug: string) {
   revalidatePath('/analyst');
@@ -56,11 +51,7 @@ export async function postNoteAction(
       bodyKa: formData.get('bodyKa'),
     });
     if (!parsed.success) {
-      return fail(
-        ERROR_CODES.VALIDATION_ERROR,
-        undefined,
-        fieldErrorsFrom(parsed.error),
-      );
+      return invalid(parsed.error);
     }
 
     const profile = await prisma.analystProfile.findUniqueOrThrow({

@@ -5,12 +5,11 @@ import { AppError, ERROR_CODES } from '@/lib/errors';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import type {
   createPredictionSchema,
-  editPublishedPredictionSchema,
   settlePredictionSchema,
   correctPredictionSchema,
   markFinishedSchema,
 } from '@/lib/validation/schemas';
-import { classifyEdit, FROZEN_FIELDS } from './immutability';
+import { FROZEN_FIELDS } from './immutability';
 import { computeProfitUnitsCenti, type TerminalOutcome } from './settlement';
 import { slipTitle } from './slip';
 import {
@@ -29,9 +28,6 @@ import {
 type Actor = { userId: string; role: 'USER' | 'ANALYST' | 'ADMIN' };
 
 export type CreatePredictionInput = z.output<typeof createPredictionSchema>;
-export type EditPredictionInput = z.output<
-  typeof editPublishedPredictionSchema
->;
 export type SettlePredictionInput = z.output<typeof settlePredictionSchema>;
 export type CorrectPredictionInput = z.output<typeof correctPredictionSchema>;
 export type MarkFinishedInput = z.output<typeof markFinishedSchema>;
@@ -144,13 +140,23 @@ export async function createPrediction(
 }
 
 /** Move a draft to published. Irreversible: publication starts the record. */
-export async function publishPrediction(predictionId: string, actor: Actor) {
+export async function publishPrediction(
+  predictionId: string,
+  analystProfileId: string,
+  actor: Actor,
+) {
   return prisma.$transaction(async (tx) => {
     const prediction = await tx.prediction.findUnique({
       where: { id: predictionId },
       select: { id: true, titleKa: true, publishedAt: true, authorId: true },
     });
     if (!prediction) throw new AppError(ERROR_CODES.NOT_FOUND);
+    // Ownership is checked against the session's analyst profile, never
+    // against an id supplied by the form. Without it any approved author
+    // could publish another author's draft into that author's record.
+    if (prediction.authorId !== analystProfileId && actor.role !== 'ADMIN') {
+      throw new AppError(ERROR_CODES.FORBIDDEN);
+    }
     if (prediction.publishedAt) {
       throw new AppError(ERROR_CODES.CONFLICT, 'უკვე გამოქვეყნებულია.');
     }
@@ -246,78 +252,6 @@ export async function markPredictionFinished(
       },
       tx,
     );
-
-    return updated;
-  });
-}
-
-/**
- * Edit a bet.
- *
- * Before publication anything may change. After it, only the presentation
- * fields, and every attempt is written to the ledger, including the refused
- * ones. The refusals are the point: they evidence that the published record
- * was not quietly rewritten.
- */
-export async function editPrediction(
-  predictionId: string,
-  input: EditPredictionInput,
-  actor: Actor,
-) {
-  return prisma.$transaction(async (tx) => {
-    const prediction = await tx.prediction.findUnique({
-      where: { id: predictionId },
-      select: {
-        id: true,
-        authorId: true,
-        publishedAt: true,
-        titleKa: true,
-        descriptionKa: true,
-        confidence: true,
-        visibility: true,
-        screenshotPath: true,
-        oddsMilli: true,
-        stakeUnitsCenti: true,
-        sportId: true,
-      },
-    });
-    if (!prediction) throw new AppError(ERROR_CODES.NOT_FOUND);
-
-    const changedFields = Object.keys(input).filter(
-      (key) => input[key as keyof EditPredictionInput] !== undefined,
-    );
-    const classification = classifyEdit(prediction, changedFields);
-
-    if (classification.outcome === 'REJECTED_IMMUTABLE') {
-      await tx.predictionEdit.create({
-        data: {
-          predictionId,
-          actorId: actor.userId,
-          outcome: 'REJECTED_IMMUTABLE',
-          reason: classification.reason,
-          changedFields,
-          previousValue: pick(prediction, FROZEN_FIELDS),
-          attemptedValue: input as Prisma.InputJsonValue,
-        },
-      });
-      throw new AppError(ERROR_CODES.CONFLICT, classification.reason);
-    }
-
-    const updated = await tx.prediction.update({
-      where: { id: predictionId },
-      data: input,
-    });
-
-    await tx.predictionEdit.create({
-      data: {
-        predictionId,
-        actorId: actor.userId,
-        outcome: 'APPLIED',
-        changedFields,
-        previousValue: pick(prediction, changedFields as never),
-        attemptedValue: input as Prisma.InputJsonValue,
-      },
-    });
 
     return updated;
   });

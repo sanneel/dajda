@@ -12,13 +12,6 @@ export function formatOdds(oddsMilli: number): string {
   return (oddsMilli / 1000).toFixed(2);
 }
 
-/** 1500 -> "1.5", 2000 -> "2" */
-export function formatLine(lineMilli: number | null | undefined): string {
-  if (lineMilli === null || lineMilli === undefined) return '';
-  const value = lineMilli / 1000;
-  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0$/, '');
-}
-
 /** 100 -> "1.00", -250 -> "-2.50" */
 export function formatUnits(unitsCenti: number): string {
   return (unitsCenti / 100).toFixed(2);
@@ -58,12 +51,6 @@ export function formatMoney(amountMinor: number, currency = 'GEL'): string {
 /** Basis points to a percentage string: 6712 -> "67.1%" */
 export function formatPercentBps(bps: number, fractionDigits = 1): string {
   return `${(bps / 100).toFixed(fractionDigits)}%`;
-}
-
-/** Signed percentage: -430 -> "-4.3%" */
-export function formatPercentBpsSigned(bps: number, fractionDigits = 1): string {
-  const sign = bps > 0 ? '+' : '';
-  return `${sign}${(bps / 100).toFixed(fractionDigits)}%`;
 }
 
 const KA_MONTHS = [

@@ -87,32 +87,29 @@ export default async function TicketPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id } = await params;
-  const ticket = await getTicketById(id);
+  const [{ id }, { order }] = await Promise.all([params, searchParams]);
+  const [ticket, actor] = await Promise.all([
+    getTicketById(id),
+    getCurrentUser(),
+  ]);
 
   if (!ticket) notFound();
 
-  const actor = await getCurrentUser();
-  // Coming back from the payment page: say what is happening to the money.
-  const returnStatus = await paymentReturnStatus(
-    (await searchParams).order,
-    actor?.userId,
-  );
-  const [grants, purchased] = await Promise.all([
+  const [returnStatus, grants, purchased] = await Promise.all([
+    // Coming back from the payment page: say what is happening to the money.
+    paymentReturnStatus(order, actor?.userId),
     activePlanGrants(actor?.userId),
     purchasedTicketIds(actor?.userId),
+    // Record the view for the dashboard's "recently viewed" list.
+    actor &&
+      prisma.predictionView.upsert({
+        where: {
+          userId_predictionId: { userId: actor.userId, predictionId: id },
+        },
+        create: { userId: actor.userId, predictionId: id },
+        update: { viewedAt: new Date() },
+      }),
   ]);
-
-  // Record the view for the dashboard's "recently viewed" list.
-  if (actor) {
-    await prisma.predictionView.upsert({
-      where: {
-        userId_predictionId: { userId: actor.userId, predictionId: id },
-      },
-      create: { userId: actor.userId, predictionId: id },
-      update: { viewedAt: new Date() },
-    });
-  }
 
   const { author, result } = ticket;
 

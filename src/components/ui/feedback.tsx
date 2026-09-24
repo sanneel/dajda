@@ -100,18 +100,3 @@ export function TicketCardSkeleton() {
     </div>
   );
 }
-
-export function LoadingRows({ rows = 4 }: { rows?: number }) {
-  return (
-    <div
-      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-      aria-busy="true"
-      aria-live="polite"
-    >
-      <span className="sr-only">იტვირთება…</span>
-      {Array.from({ length: rows }, (_, index) => (
-        <TicketCardSkeleton key={index} />
-      ))}
-    </div>
-  );
-}

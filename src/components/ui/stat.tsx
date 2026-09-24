@@ -45,15 +45,6 @@ export function Stat({
   );
 }
 
-/** Divided row of stats; wraps to two columns on narrow screens. */
-export function StatRow({ children }: { children: ReactNode }) {
-  return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4 sm:divide-x sm:divide-line [&>*]:sm:pl-4 [&>*:first-child]:sm:pl-0">
-      {children}
-    </div>
-  );
-}
-
 /**
  * Win/loss/pending record shown as a single unit, so a hit rate is never
  * displayed without the sample it came from.

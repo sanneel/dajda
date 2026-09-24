@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { Ticket } from 'lucide-react';
 import {
   activePlanGrants,
@@ -15,6 +14,7 @@ import { SortTicks } from '@/components/sort-ticks';
 import { AddTicketButton } from '@/components/add-ticket-button';
 import { hasSubscriptionForSale } from '@/lib/predictions/subscription-gate';
 import { EmptyState } from '@/components/ui/feedback';
+import { Pager } from '@/components/ui/pager';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 
 export const dynamic = 'force-dynamic';
@@ -43,22 +43,27 @@ export default async function PaidTicketsPage({
   const filter = parsed.success ? parsed.data : { page: 1 };
 
   const actor = await getCurrentUser();
-  // The post form offers subscription tickets only once there is a
-  // subscription to post them into.
-  const canPostSubscription = actor?.analystProfileId
-    ? await hasSubscriptionForSale(actor.analystProfileId)
-    : false;
 
-  const [{ items, total, page, pageCount }, grants, purchased, sports] =
-    await Promise.all([
-      listPaidTickets(filter),
-      activePlanGrants(actor?.userId),
-      purchasedTicketIds(actor?.userId),
-      // Only an analyst is offered the post form, so only they need the list.
-      actor?.analystProfileId
-        ? listSports()
-        : Promise.resolve([] as { id: string; nameKa: string }[]),
-    ]);
+  const [
+    { items, total, page, pageCount },
+    grants,
+    purchased,
+    sports,
+    canPostSubscription,
+  ] = await Promise.all([
+    listPaidTickets(filter),
+    activePlanGrants(actor?.userId),
+    purchasedTicketIds(actor?.userId),
+    // Only an analyst is offered the post form, so only they need the list.
+    actor?.analystProfileId
+      ? listSports()
+      : Promise.resolve([] as { id: string; nameKa: string }[]),
+    // The post form offers subscription tickets only once there is a
+    // subscription to post them into.
+    actor?.analystProfileId
+      ? hasSubscriptionForSale(actor.analystProfileId)
+      : false,
+  ]);
 
   const viewer = actor
     ? { role: actor.role, analystProfileId: actor.analystProfileId }
@@ -149,36 +154,7 @@ export default async function PaidTicketsPage({
         />
       )}
 
-      {pageCount > 1 ? (
-        <nav
-          className="mt-8 flex items-center justify-between gap-4 text-sm"
-          aria-label="გვერდები"
-        >
-          {page > 1 ? (
-            <Link
-              href={hrefFor(page - 1)}
-              className="text-ink hover:text-accent"
-            >
-              წინა
-            </Link>
-          ) : (
-            <span className="text-ink-faint">წინა</span>
-          )}
-          <span className="tabular text-ink-muted">
-            {page} / {pageCount}
-          </span>
-          {page < pageCount ? (
-            <Link
-              href={hrefFor(page + 1)}
-              className="text-ink hover:text-accent"
-            >
-              შემდეგი
-            </Link>
-          ) : (
-            <span className="text-ink-faint">შემდეგი</span>
-          )}
-        </nav>
-      ) : null}
+      <Pager page={page} pageCount={pageCount} hrefFor={hrefFor} />
 
       <div className="mt-12">
         <ResponsibleUseNotice />

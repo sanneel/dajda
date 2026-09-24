@@ -11,6 +11,7 @@ import { isTicketLocked } from '@/lib/auth/entitlements';
 import { TicketList } from '@/components/ticket-list';
 import { SortTicks } from '@/components/sort-ticks';
 import { EmptyState } from '@/components/ui/feedback';
+import { Pager } from '@/components/ui/pager';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
 import { AddTicketButton } from '@/components/add-ticket-button';
 import { hasSubscriptionForSale } from '@/lib/predictions/subscription-gate';
@@ -44,19 +45,23 @@ export default async function FreeTicketsPage({
   const filter = parsed.success ? parsed.data : { page: 1 };
 
   const actor = await getCurrentUser();
-  // The post form offers subscription tickets only once there is a
-  // subscription to post them into.
-  const canPostSubscription = actor?.analystProfileId
-    ? await hasSubscriptionForSale(actor.analystProfileId)
-    : false;
   const viewer = actor
     ? { role: actor.role, analystProfileId: actor.analystProfileId }
     : null;
 
-  const [{ items, total, page, pageCount }, sports] = await Promise.all([
-    listFreeTickets(filter),
-    listSports(),
-  ]);
+  const [{ items, total, page, pageCount }, sports, canPostSubscription] =
+    await Promise.all([
+      listFreeTickets(filter),
+      // Only an analyst is offered the post form, so only they need the list.
+      actor?.analystProfileId
+        ? listSports()
+        : Promise.resolve([] as { id: string; nameKa: string }[]),
+      // The post form offers subscription tickets only once there is a
+      // subscription to post them into.
+      actor?.analystProfileId
+        ? hasSubscriptionForSale(actor.analystProfileId)
+        : false,
+    ]);
 
   const hrefFor = (page: number) => {
     const query = new URLSearchParams();
@@ -160,36 +165,7 @@ export default async function FreeTicketsPage({
         />
       )}
 
-      {pageCount > 1 ? (
-        <nav
-          className="mt-8 flex items-center justify-between gap-4 text-sm"
-          aria-label="გვერდები"
-        >
-          {page > 1 ? (
-            <Link
-              href={hrefFor(page - 1)}
-              className="text-ink hover:text-accent"
-            >
-              წინა
-            </Link>
-          ) : (
-            <span className="text-ink-faint">წინა</span>
-          )}
-          <span className="tabular text-ink-muted">
-            {page} / {pageCount}
-          </span>
-          {page < pageCount ? (
-            <Link
-              href={hrefFor(page + 1)}
-              className="text-ink hover:text-accent"
-            >
-              შემდეგი
-            </Link>
-          ) : (
-            <span className="text-ink-faint">შემდეგი</span>
-          )}
-        </nav>
-      ) : null}
+      <Pager page={page} pageCount={pageCount} hrefFor={hrefFor} />
 
       <div className="mt-12">
         <ResponsibleUseNotice />

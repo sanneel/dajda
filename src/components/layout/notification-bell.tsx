@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import Link from 'next/link';
 import { Bell, Send } from 'lucide-react';
 import { prisma } from '@/lib/db';
@@ -14,8 +15,12 @@ import { ClosableDetails } from '@/components/ui/closable-details';
  * A native <details> popover: no JavaScript, works everywhere. While Telegram
  * is not connected the first row is a nudge - the promised "+1 notification".
  */
-export async function NotificationBell({ userId }: { userId: string }) {
-  const [tickets, me] = await Promise.all([
+/*
+ * Memoized per request: the header renders the bell twice, once for each
+ * width, and both would otherwise run the same two queries.
+ */
+const loadBell = cache((userId: string) =>
+  Promise.all([
     prisma.prediction.findMany({
       where: {
         status: 'PENDING',
@@ -47,7 +52,11 @@ export async function NotificationBell({ userId }: { userId: string }) {
       where: { id: userId },
       select: { telegramChatId: true },
     }),
-  ]);
+  ]),
+);
+
+export async function NotificationBell({ userId }: { userId: string }) {
+  const [tickets, me] = await loadBell(userId);
 
   /*
    * One line per author-and-kind, not one per ticket: the bell answers

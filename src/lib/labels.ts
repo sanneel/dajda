@@ -2,11 +2,8 @@ import {
   AnalystStatus,
   BalanceEntryKind,
   BillingPeriod,
-  ConfidenceLevel,
-  EditOutcome,
   PaymentStatus,
   PayoutStatus,
-  PlanTier,
   PredictionStatus,
   PredictionVisibility,
   ReportReason,
@@ -44,12 +41,6 @@ export const PREDICTION_VISIBILITY_KA: Record<PredictionVisibility, string> = {
   VIP: 'გამოწერა',
 };
 
-export const CONFIDENCE_KA: Record<ConfidenceLevel, string> = {
-  LOW: 'დაბალი',
-  MEDIUM: 'საშუალო',
-  HIGH: 'მაღალი',
-};
-
 export const ANALYST_STATUS_KA: Record<AnalystStatus, string> = {
   PENDING: 'განხილვის პროცესში',
   APPROVED: 'დამოწმებული',
@@ -67,12 +58,6 @@ export const USER_STATUS_KA: Record<UserStatus, string> = {
   ACTIVE: 'აქტიური',
   SUSPENDED: 'შეჩერებული',
   DELETED: 'წაშლილი',
-};
-
-export const PLAN_TIER_KA: Record<PlanTier, string> = {
-  FREE: 'უფასო',
-  PREMIUM: 'გამოწერა',
-  VIP: 'გამოწერა',
 };
 
 export const BILLING_PERIOD_KA: Record<BillingPeriod, string> = {
@@ -118,12 +103,6 @@ export const PAYMENT_STATUS_KA: Record<PaymentStatus, string> = {
   REFUNDED: 'დაბრუნებული',
   DISPUTED: 'სადავო',
   EXPIRED: 'ვადაგასული',
-};
-
-export const EDIT_OUTCOME_KA: Record<EditOutcome, string> = {
-  APPLIED: 'შესრულდა',
-  REJECTED_IMMUTABLE: 'უარყოფილი: უცვლელი ჩანაწერი',
-  APPLIED_AS_CORRECTION: 'შესრულდა როგორც შესწორება',
 };
 
 export const REPORT_REASON_KA: Record<ReportReason, string> = {

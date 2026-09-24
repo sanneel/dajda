@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@/generated/prisma/client';
 import type { PlanTier } from '@/generated/prisma/enums';
@@ -322,8 +323,9 @@ export async function activePlanGrants(
   return subscriptions.map((subscription) => subscription.plan);
 }
 
-export async function getTicketById(id: string) {
-  return prisma.prediction.findFirst({
+/** Memoized per request: the ticket page's metadata and body both read it. */
+export const getTicketById = cache(async (id: string) =>
+  prisma.prediction.findFirst({
     where: { id, publishedAt: { not: null } },
     select: {
       ...publicTicketSelect,
@@ -331,8 +333,8 @@ export async function getTicketById(id: string) {
       authorId: true,
       correctedBy: { select: { id: true, version: true } },
     },
-  });
-}
+  }),
+);
 
 export async function listSports() {
   return prisma.sport.findMany({
@@ -340,47 +342,6 @@ export async function listSports() {
     orderBy: { nameKa: 'asc' },
     select: { id: true, code: true, nameKa: true, slug: true },
   });
-}
-
-export async function listAnalystOptions() {
-  return prisma.analystProfile.findMany({
-    where: { status: 'APPROVED' },
-    orderBy: { displayName: 'asc' },
-    select: { slug: true, displayName: true },
-  });
-}
-
-/** Headline counters for the home page. */
-export async function platformStats() {
-  /*
-   * Analyst bets only.
-   *
-   * Community free tickets have no author, count toward nobody's record, and
-   * are not reviewed to the same standard. Folding them into the platform hit
-   * rate would let anyone with an account move the headline accuracy figure,
-   * which is the one number this product is judged on.
-   */
-  const BY_ANALYSTS = {
-    publishedAt: { not: null },
-    supersededAt: null,
-    authorId: { not: null },
-  } as const;
-
-  const [analysts, published, settled, won] = await Promise.all([
-    prisma.analystProfile.count({ where: { status: 'APPROVED' } }),
-    prisma.prediction.count({ where: BY_ANALYSTS }),
-    prisma.prediction.count({
-      where: { ...BY_ANALYSTS, status: { in: ['WON', 'LOST'] } },
-    }),
-    prisma.prediction.count({ where: { ...BY_ANALYSTS, status: 'WON' } }),
-  ]);
-
-  return {
-    analysts,
-    published,
-    settled,
-    hitRateBps: settled === 0 ? 0 : Math.round((won * 10_000) / settled),
-  };
 }
 
 /**

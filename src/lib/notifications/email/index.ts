@@ -39,8 +39,3 @@ export function getEmailProvider(): EmailProvider {
 
   return cached;
 }
-
-/** Test/dev helper - forget the memoised provider after changing env. */
-export function resetEmailProviderCache(): void {
-  cached = null;
-}
