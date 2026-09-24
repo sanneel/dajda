@@ -319,6 +319,24 @@ describe('processPaymentWebhook', () => {
     expect(recorded.events[0]?.signatureValid).toBe(false);
   });
 
+  it('does not let a forged delivery block the genuine one', async () => {
+    // An attacker posts an unsigned callback carrying the id the real one
+    // will have. It must not take that id in the ledger, or the gateway's
+    // genuine delivery would be thrown away as a duplicate.
+    const forged = await processPaymentWebhook(
+      'mock',
+      result({ signatureValid: false, rejectionReason: 'INVALID_SIGNATURE' }),
+      port,
+    );
+    const genuine = await processPaymentWebhook('mock', result(), port);
+
+    expect(forged.action).toBe('REJECTED_SIGNATURE');
+    expect(genuine.action).toBe('APPLIED');
+    expect(recorded.activations).toHaveLength(1);
+    // Both deliveries stay on the record.
+    expect(recorded.events).toHaveLength(2);
+  });
+
   it('ignores a duplicate delivery of the same event', async () => {
     const first = await processPaymentWebhook('mock', result(), port);
     const second = await processPaymentWebhook('mock', result(), port);

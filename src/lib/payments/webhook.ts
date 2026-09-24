@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type {
   BillingPeriod,
   PaymentPurpose,
@@ -248,9 +249,17 @@ export async function processPaymentWebhook(
 ): Promise<ProcessOutcome> {
   // Record every delivery, authentic or not - a burst of rejected signatures
   // is itself a signal worth having in the database.
+  //
+  // Only a SIGNED delivery may claim its event id in the ledger. The id is
+  // read from the body, so an unsigned post could otherwise take the id the
+  // gateway's real callback will carry, and that callback would then be
+  // dropped as a duplicate. A forgery is filed under an id of its own, with
+  // the one it claimed kept readable at the end.
   const event = await port.recordEvent({
     providerCode,
-    eventId: result.eventId,
+    eventId: result.signatureValid
+      ? result.eventId
+      : `unsigned:${randomUUID()}:${result.eventId}`,
     signatureValid: result.signatureValid,
     payload: result.payload,
   });
