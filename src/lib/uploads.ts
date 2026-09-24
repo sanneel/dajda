@@ -43,6 +43,15 @@ const MAX_INPUT_BYTES = 12 * 1024 * 1024;
 /** A bet slip does not need to be bigger than this to be readable. */
 const MAX_DIMENSION = 2000;
 
+/**
+ * The most pixels a file may DECLARE. The byte cap does not bound this: a
+ * PNG of one flat colour can claim 16000x16000 in under a megabyte, and
+ * decoding it cost about 230 MB of memory per upload. 60 MP clears a 48 MP
+ * phone photo and every screenshot; exported so the logo check applies the
+ * same ceiling to the same file.
+ */
+export const MAX_INPUT_PIXELS = 60_000_000;
+
 const ACCEPTED_INPUT = new Set([
   'image/jpeg',
   'image/png',
@@ -67,9 +76,10 @@ export type StoredScreenshot = {
 /**
  * The shared gate: size and declared type first, then a real decode and
  * re-encode. Everything either upload surface relies on for safety happens
- * here, so neither can be hardened without the other.
+ * here, so neither can be hardened without the other. Exported for the
+ * tests; it touches no database.
  */
-async function decodeAndReencode(file: File) {
+export async function decodeAndReencode(file: File) {
   if (file.size === 0) {
     throw new AppError(ERROR_CODES.VALIDATION_ERROR, 'ფაილი ცარიელია.');
   }
@@ -88,8 +98,19 @@ async function decodeAndReencode(file: File) {
 
   const input = Buffer.from(await file.arrayBuffer());
 
+  // Read the declared size from the header, which costs nothing, and refuse
+  // an oversized image by name rather than as "unreadable". The decoder's own
+  // limit below stays as the backstop.
+  const declared = await sharp(input).metadata().catch(() => null);
+  if (declared?.width && declared.height && declared.width * declared.height > MAX_INPUT_PIXELS) {
+    throw new AppError(
+      ERROR_CODES.VALIDATION_ERROR,
+      'სურათის გარჩევადობა ძალიან დიდია. ატვირთეთ სკრინშოტი ან შემცირებული ფოტო.',
+    );
+  }
+
   try {
-    return await sharp(input, { failOn: 'error' })
+    return await sharp(input, { failOn: 'error', limitInputPixels: MAX_INPUT_PIXELS })
       .rotate() // honour EXIF orientation before the tag is discarded
       .resize({
         width: MAX_DIMENSION,

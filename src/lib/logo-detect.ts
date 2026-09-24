@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import sharp from 'sharp';
 import { LOGO_TEMPLATES, type LogoTemplate } from './bookmaker-logos.generated';
+import { MAX_INPUT_PIXELS } from './uploads';
 
 /*
  * opencv.js is a CommonJS script whose export is a thenable: under ESM
@@ -79,7 +80,9 @@ function loadCv(): Promise<CV> {
 type GrayImage = { width: number; height: number; data: Buffer };
 
 async function toGray(input: Buffer, width: number): Promise<GrayImage> {
-  const { data, info } = await sharp(input)
+  // Same pixel ceiling as the upload itself; an oversized slip is refused
+  // there with a proper message, so here it only has to not be decoded.
+  const { data, info } = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate() // honour EXIF orientation: a phone screenshot is stored upright, a photo may not be
     .resize({ width, withoutEnlargement: true, kernel: 'lanczos3' })
     .flatten({ background: '#ffffff' })
