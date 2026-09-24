@@ -81,12 +81,18 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Everything except static assets and the webhook endpoint - a CSP header
-     * on a server-to-server callback is pointless overhead.
+     * Everything except static assets and the API. A CSP header on a JSON
+     * response, a cron call or a webhook is pointless overhead.
+     *
+     * Two API prefixes stay in, for the redirect rather than the header:
+     * /api/auth and /api/payments are opened by the browser as navigations
+     * and read or set cookies, so they must land on the canonical host like
+     * any page (see lib/canonical-host.ts). tests/proxy-matcher.test.ts pins
+     * which paths run it.
      */
     {
       source:
-        '/((?!_next/static|_next/image|favicon.ico|api/webhooks|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|api/(?!auth/|payments/)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },
