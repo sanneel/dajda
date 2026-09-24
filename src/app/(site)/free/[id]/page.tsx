@@ -349,7 +349,7 @@ export default async function TicketPage({
           bet away in sentences. While locked, the panel above already carries
           the gate and the way in, so nothing repeats here. */}
       {canView && ticket.descriptionKa ? (
-        <p className="mt-5 whitespace-pre-line text-[0.9375rem] leading-relaxed text-ink-muted">
+        <p className="mt-5 whitespace-pre-line text-base leading-relaxed text-ink-muted">
           {ticket.descriptionKa}
         </p>
       ) : null}
