@@ -25,6 +25,8 @@ export function NavLinks() {
           <li key={item.href}>
             <Link
               href={item.href}
+              // Whole page ahead of time: a click shows it at once, not an outline.
+              prefetch
               aria-current={active ? 'page' : undefined}
               className={`relative inline-flex min-h-[4.25rem] items-center border-b-2 text-sm transition-colors ${
                 active

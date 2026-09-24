@@ -265,6 +265,7 @@ function Item({
   return (
     <Link
       href={href}
+      prefetch
       className="relative flex min-h-12 items-center gap-3 rounded-md px-3 text-sm text-ink transition-colors hover:bg-elevated"
     >
       <span className="shrink-0 text-ink-faint" aria-hidden="true">

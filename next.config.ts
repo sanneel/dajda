@@ -41,6 +41,18 @@ const nextConfig: NextConfig = {
 
   experimental: {
     /*
+     * The nav links prefetch whole pages (`prefetch` on the Link), so a click
+     * shows the finished page at once. Next keeps such a prefetch for five
+     * minutes by default, which is too long for ticket lists that change as
+     * authors post: a reader could click into a list five minutes old. Thirty
+     * seconds keeps the click instant; an older copy is fetched again on
+     * hover, or replaced by the usual loading outline and the live page.
+     */
+    staleTimes: {
+      static: 30,
+    },
+
+    /*
      * Both upload surfaces - a bet slip and an analyst's identity document -
      * arrive through a Server Action, and `storeScreenshot`/`storeIdentityDocument`
      * accept up to 12MB before re-encoding. The Server Action body limit

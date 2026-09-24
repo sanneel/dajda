@@ -84,6 +84,7 @@ export function BottomNav({
             <li key={tab.href}>
               <Link
                 href={tab.href}
+                prefetch
                 aria-current={active ? 'page' : undefined}
                 className={`relative flex min-h-14 flex-col items-center justify-center gap-1 px-0.5 transition-colors ${
                   active ? 'text-accent' : 'text-ink-faint hover:text-ink'

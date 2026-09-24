@@ -66,7 +66,7 @@ export async function SiteHeader() {
     <>
     <header className="relative z-50 border-b border-line bg-surface">
       <div className="mx-auto flex h-[4.25rem] max-w-page items-center gap-8 px-4 sm:px-8">
-        <Link href="/" className="shrink-0" aria-label="მთავარი გვერდი">
+        <Link href="/" prefetch className="shrink-0" aria-label="მთავარი გვერდი">
           <Logo size={28} />
         </Link>
 
