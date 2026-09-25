@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/authorization';
 import { getPaymentProvider, FLITT_PROVIDER_CODE } from '@/lib/payments';
 import {
   LIVE_TEST_AMOUNT_MINOR,
@@ -23,6 +24,9 @@ import { TestControls } from './controls';
 export const dynamic = 'force-dynamic';
 
 export default async function SubscriptionTestPage() {
+  // The layout's check does not guard this page: an RSC request can render
+  // the page segment without the layout. Every admin page checks for itself.
+  await requireAdmin();
   const provider = getPaymentProvider();
   const live = provider.code === FLITT_PROVIDER_CODE;
   const tests = await recentCancellationTests();
