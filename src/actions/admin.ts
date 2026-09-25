@@ -7,8 +7,7 @@ import { requireAdmin } from '@/lib/auth/authorization';
 import { revokeAllSessionsForUser } from '@/lib/auth/session';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { enqueueForAnalystAudience } from '@/lib/notifications/outbox';
-import { formatUnitsSigned } from '@/lib/format';
-import { PREDICTION_STATUS_KA } from '@/lib/labels';
+import { renderSettlementNotice } from '@/lib/notifications/settlement-text';
 import {
   AppError,
   ERROR_CODES,
@@ -336,9 +335,16 @@ export async function settlePredictionAction(
           where: { predictionId: settled.id },
           select: { profitUnitsCenti: true },
         });
+        // A paid ticket's title stays out: see renderSettlementNotice.
         await enqueueForAnalystAudience(author.id, 'SETTLEMENT', {
-          subjectKa: `შედეგი: ${PREDICTION_STATUS_KA[settled.status] ?? settled.status} · ${author.displayName}`,
-          bodyKa: `${settled.titleKa}\nერთეულები: ${formatUnitsSigned(result?.profitUnitsCenti ?? 0)}`,
+          ...renderSettlementNotice({
+            status: settled.status,
+            visibility: settled.visibility,
+            titleKa: settled.titleKa,
+            oddsMilli: settled.oddsMilli,
+            profitUnitsCenti: result?.profitUnitsCenti ?? 0,
+            authorName: author.displayName,
+          }),
           linkPath: `/analysts/${author.slug}`,
           predictionId: settled.id,
         });
