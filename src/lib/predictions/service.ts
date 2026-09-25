@@ -9,6 +9,7 @@ import type {
 } from '@/lib/validation/schemas';
 import { computeProfitUnitsCenti, type TerminalOutcome } from './settlement';
 import { slipTitle } from './slip';
+import { kickoffRefusal } from './kickoff';
 import {
   hasSubscriptionForSale,
   SUBSCRIPTION_TICKET_NEEDS_PLAN_KA,
@@ -40,6 +41,19 @@ export async function createPrediction(
   analystProfileId: string,
   actor: Actor,
 ) {
+  /*
+   * Terms §8.1. The form refuses a past kickoff too, but only here does the
+   * rule hold for a hand-built request. A draft is held to it as well: one
+   * saved after the match could never be published anyway.
+   */
+  const now = new Date();
+  const kickoff = kickoffRefusal(input.eventAt, now);
+  if (kickoff) {
+    throw new AppError(ERROR_CODES.VALIDATION_ERROR, kickoff, {
+      fieldErrors: { eventAt: [kickoff] },
+    });
+  }
+
   const sport = await prisma.sport.findUnique({
     where: { id: input.sportId },
     select: { id: true, isActive: true, nameKa: true },
@@ -75,7 +89,7 @@ export async function createPrediction(
       : (slipTitle(input.selections) ??
         `${sport.nameKa} · კოეფ. ${(input.odds / 1000).toFixed(2)}`);
 
-  const publishedAt = input.publishNow ? new Date() : null;
+  const publishedAt = input.publishNow ? now : null;
 
   const prediction = await prisma.prediction.create({
     data: {
@@ -144,7 +158,13 @@ export async function publishPrediction(
   return prisma.$transaction(async (tx) => {
     const prediction = await tx.prediction.findUnique({
       where: { id: predictionId },
-      select: { id: true, titleKa: true, publishedAt: true, authorId: true },
+      select: {
+        id: true,
+        titleKa: true,
+        publishedAt: true,
+        authorId: true,
+        eventAt: true,
+      },
     });
     if (!prediction) throw new AppError(ERROR_CODES.NOT_FOUND);
     // Ownership is checked against the session's analyst profile, never
@@ -156,10 +176,18 @@ export async function publishPrediction(
     if (prediction.publishedAt) {
       throw new AppError(ERROR_CODES.CONFLICT, 'უკვე გამოქვეყნებულია.');
     }
+    /*
+     * Terms §8.1. A draft whose first match has started stays a draft.
+     * Without this an author could save one draft per outcome before the
+     * match and publish only the winner once the result was in.
+     */
+    const now = new Date();
+    const kickoff = kickoffRefusal(prediction.eventAt, now);
+    if (kickoff) throw new AppError(ERROR_CODES.CONFLICT, kickoff);
 
     const updated = await tx.prediction.update({
       where: { id: predictionId },
-      data: { publishedAt: new Date() },
+      data: { publishedAt: now },
     });
 
     await writeAuditLog(

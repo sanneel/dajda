@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { unstable_cache, updateTag } from 'next/cache';
 import { isTicketStillActive } from '@/lib/tickets/active';
+import { countsInRecord } from '@/lib/predictions/kickoff';
 import { prisma } from '@/lib/db';
 import {
   PERIOD_DAYS,
@@ -36,16 +37,24 @@ const PUBLISHED = {
 } as const;
 
 
+/**
+ * The rows that count, as performance records.
+ *
+ * A ticket published after its first match started stays on the page, since
+ * a record never loses a row, but it does not count (terms §8.1). The
+ * service refuses such a publication now; this covers rows from before it did.
+ */
 function toRecords(
   rows: {
     status: PerformanceRecord['status'];
     oddsMilli: number;
     stakeUnitsCenti: number;
     publishedAt: Date | null;
+    eventAt: Date | null;
     result: { profitUnitsCenti: number } | null;
   }[],
 ): PerformanceRecord[] {
-  return rows.map((row) => ({
+  return rows.filter(countsInRecord).map((row) => ({
     status: row.status,
     oddsMilli: row.oddsMilli,
     stakeUnitsCenti: row.stakeUnitsCenti,
@@ -309,6 +318,7 @@ async function buildAnalystRecord(profileId: string) {
         oddsMilli: true,
         stakeUnitsCenti: true,
         publishedAt: true,
+        eventAt: true,
         result: { select: { profitUnitsCenti: true } },
       },
     }),

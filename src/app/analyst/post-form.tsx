@@ -78,11 +78,11 @@ export function PostBetForm({
   const [eventEndAt, setEventEndAt] = useState<Kickoff | null>(null);
   const [missingKickoff, setMissingKickoff] = useState(false);
   /*
-   * A kickoff already behind us is refused here, not on the server: the
-   * feeds drop a ticket the moment its first match starts, so a bet posted
-   * with a past time would publish fine and then be visible to nobody but
-   * its author. That looked like a bug in the feed; it was a slip of the
-   * hour list. The author's clock is Tbilisi's, so local time is right.
+   * A kickoff already behind us is refused here before the upload, and again
+   * by the server, which is what enforces terms §8.1 (see
+   * lib/predictions/kickoff.ts). The feeds drop a ticket the moment its first
+   * match starts, so a past time was usually a slip of the hour list. The
+   * author's clock is Tbilisi's, so local time is right.
    */
   const [pastKickoff, setPastKickoff] = useState(false);
   const kickoffIsPast = (kickoff: Kickoff) =>

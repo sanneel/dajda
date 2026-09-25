@@ -12,6 +12,7 @@ import {
   formatUnitsSigned,
 } from '@/lib/format';
 import { summarizePerformance } from '@/lib/stats/performance';
+import { countsInRecord, kickoffRefusal } from '@/lib/predictions/kickoff';
 import {
   BROADCASTS_PER_DAY,
   broadcastAllowance,
@@ -120,6 +121,8 @@ export default async function AnalystPage() {
   );
   const settled = bets.filter((bet) => bet.status !== 'PENDING');
   const drafts = bets.filter((bet) => bet.publishedAt === null);
+  // Which drafts can still be published depends on the clock.
+  const now = new Date();
 
   /*
    * The record as the public sees it, from the same rows and the same function
@@ -128,7 +131,7 @@ export default async function AnalystPage() {
    */
   const record = summarizePerformance(
     bets
-      .filter((bet) => bet.publishedAt !== null && bet.supersededAt === null)
+      .filter((bet) => bet.supersededAt === null && countsInRecord(bet))
       .map((bet) => ({
         status: bet.status,
         oddsMilli: bet.oddsMilli,
@@ -365,6 +368,7 @@ export default async function AnalystPage() {
                   <BetList
                     bets={drafts}
                     empty="მონახაზი არ გაქვთ."
+                    now={now}
                   />
                 ),
               },
@@ -428,12 +432,15 @@ function BetList({
   empty,
   showFinish = false,
   collapse = false,
+  now,
 }: {
   bets: Bet[];
   empty: string;
   showFinish?: boolean;
   /** History is long and nobody acts on it: show a few, offer the rest. */
   collapse?: boolean;
+  /** Given for drafts, which can only be published before kickoff. */
+  now?: Date;
 }) {
   if (bets.length === 0) {
     return empty ? (
@@ -445,7 +452,7 @@ function BetList({
   }
 
   const rows = bets.map((bet) => (
-    <BetRow key={bet.id} bet={bet} showFinish={showFinish} />
+    <BetRow key={bet.id} bet={bet} showFinish={showFinish} now={now} />
   ));
 
   return collapse ? (
@@ -457,13 +464,25 @@ function BetList({
   );
 }
 
-function BetRow({ bet, showFinish }: { bet: Bet; showFinish: boolean }) {
+function BetRow({
+  bet,
+  showFinish,
+  now,
+}: {
+  bet: Bet;
+  showFinish: boolean;
+  now?: Date;
+}) {
   /*
    * A draft has no public page: /free/{id} only answers for published rows,
    * so linking a draft there was a guaranteed 404. Its thumbnail and title
    * stay plain, and the action it actually needs - publishing - sits below.
    */
   const isDraft = bet.publishedAt === null;
+  // Terms §8.1: once the first match starts the server refuses to publish,
+  // so the button would only lead to that refusal. Say why instead.
+  const tooLate =
+    isDraft && now !== undefined && kickoffRefusal(bet.eventAt, now) !== null;
   const thumbnail = (
     <Image
       src={bet.screenshotPath}
@@ -552,7 +571,13 @@ function BetRow({ bet, showFinish }: { bet: Bet; showFinish: boolean }) {
           </div>
         ) : null}
 
-        {isDraft ? (
+        {tooLate ? (
+          <p className="mt-3 text-xs text-ink-faint">
+            {bet.eventAt
+              ? 'პირველი მატჩი უკვე დაიწყო, ამიტომ ეს მონახაზი ვეღარ გამოქვეყნდება.'
+              : 'მონახაზს მატჩის დრო არ აქვს, ამიტომ ვეღარ გამოქვეყნდება. დაამატეთ ბილეთი თავიდან.'}
+          </p>
+        ) : isDraft ? (
           <div className="mt-3">
             <ActionButton
               action={publishBetAction}
