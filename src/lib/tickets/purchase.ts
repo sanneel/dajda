@@ -42,7 +42,7 @@ export async function startTicketPurchase(
       publishedAt: true,
       supersededAt: true,
       authorId: true,
-      author: { select: { id: true, userId: true } },
+      author: { select: { id: true, userId: true, displayName: true } },
     },
   });
 
@@ -129,7 +129,14 @@ export async function startTicketPurchase(
       orderId,
       amountMinor: priceMinor,
       currency: "GEL",
-      description: `DAJDA ბილეთი: ${prediction.titleKa}`,
+      /*
+       * Never the title: a paid ticket's title is the pick itself, and the
+       * gateway prints this line on its checkout page before anything is
+       * paid. Anyone could open a checkout, read the pick and close the tab.
+       */
+      description: prediction.author
+        ? `DAJDA ფასიანი ბილეთი · ${prediction.author.displayName}`
+        : "DAJDA ფასიანი ბილეთი",
       returnUrl: buildReturnUrl(env.APP_URL, orderId, `/free/${prediction.id}`),
       callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
       customerEmail: actor.email,
