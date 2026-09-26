@@ -7,6 +7,7 @@ import { requireAdmin } from '@/lib/auth/authorization';
 import { revokeAllSessionsForUser } from '@/lib/auth/session';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { enqueueForAnalystAudience } from '@/lib/notifications/outbox';
+import { notifyAnalystApproved } from '@/lib/notifications/analyst-approved';
 import { renderSettlementNotice } from '@/lib/notifications/settlement-text';
 import {
   AppError,
@@ -56,10 +57,10 @@ export async function decideAnalystAction(
 
     const { analystProfileId, decision, reason } = parsed.data;
 
-    await prisma.$transaction(async (tx) => {
+    const previousStatus = await prisma.$transaction(async (tx) => {
       const profile = await tx.analystProfile.findUnique({
         where: { id: analystProfileId },
-        select: { id: true, displayName: true, userId: true },
+        select: { id: true, displayName: true, userId: true, status: true },
       });
       if (!profile) throw new AppError(ERROR_CODES.NOT_FOUND);
 
@@ -98,7 +99,15 @@ export async function decideAnalystAction(
         },
         tx,
       );
+
+      return profile.status;
     });
+
+    // After the commit, and only on the change: approving twice, or saving
+    // an approved profile again, must not send "you are approved" twice.
+    if (decision === 'APPROVED' && previousStatus !== 'APPROVED') {
+      await notifyAnalystApproved(analystProfileId);
+    }
 
     revalidatePath('/admin', 'layout');
     revalidatePath('/');

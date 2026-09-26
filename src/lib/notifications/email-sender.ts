@@ -56,6 +56,7 @@ function renderHtml(message: OutboxMessage): string {
 export async function flushEmailOutbox(options?: {
   limit?: number;
   broadcastId?: string;
+  ids?: string[];
   predictionId?: string;
 }): Promise<{ sent: number; failed: number }> {
   const provider = getEmailProvider();
@@ -64,6 +65,7 @@ export async function flushEmailOutbox(options?: {
     channel: 'EMAIL',
     limit: options?.limit,
     broadcastId: options?.broadcastId,
+    ids: options?.ids,
     predictionId: options?.predictionId,
     send: (message) =>
       provider.send({
