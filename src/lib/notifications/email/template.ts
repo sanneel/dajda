@@ -34,6 +34,17 @@ const C = {
 const FONT =
   "-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Noto Sans Georgian',sans-serif";
 
+/**
+ * Blank space after the preview text, so the inbox preview ends there.
+ *
+ * An inbox fills the line under the subject with as much text as fits, and
+ * after the hidden preview it carried straight on into the visible mail: the
+ * wordmark, the heading (the subject again), the same paragraph again and the
+ * raw link. The line read as the whole message, twice. These characters show
+ * as nothing and fill that line instead.
+ */
+const PREVIEW_STOP = '&#847;&zwnj;&nbsp;'.repeat(90);
+
 /** Minimal escaping - everything interpolated below passes through this. */
 function escapeHtml(value: string): string {
   return value
@@ -111,7 +122,7 @@ export function renderEmailHtml(options: EmailHtmlOptions): string {
 </head>
 <body style="margin:0;padding:0;background:${C.canvas};">
 <!-- Inbox preview text; invisible in the opened mail. -->
-<div style="display:none;max-height:0;overflow:hidden;">${preheader}</div>
+<div style="display:none;max-height:0;overflow:hidden;">${preheader}${PREVIEW_STOP}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.canvas};">
 <tr><td align="center" style="padding:32px 16px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">

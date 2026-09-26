@@ -107,6 +107,26 @@ describe('email HTML template', () => {
     expect(html.split(url).length - 1).toBeGreaterThanOrEqual(2);
   });
 
+  /*
+   * The inbox fills the line under the subject with as much text as fits.
+   * Without blank space after the preview it ran on into the visible mail,
+   * and the line read as the whole message twice.
+   */
+  it('ends the inbox preview after the first paragraph', async () => {
+    const { renderEmailHtml } = await import(
+      '@/lib/notifications/email/template'
+    );
+    const html = renderEmailHtml({
+      heading: 'სათაური',
+      paragraphs: ['პირველი', 'მეორე'],
+    });
+    const hidden =
+      html.match(/<div style="display:none;[^"]*">([\s\S]*?)<\/div>/)?.[1] ?? '';
+    expect(hidden.startsWith('პირველი')).toBe(true);
+    expect(hidden).not.toContain('მეორე');
+    expect(hidden.split('&zwnj;').length - 1).toBeGreaterThanOrEqual(50);
+  });
+
   it('auth mails carry the same link in text and html', async () => {
     const { verificationEmail } = await import('@/lib/auth/mail');
     const link = 'https://dajda.ge/verify-email?token=abc123';
