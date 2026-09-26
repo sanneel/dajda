@@ -5,7 +5,8 @@ import { subscriptionHasLapsed } from './expiry-rules';
 /**
  * Close subscriptions whose paid month is over.
  *
- * Access already stops at currentPeriodEnd, because the access checks read it.
+ * Access already stops by itself, because the access checks read the period
+ * end (subscriptionGrantsAccess).
  * But the row would keep reading ACTIVE, and the database allows one ACTIVE
  * subscription per plan per person: without this, somebody whose month ran
  * out could never pay for the same author again. The daily payments cron runs

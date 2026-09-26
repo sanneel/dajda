@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@/generated/prisma/client';
+import { grantsAccessWhere } from '@/lib/subscriptions/expiry-rules';
 
 /**
  * The notification outbox: who should be told, on which channel, at which
@@ -87,10 +88,7 @@ export async function audienceFor(
           subscriptions: {
             some: {
               status: 'ACTIVE',
-              OR: [
-                { currentPeriodEnd: null },
-                { currentPeriodEnd: { gt: new Date() } },
-              ],
+              ...grantsAccessWhere(new Date()),
               plan: { analystProfileId },
             },
           },

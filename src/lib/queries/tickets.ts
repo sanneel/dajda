@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import type { Prisma } from '@/generated/prisma/client';
 import type { PlanTier } from '@/generated/prisma/enums';
 import type { TicketFilter } from '@/lib/validation/schemas';
+import { grantsAccessWhere } from '@/lib/subscriptions/expiry-rules';
 
 /**
  * Bet read models.
@@ -312,7 +313,7 @@ export async function activePlanGrants(
     where: {
       userId,
       status: 'ACTIVE',
-      OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: new Date() } }],
+      ...grantsAccessWhere(new Date()),
       plan: { isActive: true },
     },
     select: {

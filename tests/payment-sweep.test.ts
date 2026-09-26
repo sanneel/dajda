@@ -7,7 +7,10 @@ import {
 } from '@/lib/payments/sweep-rules';
 import type { PaymentVerification } from '@/lib/payments/types';
 import {
+  RENEWAL_ACCESS_GRACE_MS,
   RENEWAL_GRACE_MS,
+  grantsAccessWhere,
+  subscriptionGrantsAccess,
   subscriptionHasLapsed,
 } from '@/lib/subscriptions/expiry-rules';
 
@@ -102,5 +105,79 @@ describe('subscription expiry', () => {
         now,
       ),
     ).toBe(true);
+  });
+});
+
+describe('subscription access', () => {
+  const now = new Date('2026-09-27T09:00:00Z');
+  const hour = 60 * 60 * 1000;
+
+  /*
+   * The case that was live: a daily plan paid at 11:33 Tbilisi, its calendar
+   * scheduled by the gateway for 12:31 the next day. The hour between is
+   * paid for by the charge that is about to land, and must not lock tickets.
+   */
+  it('keeps a renewing subscription open until its charge can land', () => {
+    const endedAnHourAgo = new Date(now.getTime() - hour);
+    expect(
+      subscriptionGrantsAccess(
+        { currentPeriodEnd: endedAnHourAgo, hasRenewalCalendar: true },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      subscriptionGrantsAccess(
+        {
+          currentPeriodEnd: new Date(now.getTime() - RENEWAL_ACCESS_GRACE_MS),
+          hasRenewalCalendar: true,
+        },
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it('closes a one-off or canceled subscription at its period end', () => {
+    expect(
+      subscriptionGrantsAccess(
+        { currentPeriodEnd: new Date(now.getTime() - hour), hasRenewalCalendar: false },
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      subscriptionGrantsAccess({ currentPeriodEnd: now, hasRenewalCalendar: false }, now),
+    ).toBe(false);
+    expect(
+      subscriptionGrantsAccess(
+        { currentPeriodEnd: new Date(now.getTime() + hour), hasRenewalCalendar: false },
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it('opens an open-ended grant', () => {
+    expect(
+      subscriptionGrantsAccess({ currentPeriodEnd: null, hasRenewalCalendar: false }, now),
+    ).toBe(true);
+  });
+
+  /*
+   * The row is closed only after the access grace has run out, so a door
+   * that is still open never points at an EXPIRED row.
+   */
+  it('keeps the row open for longer than the door', () => {
+    expect(RENEWAL_GRACE_MS).toBeGreaterThan(RENEWAL_ACCESS_GRACE_MS);
+  });
+
+  it('filters the database on the same cutoffs', () => {
+    expect(grantsAccessWhere(now)).toEqual({
+      OR: [
+        { currentPeriodEnd: null },
+        { currentPeriodEnd: { gt: now } },
+        {
+          cardToken: { not: null },
+          currentPeriodEnd: { gt: new Date(now.getTime() - RENEWAL_ACCESS_GRACE_MS) },
+        },
+      ],
+    });
   });
 });
