@@ -85,3 +85,51 @@ export function renderPayoutRequestedAlert(input: PayoutRequestedAlertInput): {
     linkPath: PAYOUT_QUEUE_PATH,
   };
 }
+
+export type RenewalDeclinedAlertInput = {
+  planName: string;
+  amountMinor: number;
+  currency: string;
+  /** The gateway's code and wording, e.g. "1011 Parameter is missing". */
+  reason: string;
+  /** The order that opened the calendar: the handle to stop it by hand. */
+  parentOrderId: string;
+  /** Whether the gateway accepted the stop sent after the decline. */
+  calendarStopped: boolean;
+  /** Whether the mail provider took the notice to the subscriber. */
+  subscriberNotified: boolean;
+};
+
+/** Where the message points: the payments page, which shows the delivery. */
+export const PAYMENTS_PAGE_PATH = '/admin/payments';
+
+/**
+ * The gateway declined a scheduled renewal. Nobody else would notice: the
+ * subscriber is told, but a decline that names the gateway's own error is
+ * for an administrator to take up with the gateway. The one thing that needs
+ * a hand is a calendar the gateway would not stop, so that says which order.
+ */
+export function renderRenewalDeclinedAlert(input: RenewalDeclinedAlertInput): {
+  subjectKa: string;
+  bodyKa: string;
+  linkPath: string;
+} {
+  const amount = formatMoney(input.amountMinor, input.currency);
+  const lines = [
+    `${input.planName}: დაგეგმილი ჩამოჭრა (${amount}) უარყოფილია.`,
+    '',
+    `მიზეზი: ${input.reason}`,
+    input.calendarStopped
+      ? 'კალენდარი გაჩერდა, მეტს აღარ ჩამოჭრის.'
+      : `კალენდარი ვერ გაჩერდა, გააჩერეთ ხელით: ${input.parentOrderId}`,
+    input.subscriberNotified
+      ? 'გამომწერს ეცნობა ელფოსტით.'
+      : 'გამომწერს ელფოსტა ვერ გაეგზავნა.',
+  ];
+
+  return {
+    subjectKa: `გამოწერა ვერ განახლდა: ${input.planName}`,
+    bodyKa: lines.join('\n'),
+    linkPath: PAYMENTS_PAGE_PATH,
+  };
+}

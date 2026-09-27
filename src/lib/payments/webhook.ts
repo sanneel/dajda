@@ -20,6 +20,8 @@ import type { WebhookResult } from './types';
  *   - a gateway-scheduled renewal (a new order naming its parent_order_id)
  *     is recorded as a payment of its own and extends the paid period, with
  *     the same amount guard applied against the original payment
+ *   - a declined renewal ends the calendar: the subscription stops counting
+ *     as renewing, and runs out at the end of what was already paid
  *   - a SUBSCRIPTION payment credits the analyst's share of it exactly once,
  *     and takes it back if the subscriber's payment is later reversed
  *
@@ -135,6 +137,23 @@ export interface WebhookPort {
     /** Null when this renewal order was already recorded. */
   }): Promise<{ paymentId: string | null }>;
 
+  /**
+   * The gateway declined a scheduled renewal. It does not come back for a
+   * declined date (a card calendar declined on 2026-09-17 never tried
+   * again), so the subscription no longer renews: drop the card token,
+   * which is what every read takes as the mark of a calendar. Access then runs to the end of the paid period
+   * and no further, and the person can pay again at once.
+   *
+   * Changes only an ACTIVE subscription still holding a token, and reports
+   * whether it did, so the caller stops the calendar and tells the person
+   * once. A second decline, or one after a cancellation, changes nothing.
+   */
+  endRenewalCalendar(input: {
+    subscriptionId: string;
+    userId: string;
+    reason: string;
+  }): Promise<{ ended: boolean }>;
+
   /** Extend the paid period after a verified renewal charge. Idempotent. */
   renewSubscription(input: {
     subscriptionId: string;
@@ -230,6 +249,8 @@ export type ProcessAction =
   | 'TRANSITION_NOT_ALLOWED'
   | 'APPLIED'
   | 'RENEWAL_APPLIED'
+  /** A declined renewal that ended a live calendar; reported exactly once. */
+  | 'RENEWAL_DECLINED'
   | 'RENEWAL_IGNORED';
 
 export type ProcessOutcome = {
@@ -344,12 +365,16 @@ export async function processPaymentWebhook(
     };
   }
 
+  // The gateway's own reason for a decline, kept beside the status so the
+  // admin payments page says why without opening the payload.
+  const because = result.failureReason ? ` (${result.failureReason})` : '';
+
   await port.transitionPayment({
     paymentId: payment.id,
     from: payment.status,
     to: result.status,
     webhookEventId: event.id,
-    reason: `provider status "${result.rawStatus ?? ''}"`,
+    reason: `provider status "${result.rawStatus ?? ''}"${because}`,
     providerPaymentId: result.providerPaymentId,
     maskedCard: result.maskedCard,
     cardType: result.cardType,
@@ -456,7 +481,7 @@ export async function processPaymentWebhook(
 
   await port.markProcessed(
     event.id,
-    `applied: ${payment.status} -> ${result.status}`,
+    `applied: ${payment.status} -> ${result.status}${because}`,
   );
 
   return {
@@ -471,10 +496,13 @@ export async function processPaymentWebhook(
  * A charge the gateway initiated on its own from a subscription calendar.
  *
  * The order id is new to us, so it resolves through the parent order instead.
- * Only a SUCCEEDED renewal changes anything: it is recorded as a payment in
- * its own right and pushes the paid period forward. A declined renewal is
- * kept for audit and touches nothing - access simply lapses at the period
- * end the customer already paid for.
+ * A SUCCEEDED renewal is recorded as a payment in its own right and pushes
+ * the paid period forward. A declined one ends the calendar (see
+ * endRenewalCalendar): the subscription stops reading as renewing, so its
+ * access and its row close at the end of the period already paid for, and
+ * the person can buy again straight away instead of waiting out a grace
+ * meant for a charge that is no longer coming. Any other status is kept for
+ * audit and touches nothing.
  */
 async function processRenewal(
   providerCode: string,
@@ -493,10 +521,31 @@ async function processRenewal(
     return { action: 'PAYMENT_NOT_FOUND', subscriptionActivated: false };
   }
 
+  const because = result.failureReason ? ` (${result.failureReason})` : '';
+
+  if (result.status === 'FAILED') {
+    const { ended } = await port.endRenewalCalendar({
+      subscriptionId: parent.subscriptionId,
+      userId: parent.userId,
+      reason: result.failureReason ?? `status "${result.rawStatus ?? ''}"`,
+    });
+    await port.markProcessed(
+      eventRowId,
+      ended
+        ? `renewal declined, calendar ended${because}`
+        : `renewal declined, nothing left to end${because}`,
+    );
+    return {
+      action: ended ? 'RENEWAL_DECLINED' : 'RENEWAL_IGNORED',
+      subscriptionActivated: false,
+      detail: result.failureReason ?? result.rawStatus ?? undefined,
+    };
+  }
+
   if (result.status !== 'SUCCEEDED') {
     await port.markProcessed(
       eventRowId,
-      `renewal ignored: status "${result.rawStatus ?? ''}"`,
+      `renewal ignored: status "${result.rawStatus ?? ''}"${because}`,
     );
     return {
       action: 'RENEWAL_IGNORED',

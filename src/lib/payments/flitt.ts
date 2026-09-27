@@ -418,6 +418,7 @@ export class FlittPaymentProvider implements PaymentProvider {
       // Present on charges the gateway initiated from a subscription
       // calendar; names the original checkout order.
       parentOrderId: asOptionalString(params.parent_order_id),
+      failureReason: declineReason(params),
       // The delivery is kept whole in the ledger for investigation, minus
       // the card token: that lives sealed on the subscription, and a ledger
       // row must not be a second, plaintext copy of it.
@@ -538,6 +539,20 @@ function asOptionalString(value: unknown): string | null {
   return value === undefined || value === null || value === ''
     ? null
     : String(value);
+}
+
+/**
+ * "1011 Parameter is missing" from a declined callback's response_code and
+ * response_description. An approval carries both empty, so it has none.
+ */
+function declineReason(params: FlittParams): string | null {
+  const reason = [
+    asOptionalString(params.response_code),
+    asOptionalString(params.response_description),
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' ');
+  return reason === '' ? null : reason;
 }
 
 type FlittBody = {

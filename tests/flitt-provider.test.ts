@@ -401,5 +401,27 @@ describe('webhook token and renewal fields', () => {
     expect(result.signatureValid).toBe(true);
     expect(result.parentOrderId).toBe('dajda-sub-1');
     expect(result.orderId).toBe('flitt-generated-77');
+    expect(result.failureReason).toBeNull();
+  });
+
+  it('carries the code and wording of a declined renewal', async () => {
+    // Shaped like the live decline of 2026-09-27: the calendar's own charge
+    // on an Apple Pay token, refused before it reached the bank.
+    const provider = new FlittPaymentProvider(CONFIG);
+    const result = await provider.handleWebhook(
+      signedCallback({
+        order_id: 'recurring__1790497872.9361553__dajda-sub-1',
+        parent_order_id: 'dajda-sub-1',
+        order_status: 'declined',
+        amount: 100,
+        currency: 'GEL',
+        response_code: 1011,
+        response_description: 'Parameter is missing',
+      }),
+    );
+
+    expect(result.signatureValid).toBe(true);
+    expect(result.status).toBe('FAILED');
+    expect(result.failureReason).toBe('1011 Parameter is missing');
   });
 });

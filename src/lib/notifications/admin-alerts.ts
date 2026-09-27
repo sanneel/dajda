@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db';
 import {
   renderBetFinishedAlert,
   renderPayoutRequestedAlert,
+  renderRenewalDeclinedAlert,
+  type RenewalDeclinedAlertInput,
 } from './admin-alert-text';
 import { flushTelegramOutbox } from './telegram-sender';
 
@@ -14,7 +16,9 @@ import { flushTelegramOutbox } from './telegram-sender';
  * an author asks, and only an administrator can move the money, from the bank.
  * Either handoff is worthless if nobody notices it, so each one sends a
  * Telegram message, immediately and inline, to every administrator who has
- * linked the bot from their own settings page.
+ * linked the bot from their own settings page. So does a renewal the gateway
+ * declined: the cause is on the gateway's side, and only an administrator can
+ * take it up with them, or stop a calendar the gateway would not.
  *
  * The address is never typed anywhere in this file or in an env var: an admin
  * links their chat exactly the way a reader does (settings, Telegram, Start),
@@ -141,6 +145,23 @@ export async function notifyAdminsPayoutRequested(
     );
   } catch (error) {
     console.error('[dajda] admin payout-requested alert failed', error);
+    return NONE;
+  }
+}
+
+/**
+ * Tell every linked administrator that the gateway declined a renewal.
+ *
+ * Never throws: the decline is already recorded and the subscriber already
+ * told, and a Telegram hiccup must not turn the webhook into a retry.
+ */
+export async function notifyAdminsRenewalDeclined(
+  input: RenewalDeclinedAlertInput,
+): Promise<AlertOutcome> {
+  try {
+    return await sendToLinkedAdmins(renderRenewalDeclinedAlert(input));
+  } catch (error) {
+    console.error('[dajda] admin renewal-declined alert failed', error);
     return NONE;
   }
 }

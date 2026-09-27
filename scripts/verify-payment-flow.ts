@@ -13,6 +13,9 @@
  *   7. a decline closes the pending subscription; an approval of the same
  *      order on a retry reopens it, and the card token lands sealed with
  *      nothing of it in the webhook ledger
+ *   8. a declined renewal ends the calendar once: the token goes, the paid
+ *      period stays, the gateway's reason is kept, and a second decline
+ *      changes nothing
  *
  * Usage (with the app running and DATABASE_URL pointing at the same database):
  *   npx tsx scripts/verify-payment-flow.ts [baseUrl]
@@ -401,6 +404,70 @@ async function main() {
     JSON.stringify(ledgerRow?.payload ?? {}).includes(`tok-${runId}`) === false,
   );
 
+  // ---- 8. a declined renewal ends the calendar, once ------------------------
+  // The subscription from step 7 is ACTIVE and holds a token. The gateway's
+  // calendar now charges it and is declined, as on 2026-09-27.
+  console.info('\n8. a declined renewal ends the calendar');
+  const renewalOrderId = `verify-renewal-${runId}`;
+  const declinedRenewal = await postWebhook(
+    {
+      order_id: renewalOrderId,
+      parent_order_id: retryOrder.orderId,
+      payment_id: `mock-pay-7a-${runId}`,
+      order_status: 'declined',
+      amount: retryPlan.priceMinor,
+      currency: 'GEL',
+      response_code: 1011,
+      response_description: 'Parameter is missing',
+    },
+    { eventId: randomUUID() },
+  );
+  check(
+    'webhook reports RENEWAL_DECLINED',
+    declinedRenewal.action === 'RENEWAL_DECLINED',
+    JSON.stringify(declinedRenewal),
+  );
+  const afterRenewalDecline = await statusOf(retryOrder.subscriptionId);
+  check(
+    'the card token is gone, so nothing reads it as renewing',
+    afterRenewalDecline.cardToken === null,
+  );
+  check(
+    'the period already paid for is kept',
+    afterRenewalDecline.status === 'ACTIVE' &&
+      afterRenewalDecline.currentPeriodEnd?.getTime() ===
+        afterRetry.currentPeriodEnd?.getTime(),
+    `${afterRenewalDecline.status} ${afterRenewalDecline.currentPeriodEnd?.toISOString()}`,
+  );
+  const renewalLedger = await withRetry(() =>
+    prisma.webhookEvent.findFirst({
+      where: { payload: { path: ['order_id'], equals: renewalOrderId } },
+      select: { processingResult: true },
+    }),
+  );
+  check(
+    'the ledger keeps the gateway reason',
+    renewalLedger?.processingResult ===
+      'renewal declined, calendar ended (1011 Parameter is missing)',
+    renewalLedger?.processingResult ?? 'no row',
+  );
+  const secondDecline = await postWebhook(
+    {
+      order_id: `${renewalOrderId}-b`,
+      parent_order_id: retryOrder.orderId,
+      payment_id: `mock-pay-7b-${runId}`,
+      order_status: 'declined',
+      amount: retryPlan.priceMinor,
+      currency: 'GEL',
+    },
+    { eventId: randomUUID() },
+  );
+  check(
+    'a second decline reports RENEWAL_IGNORED',
+    secondDecline.action === 'RENEWAL_IGNORED',
+    JSON.stringify(secondDecline),
+  );
+
   // ---- cleanup ------------------------------------------------------------
   const orderIds = [
     order.orderId,
@@ -410,13 +477,19 @@ async function main() {
     secondOrder.orderId,
     retryOrder.orderId,
   ];
-  await prisma.paymentStatusTransition.deleteMany({
-    where: { payment: { providerOrderId: { in: orderIds } } },
-  });
-  await prisma.payment.deleteMany({
-    where: { providerOrderId: { in: orderIds } },
-  });
-  await prisma.userSubscription.deleteMany({
+  // Retried: the last step ends on a webhook, and the app may still hold the
+  // development server's one connection.
+  await withRetry(() =>
+    prisma.paymentStatusTransition.deleteMany({
+      where: { payment: { providerOrderId: { in: orderIds } } },
+    }),
+  );
+  await withRetry(() =>
+    prisma.payment.deleteMany({
+      where: { providerOrderId: { in: orderIds } },
+    }),
+  );
+  await withRetry(() => prisma.userSubscription.deleteMany({
     where: {
       id: {
         in: [
@@ -429,7 +502,7 @@ async function main() {
         ],
       },
     },
-  });
+  }));
 
   console.info(
     failures === 0

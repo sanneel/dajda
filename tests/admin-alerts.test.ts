@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PAYMENTS_PAGE_PATH,
   PAYOUT_QUEUE_PATH,
   renderBetFinishedAlert,
   renderPayoutRequestedAlert,
+  renderRenewalDeclinedAlert,
   SETTLEMENT_QUEUE_PATH,
 } from '@/lib/notifications/admin-alert-text';
 import { formatMoney } from '@/lib/format';
@@ -88,5 +90,43 @@ describe('payout-requested admin alert', () => {
     expect(
       renderPayoutRequestedAlert({ ...base, activityCheckPassed: false }).bodyKa,
     ).toContain('ვერ გაიარა');
+  });
+});
+
+/**
+ * The message an administrator receives when the gateway declines a renewal.
+ * It carries the gateway's own error, which is the thing to quote to them,
+ * and names the order whenever the calendar still needs stopping by hand.
+ */
+describe('renewal-declined admin alert', () => {
+  const base = {
+    planName: 'gulfishdog8 · გამოწერა',
+    amountMinor: 100,
+    currency: 'GEL',
+    reason: '1011 Parameter is missing',
+    parentOrderId: 'dajda-6cb46c2f-e480-420b-b5ec-0f2c7f03b6ef',
+    calendarStopped: true,
+    subscriberNotified: true,
+  };
+
+  it('names the plan and carries the gateway error', () => {
+    const message = renderRenewalDeclinedAlert(base);
+    expect(message.subjectKa).toBe('გამოწერა ვერ განახლდა: gulfishdog8 · გამოწერა');
+    expect(message.bodyKa).toContain('მიზეზი: 1011 Parameter is missing');
+    expect(message.bodyKa).toContain(formatMoney(100, 'GEL'));
+    expect(message.linkPath).toBe(PAYMENTS_PAGE_PATH);
+  });
+
+  it('names the order to stop by hand when the gateway would not', () => {
+    expect(renderRenewalDeclinedAlert(base).bodyKa).not.toContain(base.parentOrderId);
+    expect(
+      renderRenewalDeclinedAlert({ ...base, calendarStopped: false }).bodyKa,
+    ).toContain(`გააჩერეთ ხელით: ${base.parentOrderId}`);
+  });
+
+  it('says when the subscriber could not be emailed', () => {
+    expect(
+      renderRenewalDeclinedAlert({ ...base, subscriberNotified: false }).bodyKa,
+    ).toContain('ვერ გაეგზავნა');
   });
 });

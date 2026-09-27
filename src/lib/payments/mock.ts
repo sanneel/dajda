@@ -103,6 +103,9 @@ export type MockWebhookPayload = {
   rectoken_lifetime?: string;
   /** Mirrors a gateway-scheduled renewal referencing its original order. */
   parent_order_id?: string;
+  /** Mirrors Flitt's decline code and wording, e.g. 1011 "Parameter is missing". */
+  response_code?: number | string;
+  response_description?: string;
 };
 
 export type MockConfig = {
@@ -185,6 +188,10 @@ export class MockPaymentProvider implements PaymentProvider {
       cardToken: payload.rectoken ?? null,
       cardTokenLifetime: payload.rectoken_lifetime ?? null,
       parentOrderId: payload.parent_order_id ?? null,
+      failureReason:
+        [payload.response_code, payload.response_description]
+          .filter((part) => part !== undefined && part !== '')
+          .join(' ') || null,
       // Same rule as the real provider: the ledger never keeps the token.
       payload: {
         ...(payload as Record<string, unknown>),

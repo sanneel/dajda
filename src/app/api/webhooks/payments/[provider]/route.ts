@@ -3,6 +3,7 @@ import { prismaWebhookPort } from '@/lib/payments/prisma-port';
 import { processPaymentWebhook } from '@/lib/payments/webhook';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { sendChargeNotice } from '@/lib/subscriptions/charge-notice';
+import { settleDeclinedRenewal } from '@/lib/subscriptions/renewal-declined';
 
 /**
  * Payment webhook - the single source of truth for activating a subscription.
@@ -81,6 +82,16 @@ export async function POST(
       await sendChargeNotice(result.orderId);
     } else if (outcome.action === 'RENEWAL_APPLIED' && result.parentOrderId) {
       await sendChargeNotice(result.parentOrderId);
+    }
+
+    // A declined renewal ended the calendar: stop it at the gateway too, and
+    // tell the subscriber and the administrators. Reported once per
+    // subscription, so a repeated decline sends nothing again.
+    if (outcome.action === 'RENEWAL_DECLINED' && result.parentOrderId) {
+      await settleDeclinedRenewal(
+        result.parentOrderId,
+        outcome.detail ?? 'declined',
+      );
     }
 
     // The body is diagnostic only; gateways key off the status code.

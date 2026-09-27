@@ -107,6 +107,12 @@ export type WebhookResult = {
   payload: Record<string, unknown>;
   /** Populated when the request could not be trusted. */
   rejectionReason?: string;
+  /**
+   * The gateway's own code and wording for a decline, e.g. "1011 Parameter
+   * is missing". For the admin, never for the customer: it describes the
+   * gateway's internals, not anything the customer did.
+   */
+  failureReason?: string | null;
 };
 
 export type RefundInput = {

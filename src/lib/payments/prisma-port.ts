@@ -507,6 +507,38 @@ export const prismaWebhookPort: WebhookPort = {
     }
   },
 
+  async endRenewalCalendar(input) {
+    return prisma.$transaction(async (tx) => {
+      // Guarded by status and token, so a second decline or one arriving
+      // after a cancellation changes nothing and reports as much.
+      const updated = await tx.userSubscription.updateMany({
+        where: {
+          id: input.subscriptionId,
+          userId: input.userId,
+          status: 'ACTIVE',
+          cardToken: { not: null },
+        },
+        data: { cardToken: null, cardTokenLifetime: null },
+      });
+
+      if (updated.count === 0) return { ended: false };
+
+      await writeAuditLog(
+        {
+          action: AUDIT_ACTIONS.SUBSCRIPTION_RENEWAL_FAILED,
+          entityType: 'UserSubscription',
+          entityId: input.subscriptionId,
+          summary: `გამოწერა ვერ განახლდა, ავტომატური განახლება შეწყდა: ${input.reason}`,
+          actorId: input.userId,
+          metadata: { reason: input.reason },
+        },
+        tx,
+      );
+
+      return { ended: true };
+    });
+  },
+
   async renewSubscription(input) {
     await prisma.$transaction(async (tx) => {
       const updated = await tx.userSubscription.updateMany({

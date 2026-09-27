@@ -56,6 +56,8 @@ export const AUDIT_ACTIONS = {
   SUBSCRIPTION_ACTIVATED: 'subscription.activated',
   /** A gateway-scheduled charge extended the paid period. */
   SUBSCRIPTION_RENEWED: 'subscription.renewed',
+  /** The gateway declined a scheduled charge, which ended the calendar. */
+  SUBSCRIPTION_RENEWAL_FAILED: 'subscription.renewal_failed',
   SUBSCRIPTION_CANCELED: 'subscription.canceled',
   SUBSCRIPTION_EXPIRED: 'subscription.expired',
   /** An administrator opened a live cancellation test on the real gateway. */

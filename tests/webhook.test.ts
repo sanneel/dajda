@@ -31,6 +31,7 @@ type Recorded = {
   tokenSaves: { subscriptionId: string; cardToken: string }[];
   renewalPayments: { orderId: string; parentPaymentId: string; amountMinor: number }[];
   renewals: { subscriptionId: string; currentPeriodEnd: Date }[];
+  calendarEnds: { subscriptionId: string; reason: string }[];
   earningCredits: { paymentId: string; analystUserId: string; grossAmountMinor: number }[];
   earningReversals: { paymentId: string; analystUserId: string; reason: string }[];
   ticketGrants: { paymentId: string; userId: string; predictionId: string; amountMinor: number }[];
@@ -50,6 +51,7 @@ function makePort(payment: PaymentSnapshot | null) {
     tokenSaves: [],
     renewalPayments: [],
     renewals: [],
+    calendarEnds: [],
     earningCredits: [],
     earningReversals: [],
     ticketGrants: [],
@@ -58,6 +60,8 @@ function makePort(payment: PaymentSnapshot | null) {
 
   let counter = 0;
   let current = payment;
+  // The subscription starts out holding a card token, i.e. with a calendar.
+  let renewing = true;
 
   const port: WebhookPort = {
     async recordEvent(input) {
@@ -142,6 +146,17 @@ function makePort(payment: PaymentSnapshot | null) {
         amountMinor: input.amountMinor,
       });
       return { paymentId: `renewal-payment-${recorded.renewalPayments.length}` };
+    },
+
+    async endRenewalCalendar(input) {
+      // Mirrors the status-and-token guard: only the first decline ends it.
+      if (!renewing) return { ended: false };
+      renewing = false;
+      recorded.calendarEnds.push({
+        subscriptionId: input.subscriptionId,
+        reason: input.reason,
+      });
+      return { ended: true };
     },
 
     async renewSubscription(input) {
@@ -477,6 +492,22 @@ describe('processPaymentWebhook', () => {
     expect(recorded.activations).toHaveLength(0);
   });
 
+  it('keeps the gateway reason for a declined first payment', async () => {
+    await processPaymentWebhook(
+      'mock',
+      result({
+        status: 'FAILED',
+        rawStatus: 'declined',
+        failureReason: '1006 Merchant is not configured correctly',
+      }),
+      port,
+    );
+
+    expect(recorded.events[0]?.processedAs).toBe(
+      'applied: CREATED -> FAILED (1006 Merchant is not configured correctly)',
+    );
+  });
+
   it('closes the pending subscription when the first payment is declined', async () => {
     await processPaymentWebhook(
       'mock',
@@ -625,17 +656,76 @@ describe('gateway-scheduled renewals', () => {
     expect(recorded.transitions).toHaveLength(0);
   });
 
-  it('keeps a declined renewal on record without touching access', async () => {
+  it('ends the calendar on a declined renewal, and says why', async () => {
     const outcome = await processPaymentWebhook(
+      'mock',
+      renewalResult({
+        status: 'FAILED',
+        rawStatus: 'declined',
+        failureReason: '1011 Parameter is missing',
+      }),
+      port,
+    );
+
+    expect(outcome.action).toBe('RENEWAL_DECLINED');
+    expect(outcome.detail).toBe('1011 Parameter is missing');
+    expect(recorded.calendarEnds).toEqual([
+      { subscriptionId: 'sub-1', reason: '1011 Parameter is missing' },
+    ]);
+    // Nothing is paid for and nothing extended.
+    expect(recorded.renewalPayments).toHaveLength(0);
+    expect(recorded.renewals).toHaveLength(0);
+    expect(recorded.earningCredits).toHaveLength(0);
+    expect(recorded.events[0]?.processedAs).toBe(
+      'renewal declined, calendar ended (1011 Parameter is missing)',
+    );
+  });
+
+  it('names the raw status when the gateway gives no reason', async () => {
+    await processPaymentWebhook(
       'mock',
       renewalResult({ status: 'FAILED', rawStatus: 'declined' }),
       port,
     );
 
+    expect(recorded.calendarEnds[0]?.reason).toBe('status "declined"');
+  });
+
+  it('reports a second decline as nothing left to end', async () => {
+    await processPaymentWebhook(
+      'mock',
+      renewalResult({ status: 'FAILED', rawStatus: 'declined' }),
+      port,
+    );
+    // A later date, a new order and a new event: not a duplicate delivery.
+    const second = await processPaymentWebhook(
+      'mock',
+      renewalResult({
+        eventId: 'evt-renewal-2',
+        orderId: 'flitt-generated-order-78',
+        status: 'FAILED',
+        rawStatus: 'declined',
+      }),
+      port,
+    );
+
+    expect(second.action).toBe('RENEWAL_IGNORED');
+    expect(recorded.calendarEnds).toHaveLength(1);
+    expect(recorded.events[1]?.processedAs).toBe(
+      'renewal declined, nothing left to end',
+    );
+  });
+
+  it('leaves the calendar alone for a renewal still in progress', async () => {
+    const outcome = await processPaymentWebhook(
+      'mock',
+      renewalResult({ status: 'PROCESSING', rawStatus: 'processing' }),
+      port,
+    );
+
     expect(outcome.action).toBe('RENEWAL_IGNORED');
-    expect(recorded.renewalPayments).toHaveLength(0);
+    expect(recorded.calendarEnds).toHaveLength(0);
     expect(recorded.renewals).toHaveLength(0);
-    expect(recorded.events[0]?.processedAs).toContain('declined');
   });
 
   it('rejects a renewal claiming a different amount', async () => {
