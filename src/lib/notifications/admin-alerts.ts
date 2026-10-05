@@ -3,7 +3,9 @@ import {
   renderBetFinishedAlert,
   renderPayoutRequestedAlert,
   renderRenewalDeclinedAlert,
+  renderRenewalUnwantedAlert,
   type RenewalDeclinedAlertInput,
+  type RenewalUnwantedAlertInput,
 } from './admin-alert-text';
 import { flushTelegramOutbox } from './telegram-sender';
 
@@ -162,6 +164,23 @@ export async function notifyAdminsRenewalDeclined(
     return await sendToLinkedAdmins(renderRenewalDeclinedAlert(input));
   } catch (error) {
     console.error('[dajda] admin renewal-declined alert failed', error);
+    return NONE;
+  }
+}
+
+/**
+ * Tell every linked administrator that a canceled subscription was charged,
+ * and whether the refund and the stop went through.
+ *
+ * Never throws, for the same reason as the declined-renewal alert.
+ */
+export async function notifyAdminsUnwantedRenewal(
+  input: RenewalUnwantedAlertInput,
+): Promise<AlertOutcome> {
+  try {
+    return await sendToLinkedAdmins(renderRenewalUnwantedAlert(input));
+  } catch (error) {
+    console.error('[dajda] admin unwanted-renewal alert failed', error);
     return NONE;
   }
 }

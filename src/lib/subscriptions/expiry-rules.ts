@@ -3,8 +3,8 @@ import type { Prisma } from '@/generated/prisma/client';
 /**
  * When a subscription's paid month is over, as a pure rule.
  *
- * A subscription with a renewal calendar at the gateway (it carries a card
- * token) is given a few days' grace, so a renewal the gateway charges on the
+ * A subscription with a renewal calendar at the gateway (it carries a
+ * renewalOrderId) is given a few days' grace, so a renewal the gateway charges on the
  * day still extends it instead of arriving at a row that has already closed.
  * One sold without a calendar has nothing in flight to wait for and ends on
  * its own date.
@@ -63,7 +63,7 @@ export function grantsAccessWhere(now: Date) {
       { currentPeriodEnd: null },
       { currentPeriodEnd: { gt: accessCutoff(false, now) } },
       {
-        cardToken: { not: null },
+        renewalOrderId: { not: null },
         currentPeriodEnd: { gt: accessCutoff(true, now) },
       },
     ],

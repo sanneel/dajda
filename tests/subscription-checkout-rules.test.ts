@@ -116,6 +116,7 @@ describe('canceling', () => {
       canceledBy: 'USER',
       cardToken: null,
       cardTokenLifetime: null,
+      renewalOrderId: null,
     });
   });
 });

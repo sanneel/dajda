@@ -174,7 +174,7 @@ describe('subscription access', () => {
         { currentPeriodEnd: null },
         { currentPeriodEnd: { gt: now } },
         {
-          cardToken: { not: null },
+          renewalOrderId: { not: null },
           currentPeriodEnd: { gt: new Date(now.getTime() - RENEWAL_ACCESS_GRACE_MS) },
         },
       ],

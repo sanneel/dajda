@@ -133,3 +133,46 @@ export function renderRenewalDeclinedAlert(input: RenewalDeclinedAlertInput): {
     linkPath: PAYMENTS_PAGE_PATH,
   };
 }
+
+export type RenewalUnwantedAlertInput = {
+  planName: string;
+  amountMinor: number;
+  currency: string;
+  /** The renewal the gateway charged: the order to refund by hand. */
+  renewalOrderId: string;
+  /** The order that opened the calendar: the handle to stop it by hand. */
+  parentOrderId: string;
+  /** Whether the gateway accepted the refund of the renewal. */
+  refunded: boolean;
+  /** Whether the gateway accepted the stop of the calendar. */
+  calendarStopped: boolean;
+};
+
+/**
+ * The gateway charged a renewal on a subscription that had been canceled.
+ * The refund and the stop are sent automatically; this says whether each
+ * went through, and names the order for whatever did not.
+ */
+export function renderRenewalUnwantedAlert(input: RenewalUnwantedAlertInput): {
+  subjectKa: string;
+  bodyKa: string;
+  linkPath: string;
+} {
+  const amount = formatMoney(input.amountMinor, input.currency);
+  const lines = [
+    `${input.planName}: გაუქმებულ გამოწერაზე ჩამოიჭრა ${amount}.`,
+    '',
+    input.refunded
+      ? 'თანხა ავტომატურად დაბრუნდა.'
+      : `თანხა ვერ დაბრუნდა, დააბრუნეთ ხელით: ${input.renewalOrderId}`,
+    input.calendarStopped
+      ? 'კალენდარი გაჩერდა, მეტს აღარ ჩამოჭრის.'
+      : `კალენდარი ვერ გაჩერდა, გააჩერეთ ხელით: ${input.parentOrderId}`,
+  ];
+
+  return {
+    subjectKa: `ჩამოჭრა გაუქმებულ გამოწერაზე: ${input.planName}`,
+    bodyKa: lines.join('\n'),
+    linkPath: PAYMENTS_PAGE_PATH,
+  };
+}

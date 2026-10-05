@@ -94,7 +94,7 @@ export async function sendChargeNotice(orderId: string): Promise<void> {
             id: true,
             status: true,
             cancelAtPeriodEnd: true,
-            cardToken: true,
+            renewalOrderId: true,
             user: { select: { email: true } },
             plan: {
               select: { nameKa: true, billingPeriod: true },
@@ -106,10 +106,10 @@ export async function sendChargeNotice(orderId: string): Promise<void> {
 
     const subscription = payment?.subscription;
     // Only a subscription that will actually be charged again gets told
-    // when. No card token means no calendar; a cancellation means none left.
+    // when. No renewal order means no calendar; a cancellation means none left.
     if (
       !subscription ||
-      subscription.cardToken === null ||
+      subscription.renewalOrderId === null ||
       subscription.status !== 'ACTIVE' ||
       subscription.cancelAtPeriodEnd
     ) {

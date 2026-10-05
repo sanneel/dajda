@@ -509,16 +509,16 @@ export const prismaWebhookPort: WebhookPort = {
 
   async endRenewalCalendar(input) {
     return prisma.$transaction(async (tx) => {
-      // Guarded by status and token, so a second decline or one arriving
+      // Guarded by status and calendar, so a second decline or one arriving
       // after a cancellation changes nothing and reports as much.
       const updated = await tx.userSubscription.updateMany({
         where: {
           id: input.subscriptionId,
           userId: input.userId,
           status: 'ACTIVE',
-          cardToken: { not: null },
+          renewalOrderId: { not: null },
         },
-        data: { cardToken: null, cardTokenLifetime: null },
+        data: { cardToken: null, cardTokenLifetime: null, renewalOrderId: null },
       });
 
       if (updated.count === 0) return { ended: false };
@@ -540,22 +540,27 @@ export const prismaWebhookPort: WebhookPort = {
   },
 
   async renewSubscription(input) {
-    await prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx) => {
       const updated = await tx.userSubscription.updateMany({
         where: {
           id: input.subscriptionId,
           userId: input.userId,
-          // CANCELED stays canceled: money taken after a cancellation is a
-          // dispute to resolve by refund, not a reason to reopen access.
+          // CANCELED stays canceled, and so does one set to end with its
+          // period: money taken after a cancellation is refunded (see
+          // settleUnwantedRenewal), not a reason to reopen access.
           status: { in: ['PENDING', 'ACTIVE', 'PAST_DUE', 'EXPIRED'] },
+          cancelAtPeriodEnd: false,
         },
         data: {
           status: 'ACTIVE',
           currentPeriodEnd: input.currentPeriodEnd,
+          // A charge from the calendar proves the calendar, whatever the
+          // row said before.
+          renewalOrderId: input.renewalOrderId,
         },
       });
 
-      if (updated.count === 0) return;
+      if (updated.count === 0) return { renewed: false };
 
       await writeAuditLog(
         {
@@ -568,6 +573,8 @@ export const prismaWebhookPort: WebhookPort = {
         },
         tx,
       );
+
+      return { renewed: true };
     });
   },
 };

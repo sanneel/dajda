@@ -805,6 +805,14 @@ model UserSubscription {
   /// Token validity as reported by the gateway, stored verbatim.
   cardTokenLifetime String?
 
+  /// The order whose gateway calendar renews this subscription, and the
+  /// handle to stop it by. Null when no calendar was opened, or it has been
+  /// stopped. This, not cardToken, says whether a subscription renews: the
+  /// gateway does not always return a token with the first charge, and a
+  /// calendar without one renewed at 30 GEL while every screen called it a
+  /// single month.
+  renewalOrderId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

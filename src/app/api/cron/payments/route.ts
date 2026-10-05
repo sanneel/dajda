@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { getEnv } from '@/lib/env';
 import { sweepStaleCheckouts } from '@/lib/payments/sweep';
 import { expireLapsedSubscriptions } from '@/lib/subscriptions/expiry';
+import { stopCanceledCalendars } from '@/lib/subscriptions/calendar-sweep';
 import { sweepExpiredRateLimits } from '@/lib/rate-limit-store';
 
 /**
@@ -50,6 +51,12 @@ async function handle(request: Request) {
   // subscription, and the expiry pass then sees the final state.
   const report = await sweepStaleCheckouts();
   const subscriptions = await expireLapsedSubscriptions();
+  // A canceled subscription's calendar must not charge again; see
+  // calendar-sweep.ts. Never worth failing the run either.
+  const calendars = await stopCanceledCalendars().catch((error) => {
+    console.error('[dajda] calendar sweep failed', error);
+    return { stopped: 0, refused: 0 };
+  });
   // Closed rate limit windows; housekeeping, never worth failing the run.
   const rateLimitRows = await sweepExpiredRateLimits().catch(() => 0);
   return Response.json({
@@ -57,6 +64,8 @@ async function handle(request: Request) {
     data: {
       ...report,
       expiredSubscriptions: subscriptions.expired,
+      canceledCalendarsStopped: calendars.stopped,
+      canceledCalendarsRefused: calendars.refused,
       expiredRateLimitWindows: rateLimitRows,
     },
   });

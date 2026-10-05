@@ -13,10 +13,11 @@ import type { ChargeNoticeContent } from './charge-notice';
  *
  * Three things, each on its own so one failing does not stop the others:
  *
- *   - stop the calendar at the gateway. It has not been seen to retry a
- *     declined date, but a calendar left running could still charge a later
- *     one, and by then the person has been told the subscription ended and
- *     may well have bought a new one: two calendars on one plan.
+ *   - stop the calendar at the gateway. It does not retry a declined date,
+ *     but it does charge the next one (an Apple Pay calendar declined on
+ *     2026-09-27 tried again on 09-28), and by then the person has been told
+ *     the subscription ended and may well have bought a new one: two
+ *     calendars on one plan.
  *   - tell the subscriber. Access runs out at the end of the paid period,
  *     and without a word it looks like the site locked them out.
  *   - tell the administrators. The decline names the gateway's own error,

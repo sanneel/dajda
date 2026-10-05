@@ -79,10 +79,9 @@ export default async function DashboardPage({
         startedAt: true,
         currentPeriodEnd: true,
         cancelAtPeriodEnd: true,
-        // Only read for whether it exists: a subscription holding one was
-        // bought with a gateway renewal calendar, and is the only kind that
+        // Set while a gateway renewal calendar runs: the only kind that
         // still renews or can be canceled.
-        cardToken: true,
+        renewalOrderId: true,
         // The card on file, as the gateway masked it, to show which card a
         // cancellation deletes.
         payments: {
@@ -346,7 +345,7 @@ export default async function DashboardPage({
                     */}
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span className="text-ink-muted">
-                      {subscription.cardToken !== null &&
+                      {subscription.renewalOrderId !== null &&
                       !subscription.cancelAtPeriodEnd
                         ? "განახლდება: "
                         : "წვდომა მთავრდება: "}
@@ -357,7 +356,7 @@ export default async function DashboardPage({
                       </span>
                     </span>
                     {subscription.status === "ACTIVE" &&
-                    subscription.cardToken !== null &&
+                    subscription.renewalOrderId !== null &&
                     !subscription.cancelAtPeriodEnd ? (
                       <CancelSubscriptionButton
                         subscriptionId={subscription.id}
@@ -366,7 +365,7 @@ export default async function DashboardPage({
                   </div>
 
                   {subscription.status === "ACTIVE" &&
-                  subscription.cardToken !== null &&
+                  subscription.renewalOrderId !== null &&
                   !subscription.cancelAtPeriodEnd ? (
                     <p className="mt-2 text-xs leading-relaxed text-ink-faint">
                       შენახული ბარათი{" "}
@@ -387,7 +386,7 @@ export default async function DashboardPage({
               {subscriptions.some(
                 (subscription) =>
                   subscription.status === "ACTIVE" &&
-                  subscription.cardToken !== null &&
+                  subscription.renewalOrderId !== null &&
                   !subscription.cancelAtPeriodEnd,
               )
                 ? "გაუქმების შემდეგ ბარათი წაიშლება, წვდომა კი პერიოდის ბოლომდე რჩება."

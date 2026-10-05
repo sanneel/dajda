@@ -31,7 +31,7 @@ export async function expireLapsedSubscriptions(
       id: true,
       userId: true,
       currentPeriodEnd: true,
-      cardToken: true,
+      renewalOrderId: true,
       plan: { select: { nameKa: true } },
     },
   });
@@ -41,7 +41,7 @@ export async function expireLapsedSubscriptions(
     const lapsed = subscriptionHasLapsed(
       {
         currentPeriodEnd: row.currentPeriodEnd,
-        hasRenewalCalendar: row.cardToken !== null,
+        hasRenewalCalendar: row.renewalOrderId !== null,
       },
       now,
     );

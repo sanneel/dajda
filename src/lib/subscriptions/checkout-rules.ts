@@ -11,11 +11,11 @@ import { chargeDateIso, nextChargeDate } from './charge-schedule';
  * pinning is this - that the calendar and the token are asked for together
  * and only when renewals are on.
  *
- * Together, because the card token is not a second way of charging so much as
- * the mark that a calendar exists: the dashboard's wording, the expiry grace
- * and the cancel path all read `cardToken` to tell a renewing subscription
- * from a one-off one. A calendar opened without a token would renew silently
- * while every screen in the product called it a single month.
+ * The calendar itself is recorded on the subscription as renewalOrderId when
+ * this returns one, and that is what the dashboard's wording, the expiry
+ * grace and the cancel path read. Not the card token: the gateway does not
+ * always return one, and a calendar opened without it renewed silently while
+ * every screen in the product called it a single month.
  */
 export type RenewalRequest = {
   subscription: SubscriptionSchedule;
@@ -64,6 +64,7 @@ export function cancellationFields(now: Date) {
     canceledBy: 'USER',
     cardToken: null,
     cardTokenLifetime: null,
+    renewalOrderId: null,
   } as const;
 }
 

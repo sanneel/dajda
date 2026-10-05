@@ -60,8 +60,9 @@ function makePort(payment: PaymentSnapshot | null) {
 
   let counter = 0;
   let current = payment;
-  // The subscription starts out holding a card token, i.e. with a calendar.
+  // The subscription starts out with a calendar, and not canceled.
   let renewing = true;
+  let canceled = false;
 
   const port: WebhookPort = {
     async recordEvent(input) {
@@ -160,10 +161,13 @@ function makePort(payment: PaymentSnapshot | null) {
     },
 
     async renewSubscription(input) {
+      // Mirrors the guard: a canceled subscription is not renewed.
+      if (canceled) return { renewed: false };
       recorded.renewals.push({
         subscriptionId: input.subscriptionId,
         currentPeriodEnd: input.currentPeriodEnd,
       });
+      return { renewed: true };
     },
 
     async creditAnalystEarning(input) {
@@ -183,7 +187,13 @@ function makePort(payment: PaymentSnapshot | null) {
     },
   };
 
-  return { port, recorded };
+  return {
+    port,
+    recorded,
+    cancel() {
+      canceled = true;
+    },
+  };
 }
 
 const PAYMENT: PaymentSnapshot = {
@@ -654,6 +664,33 @@ describe('gateway-scheduled renewals', () => {
     );
     // The original payment row is untouched - the renewal is its own record.
     expect(recorded.transitions).toHaveLength(0);
+  });
+
+  it('grants nothing for a renewal charged after a cancellation, and asks for a refund', async () => {
+    const made = makePort({ ...PAYMENT, status: 'SUCCEEDED' });
+    made.cancel();
+
+    const outcome = await processPaymentWebhook(
+      'mock',
+      renewalResult({ cardToken: 'fresh-token' }),
+      made.port,
+    );
+
+    expect(outcome.action).toBe('RENEWAL_UNWANTED');
+    expect(outcome.subscriptionActivated).toBe(false);
+    // The money is recorded, so the refund's callback can reverse it.
+    expect(made.recorded.renewalPayments).toHaveLength(1);
+    expect(made.recorded.renewals).toHaveLength(0);
+    // A canceled subscription's card stays deleted.
+    expect(made.recorded.tokenSaves).toHaveLength(0);
+
+    // A redelivery under a new event id asks for nothing twice.
+    const again = await processPaymentWebhook(
+      'mock',
+      renewalResult({ eventId: 'evt-renewal-again' }),
+      made.port,
+    );
+    expect(again.action).toBe('RENEWAL_IGNORED');
   });
 
   it('ends the calendar on a declined renewal, and says why', async () => {

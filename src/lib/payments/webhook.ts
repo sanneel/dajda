@@ -138,13 +138,16 @@ export interface WebhookPort {
   }): Promise<{ paymentId: string | null }>;
 
   /**
-   * The gateway declined a scheduled renewal. It does not come back for a
-   * declined date (a card calendar declined on 2026-09-17 never tried
-   * again), so the subscription no longer renews: drop the card token,
-   * which is what every read takes as the mark of a calendar. Access then runs to the end of the paid period
-   * and no further, and the person can pay again at once.
+   * The gateway declined a scheduled renewal. The terms (9.3.1) say a
+   * failed automatic charge means no renewal, so the subscription stops
+   * renewing here: clear renewalOrderId, which is what every read takes as
+   * the mark of a calendar, and the card token with it. Access then runs to the end of the paid period
+   * and no further, and the person can pay again at once. The gateway does
+   * not retry the declined date but does go on to the next one (an Apple
+   * Pay calendar declined on 2026-09-27 charged again on 09-28), which is
+   * why the caller also stops the calendar.
    *
-   * Changes only an ACTIVE subscription still holding a token, and reports
+   * Changes only an ACTIVE subscription still holding a calendar, and reports
    * whether it did, so the caller stops the calendar and tells the person
    * once. A second decline, or one after a cancellation, changes nothing.
    */
@@ -154,12 +157,20 @@ export interface WebhookPort {
     reason: string;
   }): Promise<{ ended: boolean }>;
 
-  /** Extend the paid period after a verified renewal charge. Idempotent. */
+  /**
+   * Extend the paid period after a verified renewal charge. Idempotent.
+   *
+   * Refuses a subscription that was canceled, or is set to end with its
+   * period, and reports `renewed: false`: the person asked not to be charged,
+   * so the charge is to be refunded rather than turned into access.
+   */
   renewSubscription(input: {
     subscriptionId: string;
     userId: string;
     currentPeriodEnd: Date;
-  }): Promise<void>;
+    /** The order whose calendar charged; recorded as the subscription's. */
+    renewalOrderId: string;
+  }): Promise<{ renewed: boolean }>;
 
   /** Grant one-off access to the ticket a TICKET payment bought. Idempotent. */
   grantTicketPurchase(input: {
@@ -251,6 +262,12 @@ export type ProcessAction =
   | 'RENEWAL_APPLIED'
   /** A declined renewal that ended a live calendar; reported exactly once. */
   | 'RENEWAL_DECLINED'
+  /**
+   * A renewal charged on a subscription that was canceled: the money is in,
+   * the access is not, and the caller refunds it and stops the calendar.
+   * Reported once per renewal order.
+   */
+  | 'RENEWAL_UNWANTED'
   | 'RENEWAL_IGNORED';
 
 export type ProcessOutcome = {
@@ -501,8 +518,10 @@ export async function processPaymentWebhook(
  * endRenewalCalendar): the subscription stops reading as renewing, so its
  * access and its row close at the end of the period already paid for, and
  * the person can buy again straight away instead of waiting out a grace
- * meant for a charge that is no longer coming. Any other status is kept for
- * audit and touches nothing.
+ * meant for a charge that is no longer coming. A SUCCEEDED renewal on a
+ * subscription that was canceled is recorded but grants nothing, and is
+ * reported as RENEWAL_UNWANTED for the caller to refund. Any other status is
+ * kept for audit and touches nothing.
  */
 async function processRenewal(
   providerCode: string,
@@ -599,6 +618,30 @@ async function processRenewal(
     });
   }
 
+  const { renewed } = await port.renewSubscription({
+    subscriptionId: parent.subscriptionId,
+    userId: parent.userId,
+    currentPeriodEnd: addBillingPeriod(now, parent.billingPeriod ?? 'MONTHLY'),
+    renewalOrderId: result.parentOrderId as string,
+  });
+
+  if (!renewed) {
+    // Charged after a cancellation. Recorded above, analyst share included,
+    // so the refund's own callback reverses both like any other refund.
+    // Only the first delivery of this order asks for the refund.
+    await port.markProcessed(
+      eventRowId,
+      `renewal charged on a canceled subscription, parent ${result.parentOrderId}`,
+    );
+    return {
+      action: renewal.paymentId ? 'RENEWAL_UNWANTED' : 'RENEWAL_IGNORED',
+      subscriptionActivated: false,
+      to: 'SUCCEEDED',
+    };
+  }
+
+  // Kept only for a subscription that still renews: a canceled one had its
+  // card deleted on purpose.
   if (result.cardToken) {
     await port.saveCardToken({
       subscriptionId: parent.subscriptionId,
@@ -607,12 +650,6 @@ async function processRenewal(
       cardTokenLifetime: result.cardTokenLifetime,
     });
   }
-
-  await port.renewSubscription({
-    subscriptionId: parent.subscriptionId,
-    userId: parent.userId,
-    currentPeriodEnd: addBillingPeriod(now, parent.billingPeriod ?? 'MONTHLY'),
-  });
 
   await port.markProcessed(
     eventRowId,

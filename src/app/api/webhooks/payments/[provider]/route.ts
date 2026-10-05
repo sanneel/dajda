@@ -4,6 +4,7 @@ import { processPaymentWebhook } from '@/lib/payments/webhook';
 import { AUDIT_ACTIONS, writeAuditLog } from '@/lib/audit';
 import { sendChargeNotice } from '@/lib/subscriptions/charge-notice';
 import { settleDeclinedRenewal } from '@/lib/subscriptions/renewal-declined';
+import { settleUnwantedRenewal } from '@/lib/subscriptions/renewal-unwanted';
 
 /**
  * Payment webhook - the single source of truth for activating a subscription.
@@ -92,6 +93,16 @@ export async function POST(
         result.parentOrderId,
         outcome.detail ?? 'declined',
       );
+    }
+
+    // A canceled subscription was charged anyway: refund it, stop the
+    // calendar, tell the administrators. Once per renewal order.
+    if (
+      outcome.action === 'RENEWAL_UNWANTED' &&
+      result.parentOrderId &&
+      result.orderId
+    ) {
+      await settleUnwantedRenewal(result.parentOrderId, result.orderId);
     }
 
     // The body is diagnostic only; gateways key off the status code.

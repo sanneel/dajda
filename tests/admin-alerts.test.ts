@@ -5,6 +5,7 @@ import {
   renderBetFinishedAlert,
   renderPayoutRequestedAlert,
   renderRenewalDeclinedAlert,
+  renderRenewalUnwantedAlert,
   SETTLEMENT_QUEUE_PATH,
 } from '@/lib/notifications/admin-alert-text';
 import { formatMoney } from '@/lib/format';
@@ -128,5 +129,37 @@ describe('renewal-declined admin alert', () => {
     expect(
       renderRenewalDeclinedAlert({ ...base, subscriberNotified: false }).bodyKa,
     ).toContain('ვერ გაეგზავნა');
+  });
+});
+
+describe('unwanted-renewal admin alert', () => {
+  const base = {
+    planName: 'Sandro Siradze · გამოწერა',
+    amountMinor: 3000,
+    currency: 'GEL',
+    renewalOrderId: 'recurring__1__dajda-1',
+    parentOrderId: 'dajda-1',
+    refunded: true,
+    calendarStopped: true,
+  };
+
+  it('says the canceled subscription was charged and refunded', () => {
+    const message = renderRenewalUnwantedAlert(base);
+    expect(message.subjectKa).toBe(
+      'ჩამოჭრა გაუქმებულ გამოწერაზე: Sandro Siradze · გამოწერა',
+    );
+    expect(message.bodyKa).toContain(formatMoney(3000, 'GEL'));
+    expect(message.bodyKa).toContain('თანხა ავტომატურად დაბრუნდა.');
+    expect(message.linkPath).toBe(PAYMENTS_PAGE_PATH);
+  });
+
+  it('names the orders to handle by hand when the gateway refused', () => {
+    const message = renderRenewalUnwantedAlert({
+      ...base,
+      refunded: false,
+      calendarStopped: false,
+    });
+    expect(message.bodyKa).toContain('დააბრუნეთ ხელით: recurring__1__dajda-1');
+    expect(message.bodyKa).toContain('გააჩერეთ ხელით: dajda-1');
   });
 });

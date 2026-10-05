@@ -59,6 +59,8 @@ export const AUDIT_ACTIONS = {
   /** The gateway declined a scheduled charge, which ended the calendar. */
   SUBSCRIPTION_RENEWAL_FAILED: 'subscription.renewal_failed',
   SUBSCRIPTION_CANCELED: 'subscription.canceled',
+  /** The daily sweep sent a stop for the calendar of a canceled subscription. */
+  SUBSCRIPTION_CALENDAR_SWEPT: 'subscription.calendar_swept',
   SUBSCRIPTION_EXPIRED: 'subscription.expired',
   /** An administrator opened a live cancellation test on the real gateway. */
   SUBSCRIPTION_TEST_OPENED: 'subscription.test_opened',

@@ -112,10 +112,19 @@ export async function startSubscriptionCheckout(
   const env = getEnv();
   const provider = getPaymentProvider();
   const orderId = `dajda-${randomUUID()}`;
+  const renewal = renewalRequest(recurring, plan.billingPeriod, new Date());
 
   const { subscriptionId } = await prisma.$transaction(async (tx) => {
     const subscription = await tx.userSubscription.create({
-      data: { userId: actor.userId, planId: plan.id, status: "PENDING" },
+      data: {
+        userId: actor.userId,
+        planId: plan.id,
+        status: "PENDING",
+        // The calendar this checkout opens, recorded before the gateway sees
+        // it: whether a card token comes back with the first charge is the
+        // gateway's choice, and the calendar renews either way.
+        renewalOrderId: renewal ? orderId : null,
+      },
     });
 
     await tx.payment.create({
@@ -180,11 +189,7 @@ export async function startSubscriptionCheckout(
       returnUrl: buildReturnUrl(env.APP_URL, orderId, "/account"),
       callbackUrl: `${env.APP_URL}/api/webhooks/payments/${provider.code}`,
       customerEmail: actor.email,
-      ...(renewalRequest(
-        recurring,
-        plan.billingPeriod,
-        new Date(),
-      ) ?? {}),
+      ...(renewal ?? {}),
     });
   } catch (error) {
     // A refused checkout must not leave a PENDING subscription that blocks
@@ -206,16 +211,13 @@ export async function startSubscriptionCheckout(
 /**
  * Stop a subscription from renewing. Access stays until the period ends.
  *
- * What needs stopping is the gateway's renewal calendar, and the card token
- * is what says a subscription has one: every checkout that opened a calendar
- * asked for a token in the same breath. So a subscription carrying a token
- * has its calendar stopped first, and a gateway that refuses fails the whole
- * cancellation rather than leaving a customer who believes they canceled
+ * What needs stopping is the gateway's renewal calendar, named by
+ * renewalOrderId. It is stopped first, and a gateway that refuses fails the
+ * whole cancellation rather than leaving a customer who believes they canceled
  * being charged next month. A subscription without one - sold while
- * SUBSCRIPTION_RECURRING was off, or on a free plan, or before a provider
- * switch - has nothing to stop at the gateway and simply stops renewing by
- * never having renewed; the dashboard does not offer this for those.
- * Deleting an account also comes through here, for either kind.
+ * SUBSCRIPTION_RECURRING was off, or on a free plan - has nothing to stop at
+ * the gateway and simply never renews. Deleting an account also comes through
+ * here, for either kind.
  */
 export async function cancelSubscription(
   subscriptionId: string,
@@ -227,7 +229,7 @@ export async function cancelSubscription(
       id: true,
       userId: true,
       status: true,
-      cardToken: true,
+      renewalOrderId: true,
       plan: { select: { nameKa: true } },
     },
   });
@@ -242,28 +244,9 @@ export async function cancelSubscription(
     throw new AppError(ERROR_CODES.CONFLICT, "გამოწერა აქტიური არ არის.");
   }
 
-  const provider = getPaymentProvider();
-
-  // The order that opened the subscription is the handle on the gateway's
-  // renewal calendar. Only a subscription holding a card token was opened
-  // with one; nothing to stop for the rest, for free plans, or after a
-  // provider switch.
-  const openingPayment =
-    subscription.cardToken === null
-      ? null
-      : await prisma.payment.findFirst({
-    where: {
-      subscriptionId: subscription.id,
-      providerCode: provider.code,
-      status: "SUCCEEDED",
-    },
-    orderBy: { createdAt: "asc" },
-    select: { providerOrderId: true },
-  });
-
-  if (openingPayment) {
-    const stop = await provider.setSubscriptionState({
-      orderId: openingPayment.providerOrderId,
+  if (subscription.renewalOrderId) {
+    const stop = await getPaymentProvider().setSubscriptionState({
+      orderId: subscription.renewalOrderId,
       action: "stop",
     });
 
