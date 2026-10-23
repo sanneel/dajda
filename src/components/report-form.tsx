@@ -22,11 +22,13 @@ export function ReportForm({
   targetId,
   label = 'პრობლემის დაფიქსირება',
   variant = 'inline',
+  className = '',
 }: {
   targetType: 'ANALYST' | 'PREDICTION';
   targetId: string;
   label?: string;
   variant?: 'inline' | 'button';
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(submitReport, null);
@@ -37,7 +39,7 @@ export function ReportForm({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-loss hover:text-loss"
+          className={`inline-flex min-h-11 items-center gap-1.5 rounded-control border border-line-strong px-4 text-sm font-medium text-ink transition-colors hover:border-loss hover:text-loss ${className}`}
         >
           <Flag className="size-4" aria-hidden="true" />
           {label}

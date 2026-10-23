@@ -178,7 +178,7 @@ export function PostBetForm({
     <form
       ref={formRef}
       action={action}
-      className="space-y-5"
+      className="flex flex-1 flex-col space-y-5"
       onSubmit={(event) => {
         if (files.length === 0) {
           event.preventDefault();
@@ -559,8 +559,10 @@ export function PostBetForm({
        * The click runs BEFORE the browser's own required-field check, so an
        * empty slip slot turns red at the same moment the odds field gets its
        * bubble - every missing thing is marked at once, not one per attempt.
+       * The bar sits at the foot of the drawer and stays there while the form
+       * scrolls.
        */}
-      <div className="flex flex-wrap gap-3">
+      <div className="sticky -bottom-5 -mx-5 -mb-5 mt-auto grid grid-cols-2 gap-3 border-t border-line bg-surface px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <Button
           type="submit"
           size="lg"

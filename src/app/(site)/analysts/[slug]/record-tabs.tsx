@@ -121,7 +121,7 @@ export function RecordTabs({
 
         {expanded ? null : <CompactStats summary={summary} />}
 
-        <div className="flex items-center gap-2">
+        <div className="order-first flex w-full items-center justify-between gap-2 sm:order-none sm:w-auto">
           <h2 id="plans-heading" className="font-display text-base text-ink">
             პროგნოზების ჩანაწერი
           </h2>
@@ -201,32 +201,49 @@ function CompactStats({ summary }: { summary: PerformanceSummary }) {
         ? 'text-loss'
         : 'text-ink';
 
-  return (
-    <dl className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-      <div className="flex items-baseline gap-1.5">
-        <dt className="text-ink-muted">სულ</dt>
-        <dd className="tabular font-semibold text-ink">{summary.total}</dd>
-      </div>
-      <div className="flex items-baseline gap-1.5">
-        <dt className="text-ink-muted">მოგ./წაგ.</dt>
-        <dd className="tabular font-semibold text-ink">
+  const items = [
+    { label: 'სულ', value: <span className="text-ink">{summary.total}</span> },
+    {
+      label: 'მოგ./წაგ.',
+      value: (
+        <>
           <span className="text-win">{summary.won}</span>
-          {' / '}
+          <span className="text-ink-faint">/</span>
           <span className="text-loss">{summary.lost}</span>
-        </dd>
-      </div>
-      <div className="flex items-baseline gap-1.5">
-        <dt className="text-ink-muted">სიზუსტე</dt>
-        <dd className="tabular font-semibold text-ink">
+        </>
+      ),
+    },
+    {
+      label: 'სიზუსტე',
+      value: (
+        <span className="text-ink">
           {settled ? formatPercentBps(summary.hitRateBps) : '·'}
-        </dd>
-      </div>
-      <div className="flex items-baseline gap-1.5">
-        <dt className="text-ink-muted">მოგება</dt>
-        <dd className={`tabular font-semibold ${profitTone}`}>
+        </span>
+      ),
+    },
+    {
+      label: 'მოგება',
+      value: (
+        <span className={profitTone}>
           {settled ? formatGelSigned(summary.profitUnitsCenti) : '·'}
-        </dd>
-      </div>
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <dl className="grid w-full grid-cols-4 gap-2 sm:flex sm:w-auto sm:items-baseline sm:gap-5">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className="flex flex-col-reverse items-center gap-0.5 rounded-control bg-elevated px-1 py-2 text-center sm:flex-row sm:items-baseline sm:gap-1.5 sm:bg-transparent sm:p-0"
+        >
+          <dt className="text-xs text-ink-muted sm:text-sm">{item.label}</dt>
+          <dd className="tabular text-sm font-semibold whitespace-nowrap sm:text-sm">
+            {item.value}
+          </dd>
+        </div>
+      ))}
     </dl>
   );
 }

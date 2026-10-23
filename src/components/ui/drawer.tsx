@@ -12,8 +12,7 @@ import { X } from 'lucide-react';
  *
  * The shape is what differs. On a desktop it takes a right-hand column, so the
  * workspace it was launched from stays visible beside it. On a phone there is
- * no "beside", so it is a centred card - see the class list for why it is no
- * longer a bottom sheet.
+ * no "beside", so it takes the whole screen.
  *
  * Mounted only while open, so a form inside starts clean each time instead of
  * showing the previous attempt's errors.
@@ -64,37 +63,25 @@ export function Drawer({
       aria-label={title}
       className={[
         /*
-         * Phone: a centred card, and deliberately nothing clever.
-         *
-         * It used to be a sheet pinned to the bottom with `position: fixed`,
-         * `top: auto` and a height in `dvh`. On desktop and in Chrome on a
-         * phone-sized window that renders perfectly; on iOS Safari it painted
-         * the backdrop and no sheet at all - the page dimmed and the composer
-         * was simply not there. Anchoring by `bottom` and sizing by `dvh` are
-         * both awkward inside the top layer, and a composer that cannot be
-         * opened on a phone is worse than one that is not thumb-anchored.
-         *
-         * So the mobile path now uses only what every browser has agreed on
-         * for years: the dialog centres itself with `margin: auto` and is
-         * capped in `vh`. The UA's own `max-width: calc(100% - 2em)` is
-         * replaced rather than fought, so the card is symmetrical.
+         * Phone: the whole screen. A centred card left the page showing
+         * around it and cut the form off above the tab bar. The dialog is
+         * already fixed to the viewport by the UA, so lifting the size caps
+         * fills it without anchoring by `bottom` or sizing in `dvh`, the two
+         * things iOS Safari failed to paint inside the top layer.
          */
-        'm-auto w-[calc(100%-2rem)] max-w-[26rem] max-h-[80vh]',
-        'overscroll-contain rounded-panel border border-line bg-surface p-0 text-ink shadow-panel',
+        'm-0 size-full max-h-none max-w-none',
+        'overscroll-contain border-line bg-surface p-0 text-ink',
         /*
          * Desktop keeps the right-hand column: the workspace the composer was
          * launched from stays visible beside it, which is the whole reason
          * this is a drawer and not a modal.
          */
-        'sm:fixed sm:inset-y-0 sm:left-auto sm:right-0 sm:m-0 sm:h-full sm:max-h-none',
-        'sm:w-[30rem] sm:max-w-[92vw] sm:rounded-none sm:rounded-l-panel',
+        'sm:fixed sm:inset-y-0 sm:left-auto sm:right-0 sm:border-l',
+        'sm:w-[30rem] sm:max-w-[92vw] sm:rounded-l-panel sm:shadow-panel',
         'backdrop:bg-ink/50',
       ].join(' ')}
     >
-      {/* The cap is repeated here so the body below can be the part that
-          scrolls: a flex child only knows how tall it may be if its parent
-          does. */}
-      <div className="flex max-h-[80vh] flex-col sm:h-full sm:max-h-none">
+      <div className="flex h-full flex-col">
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div className="min-w-0">
             <h2 className="font-display text-lg text-ink">{title}</h2>
@@ -112,7 +99,7 @@ export function Drawer({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-5">
           {children}
         </div>
       </div>

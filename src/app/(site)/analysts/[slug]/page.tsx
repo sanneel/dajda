@@ -178,7 +178,16 @@ export default async function AnalystProfilePage({
       {/* ------------------------------------------------------------- */}
       {/* Identity                                                        */}
       {/* ------------------------------------------------------------- */}
-      <header className="flex flex-col gap-5 sm:flex-row sm:items-start">
+      <header className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
+        {isOwner ? null : (
+          <ReportForm
+            targetType="ANALYST"
+            targetId={profile.id}
+            label="Report"
+            variant="button"
+            className="absolute right-0 top-0 sm:hidden"
+          />
+        )}
         <AnalystPhotoPicker
           name={profile.displayName}
           photoPath={profile.photoPath}
@@ -300,6 +309,7 @@ export default async function AnalystProfilePage({
               targetId={profile.id}
               label="Report"
               variant="button"
+              className="max-sm:hidden"
             />
           </div>
         )}
@@ -341,11 +351,6 @@ export default async function AnalystProfilePage({
         >
           აქტიური ბილეთები
         </h2>
-        <p className="mt-1.5 text-sm text-ink-muted">
-          რაც ავტორს ახლა აქვს გაშვებული, ტიპის მიხედვით. ბილეთი აქტიურია
-          პირველი პოზიციის დაწყებამდე; ვინც მას ფლობს, მისთვის ბოლო პოზიციის
-          დაწყებამდე. დათვლილი ბილეთები ზემოთ, ჩანაწერში ითვლება.
-        </p>
 
         <div className="mt-5">
           <AnalystHistory
