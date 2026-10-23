@@ -293,6 +293,14 @@ export default async function AnalystProfilePage({
                 initiallySaved={saved > 0}
               />
             ) : null}
+            {/* Reporting is for readers; an author has an edit route for
+                anything wrong on their own page. */}
+            <ReportForm
+              targetType="ANALYST"
+              targetId={profile.id}
+              label="Report"
+              variant="button"
+            />
           </div>
         )}
       </header>
@@ -315,23 +323,6 @@ export default async function AnalystProfilePage({
           initialTab={requestedTab}
         />
       </section>
-
-
-      {/* Reporting is for readers. An author looking at their own page has an
-          edit route for anything wrong on it, not a complaints box aimed at
-          themselves. */}
-      {isOwner ? null : (
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-surface p-4">
-          <p className="text-sm text-ink-muted">
-            შეამჩნიეთ არაზუსტი შედეგი ან შეცდომაში შემყვანი ჩანაწერი?
-          </p>
-          <ReportForm
-            targetType="ANALYST"
-            targetId={profile.id}
-            label="ავტორზე საჩივრის დაფიქსირება"
-          />
-        </div>
-      )}
 
       {/* ------------------------------------------------------------- */}
       {/* What is running right now, split by how each ticket is sold      */}

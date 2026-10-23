@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type {
   MonthlyBucket,
   OddsBucket,
@@ -77,10 +78,15 @@ export function RecordTabs({
     initialTab === 'SUB' && !hasSubscription ? 'FREE' : initialTab,
   );
 
-  const summary =
-    tab === 'FREE' ? free : tab === 'PAID' ? paid : subscription;
+  const [expanded, setExpanded] = useState(false);
+
+  const summary = tab === 'FREE' ? free : tab === 'PAID' ? paid : subscription;
   const charts =
-    tab === 'FREE' ? freeCharts : tab === 'PAID' ? paidCharts : subscriptionCharts;
+    tab === 'FREE'
+      ? freeCharts
+      : tab === 'PAID'
+        ? paidCharts
+        : subscriptionCharts;
 
   return (
     <Card as="section">
@@ -90,7 +96,11 @@ export function RecordTabs({
        * stats panel the left edge is where the hand goes first; the title
        * only names what the switch already selected.
        */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5 ${
+          expanded ? 'border-b border-line' : ''
+        }`}
+      >
         <div
           className="flex items-center gap-1"
           role="tablist"
@@ -109,27 +119,48 @@ export function RecordTabs({
           </TabButton>
         </div>
 
-        <h2 id="plans-heading" className="font-display text-base text-ink">
-          პროგნოზების ჩანაწერი
-        </h2>
+        {expanded ? null : <CompactStats summary={summary} />}
+
+        <div className="flex items-center gap-2">
+          <h2 id="plans-heading" className="font-display text-base text-ink">
+            პროგნოზების ჩანაწერი
+          </h2>
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-expanded={expanded}
+            aria-controls="record-body"
+            aria-label={expanded ? 'დაპატარავება' : 'სრულად ნახვა'}
+            className="inline-flex size-9 items-center justify-center rounded-control text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+          >
+            <ChevronDown
+              className={`size-5 transition-transform ${expanded ? 'rotate-180' : ''}`}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
       </div>
 
-      <CardBody>
-        {/*
-         * Statistics only, on every tab. The subscription itself is bought
-         * from the button in the profile header, not from inside the
-         * record: this panel answers "how did the bets go" for one product
-         * at a time, and the price is a different question.
-         */}
-        <div>
-          <RecordStats summary={summary} />
-          {/*
-           * The charts belong to the slice the switch selected, so a number
-           * and its picture can never disagree.
-           */}
-          <ChartPair tab={tab} charts={charts} />
+      {expanded ? (
+        <div id="record-body">
+          <CardBody>
+            {/*
+             * Statistics only, on every tab. The subscription itself is bought
+             * from the button in the profile header, not from inside the
+             * record: this panel answers "how did the bets go" for one product
+             * at a time, and the price is a different question.
+             */}
+            <div>
+              <RecordStats summary={summary} />
+              {/*
+               * The charts belong to the slice the switch selected, so a number
+               * and its picture can never disagree.
+               */}
+              <ChartPair tab={tab} charts={charts} />
+            </div>
+          </CardBody>
         </div>
-      </CardBody>
+      ) : null}
     </Card>
   );
 }
@@ -157,6 +188,46 @@ function TabButton({
     >
       {children}
     </button>
+  );
+}
+
+/** The collapsed panel: the same slice in one line. */
+function CompactStats({ summary }: { summary: PerformanceSummary }) {
+  const settled = summary.decided > 0;
+  const profitTone =
+    summary.profitUnitsCenti > 0
+      ? 'text-win'
+      : summary.profitUnitsCenti < 0
+        ? 'text-loss'
+        : 'text-ink';
+
+  return (
+    <dl className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+      <div className="flex items-baseline gap-1.5">
+        <dt className="text-ink-muted">სულ</dt>
+        <dd className="tabular font-semibold text-ink">{summary.total}</dd>
+      </div>
+      <div className="flex items-baseline gap-1.5">
+        <dt className="text-ink-muted">მოგ./წაგ.</dt>
+        <dd className="tabular font-semibold text-ink">
+          <span className="text-win">{summary.won}</span>
+          {' / '}
+          <span className="text-loss">{summary.lost}</span>
+        </dd>
+      </div>
+      <div className="flex items-baseline gap-1.5">
+        <dt className="text-ink-muted">სიზუსტე</dt>
+        <dd className="tabular font-semibold text-ink">
+          {settled ? formatPercentBps(summary.hitRateBps) : '·'}
+        </dd>
+      </div>
+      <div className="flex items-baseline gap-1.5">
+        <dt className="text-ink-muted">მოგება</dt>
+        <dd className={`tabular font-semibold ${profitTone}`}>
+          {settled ? formatGelSigned(summary.profitUnitsCenti) : '·'}
+        </dd>
+      </div>
+    </dl>
   );
 }
 
@@ -222,7 +293,9 @@ function ChartPair({ tab, charts }: { tab: Tab; charts: TabCharts }) {
   return (
     <div className="mt-6 grid gap-8 border-t border-line pt-5 lg:grid-cols-2">
       <div>
-        <h3 className="mb-3 text-sm font-medium text-ink">მოგება თვეების მიხედვით</h3>
+        <h3 className="mb-3 text-sm font-medium text-ink">
+          მოგება თვეების მიხედვით
+        </h3>
         <MonthlyBars key={`m-${tab}`} buckets={charts.monthly} />
       </div>
       <div>
