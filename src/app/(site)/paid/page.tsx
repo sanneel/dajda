@@ -3,7 +3,6 @@ import { Ticket } from 'lucide-react';
 import {
   activePlanGrants,
   listPaidTickets,
-  listSports,
   purchasedTicketIds,
 } from '@/lib/queries/tickets';
 import { ticketFilterSchema } from '@/lib/validation/schemas';
@@ -11,8 +10,6 @@ import { getCurrentUser } from '@/lib/auth/authorization';
 import { isTicketLocked } from '@/lib/auth/entitlements';
 import { TicketList } from '@/components/ticket-list';
 import { SortTicks } from '@/components/sort-ticks';
-import { AddTicketButton } from '@/components/add-ticket-button';
-import { hasSubscriptionForSale } from '@/lib/predictions/subscription-gate';
 import { EmptyState } from '@/components/ui/feedback';
 import { Pager } from '@/components/ui/pager';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
@@ -48,21 +45,10 @@ export default async function PaidTicketsPage({
     { items, total, page, pageCount },
     grants,
     purchased,
-    sports,
-    canPostSubscription,
   ] = await Promise.all([
     listPaidTickets(filter),
     activePlanGrants(actor?.userId),
     purchasedTicketIds(actor?.userId),
-    // Only an analyst is offered the post form, so only they need the list.
-    actor?.analystProfileId
-      ? listSports()
-      : Promise.resolve([] as { id: string; nameKa: string }[]),
-    // The post form offers subscription tickets only once there is a
-    // subscription to post them into.
-    actor?.analystProfileId
-      ? hasSubscriptionForSale(actor.analystProfileId)
-      : false,
   ]);
 
   const viewer = actor
@@ -90,20 +76,6 @@ export default async function PaidTicketsPage({
           გამოწერაში არ შედის: თითოეული ბილეთი ცალკე იყიდება.
         </p>
       </header>
-
-      {/* Posting belongs on the feed being posted to: an analyst reading the
-          paid feed should not have to navigate away to add to it. */}
-      {actor?.analystProfileId ? (
-        <div className="mb-6">
-          <AddTicketButton
-            canPostSubscription={canPostSubscription}
-            sports={sports.map((sport) => ({
-              value: sport.id,
-              label: sport.nameKa,
-            }))}
-          />
-        </div>
-      ) : null}
 
       {/* --------------------------------------------------------------- */}
       {/* One control bar: caption and count, then the chips               */}

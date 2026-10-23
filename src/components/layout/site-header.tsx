@@ -13,6 +13,9 @@ import { BottomNav } from './bottom-nav';
 import { MobileNav } from './mobile-nav';
 import { NavLinks } from './nav-links';
 import { NotificationBell } from './notification-bell';
+import { AddTicketButton } from '@/components/add-ticket-button';
+import { listSports } from '@/lib/queries/tickets';
+import { hasSubscriptionForSale } from '@/lib/predictions/subscription-gate';
 
 /**
  * Site header.
@@ -58,6 +61,14 @@ export async function SiteHeader() {
           },
         })
       : null;
+
+  const [sports, canPostSubscription] =
+    isAnalyst && actor?.analystProfileId
+      ? await Promise.all([
+          listSports(),
+          hasSubscriptionForSale(actor.analystProfileId),
+        ])
+      : [null, false];
 
   const earningsMinor = account?.earningsMinor ?? null;
   const photoPath = account?.analystProfile?.photoPath ?? null;
@@ -173,6 +184,17 @@ export async function SiteHeader() {
       isAnalyst={isAnalyst}
       profileHref={workspaceHref}
     />
+
+    {sports ? (
+      <AddTicketButton
+        floating
+        canPostSubscription={canPostSubscription}
+        sports={sports.map((sport) => ({
+          value: sport.id,
+          label: sport.nameKa,
+        }))}
+      />
+    ) : null}
     </>
   );
 }

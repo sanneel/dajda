@@ -1,10 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Ticket } from 'lucide-react';
-import {
-  listFreeTickets,
-  listSports,
-} from '@/lib/queries/tickets';
+import { listFreeTickets } from '@/lib/queries/tickets';
 import { ticketFilterSchema } from '@/lib/validation/schemas';
 import { getCurrentUser } from '@/lib/auth/authorization';
 import { isTicketLocked } from '@/lib/auth/entitlements';
@@ -13,8 +10,6 @@ import { SortTicks } from '@/components/sort-ticks';
 import { EmptyState } from '@/components/ui/feedback';
 import { Pager } from '@/components/ui/pager';
 import { ResponsibleUseNotice } from '@/components/responsible-use';
-import { AddTicketButton } from '@/components/add-ticket-button';
-import { hasSubscriptionForSale } from '@/lib/predictions/subscription-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,19 +44,7 @@ export default async function FreeTicketsPage({
     ? { role: actor.role, analystProfileId: actor.analystProfileId }
     : null;
 
-  const [{ items, total, page, pageCount }, sports, canPostSubscription] =
-    await Promise.all([
-      listFreeTickets(filter),
-      // Only an analyst is offered the post form, so only they need the list.
-      actor?.analystProfileId
-        ? listSports()
-        : Promise.resolve([] as { id: string; nameKa: string }[]),
-      // The post form offers subscription tickets only once there is a
-      // subscription to post them into.
-      actor?.analystProfileId
-        ? hasSubscriptionForSale(actor.analystProfileId)
-        : false,
-    ]);
+  const { items, total, page, pageCount } = await listFreeTickets(filter);
 
   const hrefFor = (page: number) => {
     const query = new URLSearchParams();
@@ -86,19 +69,9 @@ export default async function FreeTicketsPage({
       </header>
 
       {/* --------------------------------------------------------------- */}
-      {/* Posting, for analysts; the way in for everyone else               */}
+      {/* The way in for readers who are not analysts                     */}
       {/* --------------------------------------------------------------- */}
-      {actor?.analystProfileId ? (
-        <div className="mb-6">
-          <AddTicketButton
-            canPostSubscription={canPostSubscription}
-            sports={sports.map((sport) => ({
-              value: sport.id,
-              label: sport.nameKa,
-            }))}
-          />
-        </div>
-      ) : actor ? (
+      {actor?.analystProfileId ? null : actor ? (
         <p className="mb-6 rounded-card border border-line bg-surface px-4 py-3.5 text-sm text-ink-muted sm:px-5">
           პროგნოზის ატვირთვა ანალიტიკოსებს შეუძლიათ.{' '}
           <Link href="/apply" className="text-accent underline">

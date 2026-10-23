@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import { Select } from '@/components/ui/field';
 
 /**
@@ -54,6 +54,7 @@ export function KickoffPicker({
   minDay?: string;
 }) {
   const id = useId();
+  const calendarRef = useRef<HTMLInputElement>(null);
   /*
    * Computed once per mount, not per render: the chip that says "today"
    * should not change identity under the author's finger at midnight.
@@ -95,25 +96,50 @@ export function KickoffPicker({
         {/*
          * The date field is a chip until it is needed, then a control. A
          * date input visible from the start read as "the real field" and
-         * made the chips look like decoration.
+         * made the chips look like decoration. Pressing the chip opens the
+         * calendar straight away.
          */}
         {otherDay ? (
           <input
             type="date"
             aria-label="თარიღი"
             value={value.day}
-            min={minDay}
+            min={minDay ?? localDay(0)}
             onChange={(event) => onChange({ ...value, day: event.target.value })}
             className="min-h-11 rounded-full border border-accent bg-surface px-4 text-sm text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => onChange({ ...value, day: localDay(3) })}
-            className={chip(false)}
-          >
-            სხვა დღე…
-          </button>
+          <span className="relative inline-flex">
+            <button
+              type="button"
+              onClick={() => {
+                const calendar = calendarRef.current;
+                if (calendar && 'showPicker' in calendar) {
+                  try {
+                    calendar.showPicker();
+                    return;
+                  } catch {}
+                }
+                onChange({ ...value, day: localDay(3) });
+              }}
+              className={chip(false)}
+            >
+              სხვა დღე…
+            </button>
+            <input
+              ref={calendarRef}
+              type="date"
+              tabIndex={-1}
+              aria-hidden="true"
+              min={minDay ?? localDay(0)}
+              onChange={(event) => {
+                if (event.target.value) {
+                  onChange({ ...value, day: event.target.value });
+                }
+              }}
+              className="pointer-events-none absolute inset-0 opacity-0"
+            />
+          </span>
         )}
       </div>
 

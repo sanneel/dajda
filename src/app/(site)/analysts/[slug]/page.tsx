@@ -9,7 +9,6 @@ import {
 } from '@/lib/queries/analysts';
 import {
   activePlanGrants,
-  listSports,
   purchasedTicketIds,
 } from '@/lib/queries/tickets';
 import { isTicketStillActive } from '@/lib/tickets/active';
@@ -28,7 +27,6 @@ import { ResponsibleUseNotice } from '@/components/responsible-use';
 import { SaveAnalystButton } from './save-button';
 import { recurringBillingEnabled } from '@/lib/subscriptions/recurring';
 import { SubscribeButton } from './subscribe-button';
-import { AddTicketButton } from '@/components/add-ticket-button';
 import { AnalystHistory } from './history';
 
 export const dynamic = 'force-dynamic';
@@ -109,7 +107,6 @@ export default async function AnalystProfilePage({
     subscriptions,
     grants,
     purchased,
-    sports,
     openTickets,
     publishedThisMonth,
   ] = await Promise.all([
@@ -130,8 +127,6 @@ export default async function AnalystProfilePage({
       : Promise.resolve([]),
     activePlanGrants(actor?.userId),
     purchasedTicketIds(actor?.userId),
-    // Only the owner is offered the post form, so only they need the list.
-    isOwner ? listSports() : Promise.resolve([]),
     listOpenTickets(profile.id),
     countPublishedBetween(profile.id, month.start, month.end),
   ]);
@@ -240,13 +235,6 @@ export default async function AnalystProfilePage({
             the one that belongs to a reader. */}
         {isOwner ? (
           <div className="flex flex-wrap items-center gap-2">
-            <AddTicketButton
-              canPostSubscription={sellsSubscription}
-              sports={sports.map((sport) => ({
-                value: sport.id,
-                label: sport.nameKa,
-              }))}
-            />
             {/* The workspace is no longer a second profile standing beside
                 this one in the nav; it is what this page cannot show -
                 drafts, settling, pricing, broadcasts - and it is reached

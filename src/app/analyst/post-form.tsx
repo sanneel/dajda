@@ -23,9 +23,8 @@ import {
  * in one tight grid rather than as a column of equals.
  *
  * The screenshot IS what the buyer opens, so nothing is typed twice: no
- * per-leg rows, just the total odds off the slip. The one thing a picture
- * cannot carry is a name, and every feed row, notification and audit line
- * prints one, so that is the single piece of prose asked for.
+ * per-leg rows, just the total odds off the slip. The name is generated
+ * from the sport and the odds.
  *
  * The preview is a local object URL: nothing uploads until submit, so changing
  * your mind leaves nothing behind on the server.
@@ -387,13 +386,6 @@ export function PostBetForm({
             ))}
           </div>
 
-          <p className="mt-2 text-xs text-ink-muted">
-            {visibility === 'PUBLIC'
-              ? 'ხედავს ყველა, ვინც შესულია.'
-              : visibility === 'PREMIUM'
-                ? 'იყიდება ცალკე, თქვენს ფასად. ხედავს მხოლოდ ის, ვინც იყიდის; გამომწერიც კი ვერა.'
-                : 'ხედავს მხოლოდ თქვენი გამომწერი. ცალკე არ იყიდება, ამიტომ ფასი არ სჭირდება.'}
-          </p>
           {!canPostSubscription ? (
             <p className="mt-1 text-xs text-ink-faint">
               გამოწერით ხელმისაწვდომი ბილეთის დადება შესაძლებელია გამოწერის
@@ -408,7 +400,6 @@ export function PostBetForm({
             htmlFor="price"
             required
             error={errorFor('price')}
-            hint="ბილეთი მხოლოდ მყიდველისთვის იხსნება; თქვენ 85% გერიცხებათ."
           >
             <div className="space-y-2">
               <Input
@@ -455,7 +446,6 @@ export function PostBetForm({
           htmlFor="odds"
           required
           error={errorFor('odds')}
-          hint="ისე, როგორც ბილეთზე წერია."
         >
           <Input
             id="odds"
@@ -514,12 +504,7 @@ export function PostBetForm({
                   ? 'ეს დრო უკვე გავიდა. ბილეთი ფიდში მხოლოდ მატჩის დაწყებამდე ჩანს, ამიტომ მიუთითეთ რეალური დაწყების დრო.'
                   : 'აირჩიეთ, რომელ დღეს იწყება მატჩი.')}
             </p>
-          ) : (
-            <p className="mt-1.5 text-xs text-ink-muted">
-              თბილისის დროით. ფიდში ბილეთი ამ დრომდე ჩანს, შემდეგ მხოლოდ
-              თქვენს პროფილზე.
-            </p>
-          )}
+          ) : null}
 
           {/*
            * The second time is a question, not a field: most tickets are one
@@ -568,29 +553,6 @@ export function PostBetForm({
             </button>
           )}
         </div>
-      </div>
-
-      {/* ----------------------------------------------------------------- */}
-      {/* 4. The words      </div>
-
-      {/* ----------------------------------------------------------------- */}
-      {/* 5. Optional words                                                  */}
-      {/* ----------------------------------------------------------------- */}
-      <div className="rounded-card border border-line bg-canvas p-4">
-        <Field
-          label="ბილეთის სახელი"
-          htmlFor="titleKa"
-          error={errorFor('titleKa')}
-          hint="არასავალდებულო. ცარიელი თუ დატოვეთ, სპორტისა და კოეფიციენტის მიხედვით დაერქმევა."
-        >
-          <Input
-            id="titleKa"
-            name="titleKa"
-            maxLength={160}
-            placeholder="მაგ: დინამო vs საბურთალო, ჯამური 2.5+"
-            error={Boolean(errorFor('titleKa'))}
-          />
-        </Field>
       </div>
 
       {/*
