@@ -2,6 +2,11 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { canonicalRedirect } from '@/lib/canonical-host';
 import { earlyGate } from '@/lib/proxy-gates';
 import { SESSION_COOKIE } from '@/lib/auth/session-cookie';
+import {
+  REFERRAL_COOKIE,
+  REFERRAL_MAX_AGE_SECONDS,
+  parseReferralCode,
+} from '@/lib/referral-cookie';
 
 /**
  * Three jobs, in order: send the `www.` twin of the public host to the one
@@ -91,6 +96,18 @@ export function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
+
+  // An analyst's referral link. Remembered here, judged at sign-up.
+  const referral = parseReferralCode(request.nextUrl.searchParams.get('ref'));
+  if (referral) {
+    response.cookies.set(REFERRAL_COOKIE, referral, {
+      maxAge: REFERRAL_MAX_AGE_SECONDS,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: !isDev,
+      path: '/',
+    });
+  }
 
   return response;
 }

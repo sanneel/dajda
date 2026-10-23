@@ -50,6 +50,7 @@ import {
   registerSchema,
   resetPasswordSchema,
 } from '@/lib/validation/schemas';
+import { approvedReferrer, referrerFromCookie } from '@/lib/referral';
 
 /**
  * Authentication actions.
@@ -146,7 +147,12 @@ export async function registerAction(
     }
 
     const token = sealSignup(
-      { name: input.name, email: input.email, passwordDigest },
+      {
+        name: input.name,
+        email: input.email,
+        passwordDigest,
+        referrerId: await referrerFromCookie(),
+      },
       env.AUTH_SECRET,
     );
     if (mailAllowed) await sendSignupConfirmEmail(input.email, token);
@@ -185,6 +191,9 @@ export async function completeSignupAction(
     const pending = openSignup(String(formData.get('token') ?? ''), getEnv().AUTH_SECRET);
     if (!pending) return expired;
 
+    const referredById =
+      (await approvedReferrer(pending.referrerId)) ?? (await referrerFromCookie());
+
     let user: { id: string; role: 'USER' | 'ANALYST' | 'ADMIN' };
     try {
       user = await prisma.$transaction(async (tx) => {
@@ -193,6 +202,7 @@ export async function completeSignupAction(
             name: pending.name,
             email: pending.email,
             password: pending.passwordDigest,
+            referredById,
             emailVerifiedAt: new Date(),
             ageConfirmedAt: new Date(),
             notificationPrefs: { create: {} },

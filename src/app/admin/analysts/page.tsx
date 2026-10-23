@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth/authorization';
 import { PlanPriceForm } from './plan-price-form';
-import { formatDateKa } from '@/lib/format';
+import { formatDateKa, formatMoney } from '@/lib/format';
 import { ANALYST_STATUS_KA, BILLING_PERIOD_KA } from '@/lib/labels';
 import { decideAnalystAction } from '@/actions/admin';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { Badge, DemoBadge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/feedback';
 import { Avatar } from '@/components/ui/avatar';
 import { ActionButton } from '@/components/admin/action-button';
+import { referralStats } from '@/lib/referral';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,7 @@ export default async function AdminAnalystsPage() {
 
   const pending = profiles.filter((profile) => profile.status === 'PENDING');
   const rest = profiles.filter((profile) => profile.status !== 'PENDING');
+  const referrals = await referralStats(rest.map((profile) => profile.id));
 
   return (
     <div>
@@ -200,7 +202,7 @@ export default async function AdminAnalystsPage() {
               <EmptyState title="პროფილები ჯერ არ არის" />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[42rem] text-sm">
+                <table className="w-full min-w-[50rem] text-sm">
                   <caption className="sr-only">ანალიტიკოსების პროფილები</caption>
                   <thead>
                     <tr className="border-b border-line text-left">
@@ -212,6 +214,9 @@ export default async function AdminAnalystsPage() {
                       </th>
                       <th scope="col" className="pb-2 text-right font-medium text-ink-muted">
                         ფსონი
+                      </th>
+                      <th scope="col" className="pb-2 text-right font-medium text-ink-muted">
+                        მოწვეული
                       </th>
                       <th scope="col" className="pb-2 text-right font-medium text-ink-muted">
                         მოქმედება
@@ -277,6 +282,24 @@ export default async function AdminAnalystsPage() {
                         </td>
                         <td className="tabular py-3 text-right text-ink-muted">
                           {profile._count.predictions}
+                        </td>
+                        <td className="tabular py-3 text-right">
+                          {(() => {
+                            const referral = referrals.get(profile.id);
+                            if (!referral || referral.signups === 0) {
+                              return <span className="text-ink-faint">·</span>;
+                            }
+                            return (
+                              <>
+                                <div className="text-ink">
+                                  {referral.signups} რეგ. · {referral.payers} გადაიხადა
+                                </div>
+                                <div className="text-xs text-ink-muted">
+                                  {formatMoney(referral.revenueMinor, 'GEL')}
+                                </div>
+                              </>
+                            );
+                          })()}
                         </td>
                         <td className="py-3 text-right">
                           {profile.status === 'APPROVED' ? (

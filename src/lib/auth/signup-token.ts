@@ -25,6 +25,11 @@ export type PendingSignup = {
   email: string;
   /** scrypt digest of the chosen password, from hashPassword. */
   passwordDigest: string;
+  /**
+   * The referring analyst, read from the browser that filled the form. It
+   * travels in the link because the link is often opened somewhere else.
+   */
+  referrerId?: string | null;
 };
 
 const IV_BYTES = 12;
@@ -77,7 +82,12 @@ export function openSignup(
 
     if (typeof data.exp !== 'number' || data.exp <= now.getTime()) return null;
     if (!data.name || !data.email || !data.passwordDigest) return null;
-    return { name: data.name, email: data.email, passwordDigest: data.passwordDigest };
+    return {
+      name: data.name,
+      email: data.email,
+      passwordDigest: data.passwordDigest,
+      referrerId: typeof data.referrerId === 'string' ? data.referrerId : null,
+    };
   } catch {
     return null;
   }

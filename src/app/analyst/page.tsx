@@ -33,6 +33,9 @@ import { FinishBetForm } from './finish-form';
 import { CreateActions } from './create-actions';
 import { OnboardingNotice } from './onboarding-notice';
 import { WorkspaceTabs } from './workspace-tabs';
+import { ReferralLink } from './referral-link';
+import { referralStats } from '@/lib/referral';
+import { getEnv } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,7 +61,7 @@ export const metadata: Metadata = {
 export default async function AnalystPage() {
   const analyst = await requireApprovedAnalyst();
 
-  const [profile, sports, bets, feed, audience, allowance, plan] =
+  const [profile, sports, bets, feed, audience, allowance, plan, referrals] =
     await Promise.all([
       prisma.analystProfile.findUniqueOrThrow({
         where: { id: analyst.analystProfileId },
@@ -108,7 +111,14 @@ export default async function AnalystPage() {
         where: { analystProfileId: analyst.analystProfileId, tier: 'PREMIUM' },
         select: { priceMinor: true, isActive: true },
       }),
+      referralStats([analyst.analystProfileId]),
     ]);
+
+  const referral = referrals.get(analyst.analystProfileId) ?? {
+    signups: 0,
+    payers: 0,
+    revenueMinor: 0,
+  };
 
   const live = bets.filter(
     (bet) =>
@@ -311,6 +321,41 @@ export default async function AnalystPage() {
           </div>
         </Alert>
       ) : null}
+
+      {/* ----------------------------------------------------------------- */}
+      {/* The analyst's own link, and who came through it                    */}
+      {/* ----------------------------------------------------------------- */}
+      <Card as="section" aria-labelledby="referral-heading">
+        <CardBody>
+          <h2 id="referral-heading" className="font-display text-lg text-ink">
+            მოწვევის ბმული
+          </h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            გააზიარეთ ტელეგრამში ან სოციალურ ქსელში. ვინც ამ ბმულით შემოვა და 30
+            დღეში დარეგისტრირდება, თქვენს მოწვეულად ჩაითვლება.
+          </p>
+          <div className="mt-4">
+            <ReferralLink url={`${getEnv().APP_URL}/analysts/${profile.slug}?ref=${profile.slug}`} />
+          </div>
+          <dl className="mt-5 grid grid-cols-3 gap-4 border-t border-line pt-5">
+            <Metric
+              label="დარეგისტრირდა"
+              value={String(referral.signups)}
+              hint="ამ ბმულით"
+            />
+            <Metric
+              label="გადაიხადა"
+              value={String(referral.payers)}
+              hint="ერთხელ მაინც"
+            />
+            <Metric
+              label="შემოსავალი"
+              value={formatMoney(referral.revenueMinor, 'GEL')}
+              hint="ყველა ავტორთან"
+            />
+          </dl>
+        </CardBody>
+      </Card>
 
       {/* ----------------------------------------------------------------- */}
       {/* Everything the analyst has posted, one panel at a time             */}

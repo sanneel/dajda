@@ -29,6 +29,7 @@ import {
   type ActionResult,
 } from '@/lib/errors';
 import { RATE_LIMITS, rateLimiter } from '@/lib/rate-limit-store';
+import { referrerFromCookie } from '@/lib/referral';
 
 /**
  * Telegram sign-in.
@@ -160,6 +161,7 @@ export async function telegramAuthAction(
        * email, which the placeholder address deliberately is not.
        */
       const password = await hashPassword(generateToken());
+      const referredById = await referrerFromCookie();
 
       const user = await prisma.$transaction(async (tx) => {
         const created = await tx.user.create({
@@ -170,6 +172,7 @@ export async function telegramAuthAction(
             telegramId: telegram.id,
             telegramUsername: telegram.username,
             ageConfirmedAt: new Date(),
+            referredById,
           },
           select: { id: true, role: true },
         });

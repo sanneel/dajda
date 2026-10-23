@@ -15,6 +15,7 @@ import {
   toActionFailure,
   type ActionResult,
 } from '@/lib/errors';
+import { referrerFromCookie } from '@/lib/referral';
 
 /**
  * Final step of a NEW Google sign-up: the two certifications arrive, the
@@ -77,6 +78,7 @@ export async function completeGoogleSignupAction(
     // stays impossible until the person sets one via the reset flow - which
     // WORKS here, because the Google email is real and receives mail.
     const password = await hashPassword(generateToken());
+    const referredById = await referrerFromCookie();
 
     const user = await prisma.$transaction(async (tx) => {
       const row = await tx.user.create({
@@ -85,6 +87,7 @@ export async function completeGoogleSignupAction(
           email: profile.email,
           password,
           googleId: profile.sub,
+          referredById,
           // Google vouched for the mailbox: verified from the first second.
           emailVerifiedAt: new Date(),
           ageConfirmedAt: new Date(),

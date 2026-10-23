@@ -15,7 +15,17 @@ describe('pending sign-up token', () => {
   };
 
   it('round-trips the sign-up', () => {
-    expect(openSignup(sealSignup(pending, secret), secret)).toEqual(pending);
+    expect(openSignup(sealSignup(pending, secret), secret)).toEqual({
+      ...pending,
+      referrerId: null,
+    });
+  });
+
+  it('carries the referring analyst', () => {
+    const referrerId = '0b6f2c1e-6a4d-4f43-9c1a-2f7f0a9d1e55';
+    expect(
+      openSignup(sealSignup({ ...pending, referrerId }, secret), secret),
+    ).toEqual({ ...pending, referrerId });
   });
 
   it('does not reveal the details in the link', () => {
@@ -39,7 +49,7 @@ describe('pending sign-up token', () => {
   it('expires after a day', () => {
     const issued = new Date('2026-09-24T10:00:00Z');
     const token = sealSignup(pending, secret, issued);
-    expect(openSignup(token, secret, new Date('2026-09-25T09:59:00Z'))).toEqual(pending);
+    expect(openSignup(token, secret, new Date('2026-09-25T09:59:00Z'))).toMatchObject(pending);
     expect(openSignup(token, secret, new Date('2026-09-25T10:00:01Z'))).toBeNull();
   });
 

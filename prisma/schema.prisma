@@ -279,6 +279,11 @@ model User {
   /// Clearing it is therefore a complete opt-out, whatever the preference says.
   telegramChatId   String?   @unique
   telegramLinkedAt DateTime?
+
+  /// The analyst whose ?ref= link this person arrived through before signing
+  /// up. Set once, at account creation, and never for an existing account.
+  referredById String?         @db.Uuid
+  referredBy   AnalystProfile? @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
   /// Google's stable subject id, set when the account signs in with Google.
   /// The lookup key for that flow: a Google email can change, `sub` cannot.
   googleId         String?   @unique
@@ -324,6 +329,7 @@ model User {
   @@index([role])
   @@index([status])
   @@index([createdAt])
+  @@index([referredById])
   ticketPurchases PredictionPurchase[]
 }
 
@@ -450,6 +456,7 @@ model AnalystProfile {
   savedBy       SavedAnalyst[]
   reports       Report[]
   broadcasts    AnalystBroadcast[]
+  referrals     User[]             @relation("Referrals")
 
   @@index([status])
   @@index([createdAt])
