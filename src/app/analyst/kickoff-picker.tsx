@@ -1,16 +1,15 @@
 'use client';
 
-import { useId, useMemo, useRef } from 'react';
+import { useId } from 'react';
 import { Select } from '@/components/ui/field';
 
 /**
  * When a match starts, without a datetime widget.
  *
  * The native datetime-local control asks for month, day, year, hour, minute
- * and AM/PM in a locale the author does not read, one segment at a time. A
- * kickoff is almost always today, tomorrow or the day after, in the evening,
- * so that is the shape of the control: three day chips (and a date field for
- * the rare later fixture), then an hour and a minute picked from lists.
+ * and AM/PM in a locale the author does not read, one segment at a time. So
+ * the day comes from a calendar that opens on click, and the hour and minute
+ * are picked from lists.
  *
  * The value it hands back is the wall-clock string the schema already reads
  * ("YYYY-MM-DDTHH:mm", Tbilisi time), or an empty string until a day is
@@ -48,100 +47,30 @@ export function KickoffPicker({
 }: {
   value: Kickoff;
   onChange: (next: Kickoff) => void;
-  /** Marks the chips red when the form was submitted without a day. */
+  /** Marks the date red when the form was submitted without a day. */
   invalid?: boolean;
   /** The earliest day that makes sense (the first match, for the last one). */
   minDay?: string;
 }) {
   const id = useId();
-  const calendarRef = useRef<HTMLInputElement>(null);
-  /*
-   * Computed once per mount, not per render: the chip that says "today"
-   * should not change identity under the author's finger at midnight.
-   */
-  const days = useMemo(
-    () => [
-      { label: 'დღეს', day: localDay(0) },
-      { label: 'ხვალ', day: localDay(1) },
-      { label: 'ზეგ', day: localDay(2) },
-    ],
-    [],
-  );
-  const chipDay = days.find((entry) => entry.day === value.day);
-  const otherDay = value.day !== '' && !chipDay;
-
-  const chip = (selected: boolean) =>
-    `inline-flex min-h-11 items-center rounded-full border px-4 text-sm transition-colors ${
-      selected
-        ? 'border-accent bg-accent/10 text-accent'
-        : invalid
-          ? 'border-loss/60 text-ink-muted hover:border-loss'
-          : 'border-line text-ink-muted hover:border-ink-faint hover:text-ink'
-    }`;
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {days.map((entry) => (
-          <button
-            key={entry.day}
-            type="button"
-            aria-pressed={value.day === entry.day}
-            onClick={() => onChange({ ...value, day: entry.day })}
-            className={chip(value.day === entry.day)}
-          >
-            {entry.label}
-          </button>
-        ))}
-        {/*
-         * The date field is a chip until it is needed, then a control. A
-         * date input visible from the start read as "the real field" and
-         * made the chips look like decoration. Pressing the chip opens the
-         * calendar straight away.
-         */}
-        {otherDay ? (
-          <input
-            type="date"
-            aria-label="თარიღი"
-            value={value.day}
-            min={minDay ?? localDay(0)}
-            onChange={(event) => onChange({ ...value, day: event.target.value })}
-            className="min-h-11 rounded-full border border-accent bg-surface px-4 text-sm text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-          />
-        ) : (
-          <span className="relative inline-flex">
-            <button
-              type="button"
-              onClick={() => {
-                const calendar = calendarRef.current;
-                if (calendar && 'showPicker' in calendar) {
-                  try {
-                    calendar.showPicker();
-                    return;
-                  } catch {}
-                }
-                onChange({ ...value, day: localDay(3) });
-              }}
-              className={chip(false)}
-            >
-              სხვა დღე…
-            </button>
-            <input
-              ref={calendarRef}
-              type="date"
-              tabIndex={-1}
-              aria-hidden="true"
-              min={minDay ?? localDay(0)}
-              onChange={(event) => {
-                if (event.target.value) {
-                  onChange({ ...value, day: event.target.value });
-                }
-              }}
-              className="pointer-events-none absolute inset-0 opacity-0"
-            />
-          </span>
-        )}
-      </div>
+      <input
+        type="date"
+        aria-label="თარიღი"
+        value={value.day}
+        min={minDay ?? localDay(0)}
+        onClick={(event) => {
+          try {
+            event.currentTarget.showPicker();
+          } catch {}
+        }}
+        onChange={(event) => onChange({ ...value, day: event.target.value })}
+        className={`min-h-11 w-full max-w-xs rounded-control border bg-surface px-4 text-sm text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+          invalid ? 'border-loss/60' : 'border-line hover:border-ink-faint'
+        }`}
+      />
 
       <div className="flex items-center gap-2">
         <label htmlFor={`${id}-hour`} className="sr-only">
